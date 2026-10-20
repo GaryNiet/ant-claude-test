@@ -23,6 +23,8 @@ var ants_born := 0
 var ants_killed := 0         ## by enemies
 var ants_died_of_old_age := 0
 var enemies_killed := 0
+var enemies_escaped := 0
+var food_eaten_by_enemies := 0
 var food_stored := 0  ## food in the nest, waiting to be turned into new ants
 var _delivery_times: Array[float] = []  ## when each recent food arrived, for food per second
 var _food_rate_window: float = GameSettings.get_setting("display", "food_rate_window")
@@ -141,10 +143,11 @@ func _handle_enemy_contacts() -> void:
 				if not grid.is_obstacle(pushed_out):
 					ant.position = pushed_out
 			enemy.ants_in_contact.append(ant)
-			ant.touch_enemy(enemy)
+			ant.touch_enemy(self, enemy)
 
 
-## Dead ants disappear (with any food they carried); dead enemies become food.
+## Dead ants disappear (with any food they carried); dead enemies become food;
+## enemies that reached the edge on their way out are gone (with the food they ate).
 func _remove_the_dead() -> void:
 	for index in range(ants.size() - 1, -1, -1):
 		if ants[index].is_dead():
@@ -159,9 +162,12 @@ func _remove_the_dead() -> void:
 			_turn_into_food(enemy)
 			enemies.remove_at(index)
 			enemies_killed += 1
+		elif enemy.has_left_the_map:
+			enemies.remove_at(index)
+			enemies_escaped += 1
 
 
-## Spreads food_when_killed units over the cells under the dead enemy.
+## Spreads the enemy's food value plus what it ate over the cells under its body.
 func _turn_into_food(enemy: Enemy) -> void:
 	var cells := grid.cells_in_circle(enemy.position, enemy_settings.food_pile_radius)
 	var free_cells := PackedInt32Array()
@@ -170,7 +176,8 @@ func _turn_into_food(enemy: Enemy) -> void:
 			free_cells.append(index)
 	if free_cells.is_empty():
 		return
-	var food_per_cell := ceili(float(enemy_settings.food_when_killed) / free_cells.size())
+	var total_food := enemy_settings.food_when_killed + enemy.food_eaten
+	var food_per_cell := ceili(float(total_food) / free_cells.size())
 	for index in free_cells:
 		grid.set_food(index, grid.food[index] + food_per_cell)
 

@@ -10,6 +10,8 @@ extends RefCounted
 ##                  follows the "going home" trail (left by food carriers) towards
 ##                  stronger smell, which leads back to the food. Gives up and goes
 ##                  home if it doesn't reach food in time (e.g. the pile ran out).
+##   CUTTING_FOOD   Standing on food, cutting a piece off. Takes cut_time seconds,
+##                  then the ant carries the piece home (1 unit of food).
 ##   CARRYING_FOOD  Walks home by following "going out" trails backwards (towards
 ##                  stronger smell, which is near the nest), with a growing push
 ##                  towards the nest if it's struggling. Lays a "going home" trail.
@@ -30,7 +32,8 @@ extends RefCounted
 ##   Scout      Focused on exploring: ignores food trails and keeps looking for new places.
 ##              It only collects food it finds itself (which starts a new trail for the
 ##              collectors), then goes back to exploring.
-##   Will to fight (0..1, random for every ant):
+##   Will to fight (0..1, random for every ant), plus a bonus when the fight is close
+##   to the nest (the colony defends its home harder):
 ##     high   (>= join_fight_will)    goes looking for fights when it smells or sees one
 ##     medium (>= contact_fight_will) fights an enemy it bumps into
 ##     low                            only fights back when an enemy hits it
@@ -38,7 +41,7 @@ extends RefCounted
 ## Why trails can be followed "backwards": an ant lays less pheromone the longer it
 ## has been walking, so every trail is strongest near where it started.
 
-enum Mode { EXPLORING, GATHERING, CARRYING_FOOD, RETURNING_HOME, JOINING_FIGHT, FIGHTING }
+enum Mode { EXPLORING, GATHERING, CUTTING_FOOD, CARRYING_FOOD, RETURNING_HOME, JOINING_FIGHT, FIGHTING }
 
 var position: Vector2
 var heading: float              ## direction of travel in radians (0 = right, PI/2 = down)
@@ -98,11 +101,18 @@ func take_damage(amount: float, attacker: Enemy) -> void:
 
 
 ## Called by the simulation every tick this ant touches `enemy`.
-func touch_enemy(enemy: Enemy) -> void:
+func touch_enemy(sim: ColonySimulation, enemy: Enemy) -> void:
 	if mode == Mode.FIGHTING:
 		return
-	if mode == Mode.JOINING_FIGHT or fight_will >= _settings.contact_fight_will:
+	if mode == Mode.JOINING_FIGHT or _will_to_fight_at(sim, enemy.position) >= _settings.contact_fight_will:
 		_start_fight(enemy)
+
+
+## The ant's will to fight for a fight at `spot`: its own will, plus a bonus that grows
+## from 0 (at nest_defense_radius or further from the nest) to nest_defense_bonus (at the nest).
+func _will_to_fight_at(sim: ColonySimulation, spot: Vector2) -> float:
+	var closeness := 1.0 - clampf(spot.distance_to(sim.nest_position) / _settings.nest_defense_radius, 0.0, 1.0)
+	return fight_will + _settings.nest_defense_bonus * closeness
 
 
 ## Advances the ant by one tick of `delta` seconds.
@@ -117,6 +127,9 @@ func update(sim: ColonySimulation, delta: float) -> void:
 	if mode == Mode.FIGHTING:
 		_fight(sim, delta)
 		return  # fighting ants stand still
+	if mode == Mode.CUTTING_FOOD:
+		_cut_food(sim)
+		return  # cutting ants stand still
 	if (mode == Mode.EXPLORING or mode == Mode.GATHERING) and _wants_to_join_fight(sim):
 		_set_mode(Mode.JOINING_FIGHT)
 
@@ -155,9 +168,8 @@ func _explore(sim: ColonySimulation) -> float:
 
 
 func _gather(sim: ColonySimulation) -> float:
-	if sim.grid.take_food(position):  # standing on a cell with food: pick 1 up
-		_set_mode(Mode.CARRYING_FOOD)
-		heading += PI  # turn around and head home
+	if _food_within_reach(sim) != MapGrid.NO_FOOD:
+		_set_mode(Mode.CUTTING_FOOD)  # reached food: start cutting a piece off
 		return 0.0
 	var food := sim.grid.find_food_near(position, _settings.food_sight_radius)
 	if food != MapGrid.NO_FOOD:
@@ -207,6 +219,24 @@ func _start_detour(sim: ColonySimulation) -> void:
 		heading = sim.rng.randf() * TAU
 
 
+## Waits until the piece is cut, then takes it home. If the food is gone meanwhile
+## (other ants or an enemy took it), goes back to gathering.
+func _cut_food(sim: ColonySimulation) -> void:
+	if time_in_mode < _settings.cut_time:
+		return
+	var food := _food_within_reach(sim)
+	if food != MapGrid.NO_FOOD and sim.grid.take_food(food):
+		_set_mode(Mode.CARRYING_FOOD)
+		heading += PI  # turn around and head home
+	else:
+		_set_mode(Mode.GATHERING)
+
+
+## Closest food the ant can touch (its own cell or right next to it), or NO_FOOD.
+func _food_within_reach(sim: ColonySimulation) -> Vector2:
+	return sim.grid.find_food_near(position, _settings.food_reach)
+
+
 func _join_fight(sim: ColonySimulation) -> float:
 	var enemy := sim.nearest_enemy(position, _settings.enemy_sight_radius)
 	if enemy != null:
@@ -244,11 +274,13 @@ func _end_fight() -> void:
 
 
 ## Eager fighters drop what they're doing when they see an enemy or smell a fight.
+## (A fight that is only smelled is assumed to be about where the ant is.)
 func _wants_to_join_fight(sim: ColonySimulation) -> bool:
-	if fight_will < _settings.join_fight_will:
-		return false
-	return (sim.nearest_enemy(position, _settings.enemy_sight_radius) != null
-		or _can_smell(sim, MapGrid.Kind.FIGHT))
+	var enemy := sim.nearest_enemy(position, _settings.enemy_sight_radius)
+	if enemy != null:
+		return _will_to_fight_at(sim, enemy.position) >= _settings.join_fight_will
+	return (_will_to_fight_at(sim, position) >= _settings.join_fight_will
+		and _can_smell(sim, MapGrid.Kind.FIGHT))
 
 
 func _set_mode(new_mode: Mode) -> void:
