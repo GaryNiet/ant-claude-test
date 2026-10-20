@@ -4,6 +4,18 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #8 — 2026-10-20
+
+**Request:**
+> how do you run a game in godot?
+
+**Done:**
+- Question only, answered in chat (install Godot 4.3+ standard, Import `project.godot`, press F5). No code change.
+
+**Commits:** _(filled in below once committed)_
+
+---
+
 ## #7 — 2026-10-20
 
 **Request:**
