@@ -41,7 +41,7 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 **Commits:**
 - `49134dc` — Add enemies, ant combat, fight pheromone, births from food and ant lifespan
-- _(second commit filled in below once committed)_
+- `1bb72f0` — Update README and screenshot for enemies and combat
 
 ---
 
