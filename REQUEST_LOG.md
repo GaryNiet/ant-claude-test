@@ -4,6 +4,35 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #10 — 2026-10-20
+
+**Request:**
+> stop spawning food randomly. Just start with a single blob of food half screen away, drawinf in the rest will be enough
+
+**Done:**
+- Removed random food spawning. The game starts with one round blob of food (~140 units,
+  24 px radius) 320 px from the nest (halfway to the left/right screen edge), in a random
+  direction. Distance, direction, size and food per cell are in `[food]`.
+- Tested: blob found and ~40 food delivered in the first minute.
+
+**Commits:** _(filled in below once committed)_
+
+---
+
+## #9 — 2026-10-20
+
+**Request:**
+> what if I installed de .net version?
+
+**Done:**
+- Question only, answered in chat: the .NET version also runs GDScript projects like this one;
+  the .NET SDK is only needed for C# scripts. (A live test was started, then stopped by the
+  user before running.) No code change.
+
+**Commits:** none (logged together with request #10)
+
+---
+
 ## #8 — 2026-10-20
 
 **Request:**
