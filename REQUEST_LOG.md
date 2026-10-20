@@ -19,7 +19,7 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 **Commits:**
 - `81bb046` — Ants going home take a detour when the push keeps them stuck
-- _(second commit filled in below once committed)_
+- `6c29a8b` — Default detour: trails only with shorter timings, after testing
 
 ---
 
