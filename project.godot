@@ -1,0 +1,14 @@
+; Godot project file. You normally don't need to edit this.
+; All gameplay / tuning values live in game_settings.cfg instead.
+
+config_version=5
+
+[application]
+
+config/name="Prototype"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.3")
+
+[autoload]
+
+GameSettings="*res://scripts/game_settings.gd"
