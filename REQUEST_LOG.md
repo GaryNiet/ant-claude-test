@@ -4,6 +4,22 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #5 — 2026-10-20
+
+**Request:**
+> What are the issues with running it on the graphics card?
+
+**Done:**
+- Question only, answered in chat; no code change. Summary: GPU code is harder to read, debug and
+  change; many ants writing the same pheromone cell or taking the same food at once need special
+  handling; reading results back to the CPU is slow; runs stop being repeatable; Godot only runs
+  compute shaders on Vulkan/D3D12/Metal, not the OpenGL "Compatibility" renderer (no web
+  export, older or weaker GPUs). Recommendation: C++ first, GPU only if 100,000+ ants becomes a goal.
+
+**Commits:** _(filled in below once committed)_
+
+---
+
 ## #4 — 2026-10-20
 
 **Request:**
