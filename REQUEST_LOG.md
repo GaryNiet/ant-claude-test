@@ -18,7 +18,8 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
   trails slightly wider; the real limit is the ant brain (~13 µs per ant per tick in GDScript):
   ~1,000 ants smooth without collisions, ~700 with.
 
-**Commits:** _(filled in below once committed)_
+**Commits:**
+- `0a4df88` — Add ant collision study (performance, behaviour, limits)
 
 ---
 
