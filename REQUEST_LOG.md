@@ -4,6 +4,47 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #12 — 2026-10-20
+
+**Request:**
+> now spawn some enemies from the edges of the grid. They are 5 times as big as ants and turn into food once dead.
+> When ants get in contact with an enemy, they fight, while they fight they put out fight pheromones in a zone around them.
+> randomize ants with the a will to fight. Some might find it more important than gathering food, while other will not fight unless directly attacked.
+> Give ants hp and attack values.
+>
+> ants attack once per second when in contact
+>
+> enemies also have hp an attack values, both higher than ants. they also attack once per second.
+>
+> ants use food to generate new ants
+>
+> find an equilibrium between enemies coming in, ants lost to enemies and and ants being born from the food provided by enemies
+>
+> food per food dot can be higher
+
+**Done:**
+- Enemies (`enemy.gd`): arrive from a random map edge every 25 s (max 4 alive), radius 10 px
+  (5x an ant), walk towards the nest, stop and fight while ants touch them. 60 HP, 4 damage
+  per second to one touching ant. When killed they become a pile of 80 food.
+- Ants: 10 HP, 2 damage once per second while in contact. Random will to fight: ~25% go
+  looking for fights (follow fight pheromone / walk to enemies they see), ~40% fight enemies
+  they bump into, ~35% only fight back when hit. Fighting ants lay "fight" pheromone in a
+  40 px zone (fades fast, half-life 4 s). New modes: JOINING_FIGHT, FIGHTING.
+- Food delivered to the nest is stored; every 10 food makes a new ant (max 300 ants).
+- Food per cell raised: 10 per painted cell / start blob cell, killed enemies leave more.
+- Equilibrium: with only enemies and births the colony either snowballs or collapses
+  (a bigger colony kills faster and loses fewer ants), so ants now also die of old age
+  (8-12 min lifespan). Tested 30 min on 3 maps: colony settles at ~130-150 ants
+  (per enemy: ~8 ants born, ~4 killed). New sections `[ant_life]`, `[ant_combat]`, `[enemies]`.
+- Display: enemies with health bars, fighting ants in yellow, fight pheromone glow,
+  stats for births, deaths (enemy / old age), enemies, food stored in the nest.
+
+**Commits:**
+- `49134dc` — Add enemies, ant combat, fight pheromone, births from food and ant lifespan
+- _(second commit filled in below once committed)_
+
+---
+
 ## #11 — 2026-10-20
 
 **Request:**

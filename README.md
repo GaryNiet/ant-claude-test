@@ -21,8 +21,9 @@ All controls can be changed in `game_settings.cfg` under `[controls]`.
 
 ## What you see
 An ant colony simulation. Purple dot = nest, white dots = collector ants, light-blue dots = scout ants, orange dots = ants carrying
-food, green squares = food (brighter = more), grey = obstacles (ants can't cross them). Blue glow = "going out" pheromone,
-red glow = "going home" pheromone (pink where both overlap). Stats are in the top-left corner.
+food, green squares = food (brighter = more), grey = obstacles (ants can't cross them), big red dots = enemies (with a health bar),
+yellow dots = ants fighting. Blue glow = "going out" pheromone,
+red glow = "going home" pheromone (pink where both overlap), yellow glow = fight pheromone. Stats are in the top-left corner.
 
 ![screenshot](docs/screenshot.png)
 
