@@ -27,7 +27,7 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 **Commits:**
 - `6284821` — Ants cut food before carrying it, defend the nest harder; enemies steal food and leave
-- _(second commit filled in below once committed)_
+- `e371631` — Rebalance: new ant costs 8 food; update README and screenshot
 
 ---
 
