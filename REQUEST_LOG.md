@@ -20,4 +20,5 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 - This request log, plus `CLAUDE.md` rules so every future change follows the same conventions.
 - README with instructions to pull and run on your PC.
 
-**Commits:** _(filled in below once committed)_
+**Commits:**
+- `67f89cb` — Set up Godot prototype with central settings file and request log
