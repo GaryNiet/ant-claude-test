@@ -61,7 +61,7 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 **Commits:**
 - `b22cbdb` — Add levels (load/save), zoom and pan, tool bar, side panel with timer, upgrades and inspector; slower game speed
-- _(second commit filled in below once committed)_
+- `ac4db22` — Side panel order, README for levels and new controls, screenshot
 
 ---
 
