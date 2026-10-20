@@ -23,7 +23,8 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 - Tested: 5 minutes with walls painted, no ant ever inside an obstacle; painting checked
   through real mouse input in a screenshot.
 
-**Commits:** _(filled in below once committed)_
+**Commits:**
+- `e2b6ad0` — Add painting of food and obstacles; ants can't cross obstacles
 
 ---
 
