@@ -15,7 +15,8 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
   direction. Distance, direction, size and food per cell are in `[food]`.
 - Tested: blob found and ~40 food delivered in the first minute.
 
-**Commits:** _(filled in below once committed)_
+**Commits:**
+- `9536cdd` — Start with a single food blob instead of random food piles
 
 ---
 
