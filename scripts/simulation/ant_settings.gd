@@ -31,6 +31,22 @@ var stuck_min_progress: float = GameSettings.get_setting("ant_homing", "stuck_mi
 var detour_time: float = GameSettings.get_setting("ant_homing", "detour_time")
 var detour_random_direction: bool = GameSettings.get_setting("ant_homing", "detour_random_direction")
 
+# Life — [ant_life]
+var lifespan_min: float = GameSettings.get_setting("ant_life", "lifespan_min")
+var lifespan_max: float = GameSettings.get_setting("ant_life", "lifespan_max")
+var starting_colony_max_age: float = GameSettings.get_setting("ant_life", "starting_colony_max_age")
+
+# Combat — [ant_combat]
+var hp: float = GameSettings.get_setting("ant_combat", "hp")
+var attack: float = GameSettings.get_setting("ant_combat", "attack")
+var attack_interval: float = GameSettings.get_setting("ant_combat", "attack_interval")
+var join_fight_will: float = GameSettings.get_setting("ant_combat", "join_fight_will")
+var contact_fight_will: float = GameSettings.get_setting("ant_combat", "contact_fight_will")
+var enemy_sight_radius: float = GameSettings.get_setting("ant_combat", "enemy_sight_radius")
+var join_fight_give_up_time: float = GameSettings.get_setting("ant_combat", "join_fight_give_up_time")
+var fight_zone_radius: float = GameSettings.get_setting("ant_combat", "fight_zone_radius")
+var fight_deposit: float = GameSettings.get_setting("ant_combat", "fight_deposit")
+
 # Trails — [pheromones]
 var going_out_deposit: float = GameSettings.get_setting("pheromones", "going_out_deposit")
 var going_home_deposit: float = GameSettings.get_setting("pheromones", "going_home_deposit")

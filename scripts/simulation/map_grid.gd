@@ -4,6 +4,7 @@ extends RefCounted
 ##
 ## - "going out" pheromone  : laid by ants walking away from the nest (exploring / gathering)
 ## - "going home" pheromone : laid by ants carrying food back to the nest
+## - "fight" pheromone      : laid in a zone around ants that are fighting an enemy
 ## - food                   : units of food in the cell (an ant carries 1 unit)
 ## - obstacle               : ants can't walk through obstacle cells
 ##
@@ -11,7 +12,7 @@ extends RefCounted
 ## so busy paths stay strong while abandoned ones disappear.
 ## Everything outside the map counts as an obstacle.
 
-enum Kind { GOING_OUT, GOING_HOME }
+enum Kind { GOING_OUT, GOING_HOME, FIGHT }
 
 const NO_FOOD := Vector2.INF  ## returned by find_food_near() when there is none
 
@@ -22,6 +23,7 @@ var max_strength: float
 
 var going_out := PackedFloat32Array()
 var going_home := PackedFloat32Array()
+var fight := PackedFloat32Array()
 var food := PackedInt32Array()
 var obstacle := PackedByteArray()  ## 1 = obstacle, 0 = free
 
@@ -35,7 +37,8 @@ var _region_cells: int
 var _region_columns: int
 var _food_in_region := PackedInt32Array()
 
-var _decay_per_second_log: float  ## precomputed for the decay formula
+var _decay_per_second_log: float        ## precomputed for the decay formula
+var _fight_decay_per_second_log: float  ## the fight pheromone fades faster
 
 
 func _init() -> void:
@@ -46,8 +49,11 @@ func _init() -> void:
 	max_strength = GameSettings.get_setting("pheromones", "max_strength")
 	var half_life: float = GameSettings.get_setting("pheromones", "half_life")
 	_decay_per_second_log = log(0.5) / half_life
+	var fight_half_life: float = GameSettings.get_setting("ant_combat", "fight_pheromone_half_life")
+	_fight_decay_per_second_log = log(0.5) / fight_half_life
 	going_out.resize(width * height)
 	going_home.resize(width * height)
+	fight.resize(width * height)
 	food.resize(width * height)
 	obstacle.resize(width * height)
 	_region_columns = ceili(float(width) / _region_cells)
@@ -91,8 +97,17 @@ func deposit(kind: Kind, world_position: Vector2, amount: float) -> void:
 		return
 	if kind == Kind.GOING_OUT:
 		going_out[index] = minf(going_out[index] + amount, max_strength)
-	else:
+	elif kind == Kind.GOING_HOME:
 		going_home[index] = minf(going_home[index] + amount, max_strength)
+	else:
+		fight[index] = minf(fight[index] + amount, max_strength)
+
+
+## Adds `amount` of pheromone `kind` to every cell within `radius` pixels of `center`.
+func deposit_zone(kind: Kind, center: Vector2, radius: float, amount: float) -> void:
+	for index in cells_in_circle(center, radius):
+		var cell_middle := (Vector2(index % width, index / width) + Vector2(0.5, 0.5)) * cell_size
+		deposit(kind, cell_middle, amount)
 
 
 ## Returns the strength of pheromone `kind` at `world_position` (0 outside the map).
@@ -102,7 +117,9 @@ func sample(kind: Kind, world_position: Vector2) -> float:
 		return 0.0
 	if kind == Kind.GOING_OUT:
 		return going_out[index]
-	return going_home[index]
+	if kind == Kind.GOING_HOME:
+		return going_home[index]
+	return fight[index]
 
 
 ## Average strength of pheromone `kind` over a square of cells centered on `world_position`.
@@ -122,9 +139,11 @@ func sample_area(kind: Kind, world_position: Vector2, radius_in_cells: int) -> f
 ## Makes every pheromone fade by the amount matching `delta` seconds.
 func decay(delta: float) -> void:
 	var factor := exp(_decay_per_second_log * delta)
+	var fight_factor := exp(_fight_decay_per_second_log * delta)
 	for index in going_out.size():
 		going_out[index] *= factor
 		going_home[index] *= factor
+		fight[index] *= fight_factor
 
 
 # --- Obstacles --------------------------------------------------------------
@@ -141,6 +160,7 @@ func set_obstacle(index: int, is_blocked: bool) -> void:
 		set_food(index, 0)
 		going_out[index] = 0.0
 		going_home[index] = 0.0
+		fight[index] = 0.0
 	obstacle[index] = 1 if is_blocked else 0
 	terrain_version += 1
 

@@ -3,7 +3,7 @@ extends RefCounted
 ## One ant. Every tick it senses its surroundings, decides which way to turn,
 ## walks forward and (depending on its mode) lays pheromone behind it.
 ##
-## The four modes:
+## The modes:
 ##   EXPLORING      Wanders towards places other ants haven't been (where the
 ##                  "going out" smell is weakest). Lays a "going out" trail.
 ##   GATHERING      Knows food exists: walks straight to food it can see, otherwise
@@ -17,6 +17,11 @@ extends RefCounted
 ##                  detour: push off for a while, following trails only.
 ##   RETURNING_HOME Gave up exploring without finding food. Walks home the same way
 ##                  as a food carrier, but lays no trail.
+##   JOINING_FIGHT  Eager fighters only: walks to an enemy it sees, or follows the
+##                  "fight" smell towards stronger smell (where a fight is going on).
+##   FIGHTING       Stands next to an enemy and hits it every attack_interval seconds,
+##                  laying "fight" pheromone in a zone around itself. When the enemy dies
+##                  or moves away, the ant goes back to what it was doing.
 ##
 ## Personality (picked at random when the ant is born):
 ##   Collector  Focused on collecting: as soon as it smells a food trail it follows it,
@@ -25,11 +30,15 @@ extends RefCounted
 ##   Scout      Focused on exploring: ignores food trails and keeps looking for new places.
 ##              It only collects food it finds itself (which starts a new trail for the
 ##              collectors), then goes back to exploring.
+##   Will to fight (0..1, random for every ant):
+##     high   (>= join_fight_will)    goes looking for fights when it smells or sees one
+##     medium (>= contact_fight_will) fights an enemy it bumps into
+##     low                            only fights back when an enemy hits it
 ##
 ## Why trails can be followed "backwards": an ant lays less pheromone the longer it
 ## has been walking, so every trail is strongest near where it started.
 
-enum Mode { EXPLORING, GATHERING, CARRYING_FOOD, RETURNING_HOME }
+enum Mode { EXPLORING, GATHERING, CARRYING_FOOD, RETURNING_HOME, JOINING_FIGHT, FIGHTING }
 
 var position: Vector2
 var heading: float              ## direction of travel in radians (0 = right, PI/2 = down)
@@ -38,6 +47,16 @@ var is_scout: bool              ## personality: true = scout, false = collector
 var max_explore_time: float     ## personality: seconds of exploring before giving up
 var time_in_mode := 0.0
 var time_since_trail_start := 0.0  ## seconds since leaving the nest or picking up food
+
+# Life and combat
+var age := 0.0                  ## seconds since birth
+var lifespan: float             ## dies of old age after this many seconds (0 = never)
+var died_of_old_age := false
+var hp: float
+var fight_will: float           ## personality: 0 = never starts a fight, 1 = loves fighting
+var fight_target: Enemy         ## the enemy this ant is fighting (FIGHTING mode only)
+var _mode_before_fight := Mode.EXPLORING
+var _time_until_attack := 0.0
 
 # Going home: push and getting unstuck
 var _push_time := 0.0              ## seconds the push has been growing
@@ -48,10 +67,14 @@ var _detour_time_left := 0.0       ## > 0 while taking a detour (no push)
 var _settings: AntSettings
 
 
-func _init(start: Vector2, settings: AntSettings, rng: RandomNumberGenerator) -> void:
+func _init(start: Vector2, settings: AntSettings, rng: RandomNumberGenerator, starting_age := 0.0) -> void:
 	position = start
 	_settings = settings
 	heading = rng.randf() * TAU
+	age = starting_age
+	lifespan = rng.randf_range(settings.lifespan_min, settings.lifespan_max)
+	hp = settings.hp
+	fight_will = rng.randf()
 	is_scout = rng.randf() < settings.scout_fraction
 	if not is_scout and rng.randf() < settings.homebody_fraction:
 		max_explore_time = rng.randf_range(settings.homebody_min_explore_time, settings.homebody_max_explore_time)
@@ -60,13 +83,42 @@ func _init(start: Vector2, settings: AntSettings, rng: RandomNumberGenerator) ->
 
 
 func is_carrying_food() -> bool:
-	return mode == Mode.CARRYING_FOOD
+	return mode == Mode.CARRYING_FOOD or (mode == Mode.FIGHTING and _mode_before_fight == Mode.CARRYING_FOOD)
+
+
+func is_dead() -> bool:
+	return hp <= 0.0
+
+
+## Called when an enemy hits this ant. An ant that survives always fights back.
+func take_damage(amount: float, attacker: Enemy) -> void:
+	hp -= amount
+	if not is_dead() and mode != Mode.FIGHTING:
+		_start_fight(attacker)
+
+
+## Called by the simulation every tick this ant touches `enemy`.
+func touch_enemy(enemy: Enemy) -> void:
+	if mode == Mode.FIGHTING:
+		return
+	if mode == Mode.JOINING_FIGHT or fight_will >= _settings.contact_fight_will:
+		_start_fight(enemy)
 
 
 ## Advances the ant by one tick of `delta` seconds.
 func update(sim: ColonySimulation, delta: float) -> void:
 	time_in_mode += delta
 	time_since_trail_start += delta
+	age += delta
+	if lifespan > 0.0 and age > lifespan:
+		hp = 0.0
+		died_of_old_age = true
+		return
+	if mode == Mode.FIGHTING:
+		_fight(sim, delta)
+		return  # fighting ants stand still
+	if (mode == Mode.EXPLORING or mode == Mode.GATHERING) and _wants_to_join_fight(sim):
+		_set_mode(Mode.JOINING_FIGHT)
 
 	# Each mode returns how much to turn: -1 = full left, 0 = straight, +1 = full right.
 	var turn := 0.0
@@ -77,6 +129,8 @@ func update(sim: ColonySimulation, delta: float) -> void:
 			turn = _gather(sim)
 		Mode.CARRYING_FOOD, Mode.RETURNING_HOME:
 			turn = _go_home(sim, delta)
+		Mode.JOINING_FIGHT:
+			turn = _join_fight(sim)
 
 	heading += clampf(turn, -1.0, 1.0) * _settings.turn_speed * delta
 	heading += sim.rng.randf_range(-1.0, 1.0) * _settings.wander * delta
@@ -85,7 +139,7 @@ func update(sim: ColonySimulation, delta: float) -> void:
 	_check_arrival_at_nest(sim)
 
 
-# --- The four modes ---------------------------------------------------------
+# --- The modes --------------------------------------------------------------
 
 func _explore(sim: ColonySimulation) -> float:
 	var food := sim.grid.find_food_near(position, _settings.food_sight_radius)
@@ -153,6 +207,50 @@ func _start_detour(sim: ColonySimulation) -> void:
 		heading = sim.rng.randf() * TAU
 
 
+func _join_fight(sim: ColonySimulation) -> float:
+	var enemy := sim.nearest_enemy(position, _settings.enemy_sight_radius)
+	if enemy != null:
+		return _turn_towards(enemy.position)
+	if time_in_mode > _settings.join_fight_give_up_time:
+		_set_mode(Mode.RETURNING_HOME)
+	return _steer_by_smell(sim, 0.0, 0.0, 1.0)
+
+
+func _fight(sim: ColonySimulation, delta: float) -> void:
+	if fight_target.is_dead() or not fight_target.ants_in_contact.has(self):
+		_end_fight()
+		return
+	heading = (fight_target.position - position).angle()
+	sim.grid.deposit_zone(MapGrid.Kind.FIGHT, position, _settings.fight_zone_radius, _settings.fight_deposit * delta)
+	_time_until_attack -= delta
+	if _time_until_attack <= 0.0:
+		_time_until_attack = _settings.attack_interval
+		fight_target.take_damage(_settings.attack)
+
+
+func _start_fight(enemy: Enemy) -> void:
+	# Ants that came looking for a fight go exploring afterwards (and will find the enemy's food).
+	_mode_before_fight = Mode.EXPLORING if mode == Mode.JOINING_FIGHT else mode
+	fight_target = enemy
+	_time_until_attack = _settings.attack_interval
+	mode = Mode.FIGHTING
+	time_in_mode = 0.0
+
+
+func _end_fight() -> void:
+	fight_target = null
+	mode = _mode_before_fight
+	time_in_mode = 0.0
+
+
+## Eager fighters drop what they're doing when they see an enemy or smell a fight.
+func _wants_to_join_fight(sim: ColonySimulation) -> bool:
+	if fight_will < _settings.join_fight_will:
+		return false
+	return (sim.nearest_enemy(position, _settings.enemy_sight_radius) != null
+		or _can_smell(sim, MapGrid.Kind.FIGHT))
+
+
 func _set_mode(new_mode: Mode) -> void:
 	mode = new_mode
 	time_in_mode = 0.0
@@ -185,24 +283,31 @@ func _check_arrival_at_nest(sim: ColonySimulation) -> void:
 # --- Senses and steering ----------------------------------------------------
 
 ## Compares the smell at 3 sensors (left, front, right) and returns which way to turn.
-## Each sensor's score = going_out * going_out_weight + going_home * going_home_weight.
+## Each sensor's score = going_out * going_out_weight + going_home * going_home_weight
+##                       + fight * fight_weight.
 ## The ant turns towards the highest score (a negative weight means "avoid this smell").
 ## A sensor that touches an obstacle gets the worst possible score, so ants steer around them.
-func _steer_by_smell(sim: ColonySimulation, going_out_weight: float, going_home_weight: float) -> float:
-	var left := _sensor_score(sim, -_settings.sensor_angle, going_out_weight, going_home_weight)
-	var front := _sensor_score(sim, 0.0, going_out_weight, going_home_weight)
-	var right := _sensor_score(sim, _settings.sensor_angle, going_out_weight, going_home_weight)
+func _steer_by_smell(sim: ColonySimulation, going_out_weight: float, going_home_weight: float, fight_weight := 0.0) -> float:
+	var left := _sensor_score(sim, -_settings.sensor_angle, going_out_weight, going_home_weight, fight_weight)
+	var front := _sensor_score(sim, 0.0, going_out_weight, going_home_weight, fight_weight)
+	var right := _sensor_score(sim, _settings.sensor_angle, going_out_weight, going_home_weight, fight_weight)
 	if front >= left and front >= right:
 		return 0.0
 	return -1.0 if left > right else 1.0
 
 
-func _sensor_score(sim: ColonySimulation, angle_offset: float, going_out_weight: float, going_home_weight: float) -> float:
+func _sensor_score(sim: ColonySimulation, angle_offset: float, going_out_weight: float, going_home_weight: float, fight_weight: float) -> float:
 	var spot := _sensor_position(angle_offset)
 	if sim.grid.is_obstacle(spot):
 		return -INF
-	return (_smell(sim, MapGrid.Kind.GOING_OUT, spot) * going_out_weight
-		+ _smell(sim, MapGrid.Kind.GOING_HOME, spot) * going_home_weight)
+	var score := 0.0  # smells with weight 0 are skipped, to save time
+	if going_out_weight != 0.0:
+		score += _smell(sim, MapGrid.Kind.GOING_OUT, spot) * going_out_weight
+	if going_home_weight != 0.0:
+		score += _smell(sim, MapGrid.Kind.GOING_HOME, spot) * going_home_weight
+	if fight_weight != 0.0:
+		score += _smell(sim, MapGrid.Kind.FIGHT, spot) * fight_weight
+	return score
 
 
 ## True if any of the 3 sensors smells pheromone `kind` above the detection threshold.

@@ -12,7 +12,7 @@ var _drawn_simulation: ColonySimulation
 
 var _food_color: Color = GameSettings.get_color("colors", "food")
 var _obstacle_color: Color = GameSettings.get_color("colors", "obstacle")
-var _full_food: float = GameSettings.get_setting("painting", "food_per_cell")
+var _full_food: float = GameSettings.get_setting("display", "food_full_opacity")
 var _faintest_food: float = GameSettings.get_setting("display", "food_min_opacity")
 
 
