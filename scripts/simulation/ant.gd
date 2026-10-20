@@ -14,7 +14,7 @@ extends RefCounted
 ##                  stronger smell, which is near the nest), with a growing push
 ##                  towards the nest if it's struggling. Lays a "going home" trail.
 ##                  If the push keeps it stuck (e.g. behind an obstacle), it takes a
-##                  detour: push off for a while, new direction, smell only.
+##                  detour: push off for a while, following trails only.
 ##   RETURNING_HOME Gave up exploring without finding food. Walks home the same way
 ##                  as a food carrier, but lays no trail.
 ##

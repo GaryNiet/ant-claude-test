@@ -4,6 +4,25 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #11 — 2026-10-20
+
+**Request:**
+> ants easily get stuck behind obstacles when trying to get home. It has to be the push not letting them go around an object. After a while of being stuck from the push, ants should revert back to following pheromone trails and or going off in an arbitrary direction, whichever works best
+
+**Done:**
+- Ants going home now track their progress towards the nest. If they don't get 8 px closer
+  for 2.5 s, they take a 3 s detour with no push (trails only), then the push restarts from zero.
+  Optional random direction at the start of a detour (`detour_random_direction`).
+- Tested 5 versions on a U-shaped trap and a long wall (4 maps each, time to clear the food blob):
+  old push-only never finished; random direction 210-287 s; trails only 182-218 s;
+  trails only with shorter timings 196-197 s (chosen default). New settings in `[ant_homing]`.
+
+**Commits:**
+- `81bb046` — Ants going home take a detour when the push keeps them stuck
+- _(second commit filled in below once committed)_
+
+---
+
 ## #10 — 2026-10-20
 
 **Request:**
