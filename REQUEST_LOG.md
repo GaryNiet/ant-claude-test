@@ -21,7 +21,7 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 **Commits:**
 - `aba55be` — Add ant-to-ant collisions using a uniform grid, plus area smell sensors
-- _(second commit filled in below once committed)_
+- `e57f3c0` — Tune collisions: keep 1-cell sensors after testing, update study and screenshot
 
 ---
 
