@@ -19,7 +19,8 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 - Scouts drawn in light blue; stats panel shows scout/collector counts.
 - Test (4 random maps, 5 minutes each): 643 food on average vs 525 without scouts (+22%).
 
-**Commits:** _(filled in below once committed)_
+**Commits:**
+- `4cf143a` — Add scout and collector ant personalities (20% / 80%)
 
 ---
 
