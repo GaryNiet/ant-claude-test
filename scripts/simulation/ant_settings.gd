@@ -26,6 +26,10 @@ var gather_give_up_time: float = GameSettings.get_setting("ant_personality", "ga
 var push_growth: float = GameSettings.get_setting("ant_homing", "push_growth")
 var push_max: float = GameSettings.get_setting("ant_homing", "push_max")
 var nest_sight_radius: float = GameSettings.get_setting("ant_homing", "nest_sight_radius")
+var stuck_time: float = GameSettings.get_setting("ant_homing", "stuck_time")
+var stuck_min_progress: float = GameSettings.get_setting("ant_homing", "stuck_min_progress")
+var detour_time: float = GameSettings.get_setting("ant_homing", "detour_time")
+var detour_random_direction: bool = GameSettings.get_setting("ant_homing", "detour_random_direction")
 
 # Trails — [pheromones]
 var going_out_deposit: float = GameSettings.get_setting("pheromones", "going_out_deposit")

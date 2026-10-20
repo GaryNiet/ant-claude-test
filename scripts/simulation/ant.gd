@@ -13,6 +13,8 @@ extends RefCounted
 ##   CARRYING_FOOD  Walks home by following "going out" trails backwards (towards
 ##                  stronger smell, which is near the nest), with a growing push
 ##                  towards the nest if it's struggling. Lays a "going home" trail.
+##                  If the push keeps it stuck (e.g. behind an obstacle), it takes a
+##                  detour: push off for a while, new direction, smell only.
 ##   RETURNING_HOME Gave up exploring without finding food. Walks home the same way
 ##                  as a food carrier, but lays no trail.
 ##
@@ -36,6 +38,12 @@ var is_scout: bool              ## personality: true = scout, false = collector
 var max_explore_time: float     ## personality: seconds of exploring before giving up
 var time_in_mode := 0.0
 var time_since_trail_start := 0.0  ## seconds since leaving the nest or picking up food
+
+# Going home: push and getting unstuck
+var _push_time := 0.0              ## seconds the push has been growing
+var _closest_to_nest := INF        ## closest distance to the nest reached on this trip home
+var _time_without_progress := 0.0  ## seconds since the ant last got noticeably closer
+var _detour_time_left := 0.0       ## > 0 while taking a detour (no push)
 
 var _settings: AntSettings
 
@@ -68,7 +76,7 @@ func update(sim: ColonySimulation, delta: float) -> void:
 		Mode.GATHERING:
 			turn = _gather(sim)
 		Mode.CARRYING_FOOD, Mode.RETURNING_HOME:
-			turn = _go_home(sim)
+			turn = _go_home(sim, delta)
 
 	heading += clampf(turn, -1.0, 1.0) * _settings.turn_speed * delta
 	heading += sim.rng.randf_range(-1.0, 1.0) * _settings.wander * delta
@@ -106,17 +114,52 @@ func _gather(sim: ColonySimulation) -> float:
 	return _steer_by_smell(sim, 0.0, 1.0)
 
 
-func _go_home(sim: ColonySimulation) -> float:
-	if position.distance_to(sim.nest_position) < _settings.nest_sight_radius:
+func _go_home(sim: ColonySimulation, delta: float) -> float:
+	var distance_to_nest := position.distance_to(sim.nest_position)
+	if distance_to_nest < _settings.nest_sight_radius:
 		return _turn_towards(sim.nest_position)
 	var smell_turn := _steer_by_smell(sim, 1.0, 0.0)
-	var push := minf(time_in_mode * _settings.push_growth, _settings.push_max)
+
+	if _detour_time_left > 0.0:
+		_detour_time_left -= delta
+		return smell_turn  # detour: follow trails only, no push
+
+	_track_progress_home(distance_to_nest, delta)
+	if _time_without_progress > _settings.stuck_time:
+		_start_detour(sim)
+		return smell_turn
+
+	_push_time += delta
+	var push := minf(_push_time * _settings.push_growth, _settings.push_max)
 	return lerpf(smell_turn, _turn_towards(sim.nest_position), push)
+
+
+## Remembers the closest the ant got to the nest; counts how long since it improved.
+func _track_progress_home(distance_to_nest: float, delta: float) -> void:
+	if distance_to_nest < _closest_to_nest - _settings.stuck_min_progress:
+		_closest_to_nest = distance_to_nest
+		_time_without_progress = 0.0
+	else:
+		_time_without_progress += delta
+
+
+## Stuck (usually the push pinning the ant against an obstacle): stop pushing for a while.
+func _start_detour(sim: ColonySimulation) -> void:
+	_detour_time_left = _settings.detour_time
+	_push_time = 0.0  # when the detour ends, the push starts again from zero
+	_closest_to_nest = INF
+	_time_without_progress = 0.0
+	if _settings.detour_random_direction:
+		heading = sim.rng.randf() * TAU
 
 
 func _set_mode(new_mode: Mode) -> void:
 	mode = new_mode
 	time_in_mode = 0.0
+	_push_time = 0.0
+	_closest_to_nest = INF
+	_time_without_progress = 0.0
+	_detour_time_left = 0.0
 	if new_mode == Mode.CARRYING_FOOD:
 		time_since_trail_start = 0.0  # the "going home" trail starts at the food
 
