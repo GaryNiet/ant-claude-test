@@ -16,7 +16,8 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
   compute shaders on Vulkan/D3D12/Metal, not the OpenGL "Compatibility" renderer (no web
   export, older or weaker GPUs). Recommendation: C++ first, GPU only if 100,000+ ants becomes a goal.
 
-**Commits:** _(filled in below once committed)_
+**Commits:**
+- `1e1458f` — Log request #5 (GPU simulation question)
 
 ---
 
