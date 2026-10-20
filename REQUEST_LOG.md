@@ -4,6 +4,33 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #13 — 2026-10-20
+
+**Request:**
+> make it so that on top of the general will to fight, ants will be more willing to fight the closer the enemy is to the nest
+>
+> instead of loading up on food, I would like ants to take time to cut up food chunks and carry them home
+>
+> enemies will try and eat the food and exit the map
+
+**Done:**
+- Nest defense: will to fight gets a bonus of up to +0.5 for an enemy at the nest, fading to 0
+  at 300 px (`nest_defense_bonus`, `nest_defense_radius`).
+- New ant mode CUTTING_FOOD: an ant reaching food stands still for 2 s (`cut_time`) to cut a
+  piece, then carries it home. If the food is gone meanwhile, it goes back to gathering.
+- Enemies now steal food: they head towards the nest until they see food (120 px), eat 1 unit
+  per second until full (20), then leave by the nearest edge. They give up and leave after 60 s
+  without food. Killed enemies drop 80 food plus what they ate. Enemies show a green "belly".
+- Rebalanced: with food-stealing enemies the colony slowly shrank late in the game, so a new
+  ant now costs 8 food instead of 10. Tested 30 min on 3 maps: colony holds at ~140-190 ants.
+- Stats show ants cutting food, enemies escaped and food eaten by enemies.
+
+**Commits:**
+- `6284821` — Ants cut food before carrying it, defend the nest harder; enemies steal food and leave
+- _(second commit filled in below once committed)_
+
+---
+
 ## #12 — 2026-10-20
 
 **Request:**
