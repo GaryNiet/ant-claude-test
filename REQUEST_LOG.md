@@ -12,7 +12,8 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 **Done:**
 - Question only, answered in chat (install Godot 4.3+ standard, Import `project.godot`, press F5). No code change.
 
-**Commits:** _(filled in below once committed)_
+**Commits:**
+- `7224353` — Log request #8 (how to run the game)
 
 ---
 
