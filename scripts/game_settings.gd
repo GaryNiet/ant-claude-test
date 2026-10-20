@@ -2,8 +2,8 @@ extends Node
 ## Reads game_settings.cfg once at startup and hands values to the rest of the game.
 ##
 ## Usage from any script:
-##     var speed: float = GameSettings.get_setting("player", "speed")
-##     var tint: Color = GameSettings.get_color("player", "color")
+##     var speed: float = GameSettings.get_setting("ant", "speed")
+##     var tint: Color = GameSettings.get_color("colors", "ant")
 ##
 ## There are deliberately no fallback values in code: if a setting is missing
 ## from the file, an error is printed so you notice and add it there.
@@ -38,3 +38,8 @@ func get_list(section: String, key: String) -> PackedStringArray:
 	for item in str(get_setting(section, key)).split(","):
 		items.append(item.strip_edges())
 	return items
+
+
+## Returns the names of all keys in `[section]`.
+func get_keys(section: String) -> PackedStringArray:
+	return _file.get_section_keys(section)

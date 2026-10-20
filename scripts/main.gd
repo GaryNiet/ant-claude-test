@@ -1,12 +1,12 @@
 extends Node2D
-## Root of the game. Applies window settings and keyboard controls from game_settings.cfg.
-
-const MOVE_ACTIONS := ["move_left", "move_right", "move_up", "move_down"]
+## Root of the game. Applies window settings and keyboard controls from game_settings.cfg,
+## and connects the stats panel to the simulation.
 
 
 func _ready() -> void:
 	_apply_window_settings()
 	_register_controls()
+	$HUD/StatsPanel.view = $SimulationView
 
 
 func _apply_window_settings() -> void:
@@ -18,9 +18,9 @@ func _apply_window_settings() -> void:
 	RenderingServer.set_default_clear_color(GameSettings.get_color("window", "background_color"))
 
 
-## Creates each input action and binds it to the keys listed in [controls].
+## Creates one input action per entry in [controls], bound to the keys listed there.
 func _register_controls() -> void:
-	for action in MOVE_ACTIONS:
+	for action in GameSettings.get_keys("controls"):
 		if not InputMap.has_action(action):
 			InputMap.add_action(action)
 		for key_name in GameSettings.get_list("controls", action):
