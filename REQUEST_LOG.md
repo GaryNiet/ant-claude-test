@@ -47,7 +47,8 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
   stats panel (time, total food, food per second, food left, ants per mode). Space = pause, R = restart.
 - All values in `game_settings.cfg`. Tested headless in Godot 4.3: ~3 food/s, ~2.6 ms per tick.
 
-**Commits:** _(filled in below once committed)_
+**Commits:**
+- `7f33e79` — Add ant colony simulation with pheromone grid and visualization
 
 ---
 
