@@ -24,6 +24,7 @@ func _process(_delta: float) -> void:
 		"  gathering: %d" % sim.count_ants_in_mode(Ant.Mode.GATHERING),
 		"  carrying food: %d" % sim.count_ants_in_mode(Ant.Mode.CARRYING_FOOD),
 		"  returning home: %d" % sim.count_ants_in_mode(Ant.Mode.RETURNING_HOME),
+		"Collisions: %s" % (("on, %d ants touching" % (sim.collisions.contacts_last_tick * 2)) if sim.collisions.enabled else "off"),
 		"",
 		_controls_help(),
 	])

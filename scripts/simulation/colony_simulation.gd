@@ -8,6 +8,7 @@ var pheromones := PheromoneGrid.new()
 var ant_settings := AntSettings.new()
 var ants: Array[Ant] = []
 var food_sources: Array[FoodSource] = []
+var collisions := AntCollisions.new(pheromones.world_size())
 
 var nest_position: Vector2
 var nest_radius: float = GameSettings.get_setting("nest", "radius")
@@ -52,6 +53,7 @@ func step(delta: float) -> void:
 	_spawn_food_over_time(delta)
 	for ant in ants:
 		ant.update(self, delta)
+	collisions.resolve(ants, pheromones.world_size())
 	pheromones.decay(delta)
 
 

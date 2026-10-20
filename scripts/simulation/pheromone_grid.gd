@@ -58,6 +58,20 @@ func sample(kind: Kind, world_position: Vector2) -> float:
 	return going_home[index]
 
 
+## Average strength of pheromone `kind` over a square of cells centered on `world_position`.
+## `radius_in_cells` = 0 reads 1 cell, 1 reads 3x3 cells, 2 reads 5x5 cells...
+## A bigger area lets ants notice a trail that is a bit to the side of their sensor.
+func sample_area(kind: Kind, world_position: Vector2, radius_in_cells: int) -> float:
+	if radius_in_cells == 0:
+		return sample(kind, world_position)
+	var total := 0.0
+	for row in range(-radius_in_cells, radius_in_cells + 1):
+		for column in range(-radius_in_cells, radius_in_cells + 1):
+			total += sample(kind, world_position + Vector2(column, row) * cell_size)
+	var cells_read := (radius_in_cells * 2 + 1) * (radius_in_cells * 2 + 1)
+	return total / cells_read
+
+
 ## Makes every pheromone fade by the amount matching `delta` seconds.
 func decay(delta: float) -> void:
 	var factor := exp(_decay_per_second_log * delta)

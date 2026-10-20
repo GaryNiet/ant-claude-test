@@ -155,16 +155,21 @@ func _steer_by_smell(sim: ColonySimulation, going_out_weight: float, going_home_
 
 func _sensor_score(sim: ColonySimulation, angle_offset: float, going_out_weight: float, going_home_weight: float) -> float:
 	var spot := _sensor_position(angle_offset)
-	return (sim.pheromones.sample(PheromoneGrid.Kind.GOING_OUT, spot) * going_out_weight
-		+ sim.pheromones.sample(PheromoneGrid.Kind.GOING_HOME, spot) * going_home_weight)
+	return (_smell(sim, PheromoneGrid.Kind.GOING_OUT, spot) * going_out_weight
+		+ _smell(sim, PheromoneGrid.Kind.GOING_HOME, spot) * going_home_weight)
 
 
 ## True if any of the 3 sensors smells pheromone `kind` above the detection threshold.
 func _can_smell(sim: ColonySimulation, kind: PheromoneGrid.Kind) -> bool:
 	for angle_offset in [-_settings.sensor_angle, 0.0, _settings.sensor_angle]:
-		if sim.pheromones.sample(kind, _sensor_position(angle_offset)) > _settings.detection_threshold:
+		if _smell(sim, kind, _sensor_position(angle_offset)) > _settings.detection_threshold:
 			return true
 	return false
+
+
+## How strong pheromone `kind` smells to a sensor at `spot`.
+func _smell(sim: ColonySimulation, kind: PheromoneGrid.Kind, spot: Vector2) -> float:
+	return sim.pheromones.sample_area(kind, spot, _settings.sensor_radius_in_cells)
 
 
 func _sensor_position(angle_offset: float) -> Vector2:
