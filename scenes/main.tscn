@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/view/simulation_view.gd" id="2_view"]
@@ -6,7 +6,8 @@
 [ext_resource type="Script" path="res://scripts/view/terrain_layer.gd" id="4_terrain"]
 [ext_resource type="Script" path="res://scripts/view/ant_layer.gd" id="5_ants"]
 [ext_resource type="Script" path="res://scripts/view/brush.gd" id="6_brush"]
-[ext_resource type="Script" path="res://scripts/view/stats_panel.gd" id="7_stats"]
+[ext_resource type="Script" path="res://scripts/ui/toolbar.gd" id="7_toolbar"]
+[ext_resource type="Script" path="res://scripts/ui/side_panel.gd" id="8_side_panel"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -26,9 +27,10 @@ script = ExtResource("5_ants")
 [node name="Brush" type="Node2D" parent="SimulationView"]
 script = ExtResource("6_brush")
 
-[node name="HUD" type="CanvasLayer" parent="."]
+[node name="UI" type="CanvasLayer" parent="."]
 
-[node name="StatsPanel" type="Label" parent="HUD"]
-offset_left = 10.0
-offset_top = 8.0
-script = ExtResource("7_stats")
+[node name="Toolbar" type="PanelContainer" parent="UI"]
+script = ExtResource("7_toolbar")
+
+[node name="SidePanel" type="PanelContainer" parent="UI"]
+script = ExtResource("8_side_panel")

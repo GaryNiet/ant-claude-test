@@ -29,7 +29,7 @@ func _process(_delta: float) -> void:
 
 
 func _update_texture(grid: MapGrid) -> void:
-	if _image == null:
+	if _image == null or _image.get_width() != grid.width or _image.get_height() != grid.height:
 		_pixels.resize(grid.width * grid.height * 4)
 		_image = Image.create_from_data(grid.width, grid.height, false, Image.FORMAT_RGBA8, _pixels)
 		_texture = ImageTexture.create_from_image(_image)

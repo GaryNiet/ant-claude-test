@@ -10,8 +10,9 @@ extends RefCounted
 ##                  follows the "going home" trail (left by food carriers) towards
 ##                  stronger smell, which leads back to the food. Gives up and goes
 ##                  home if it doesn't reach food in time (e.g. the pile ran out).
-##   CUTTING_FOOD   Standing on food, cutting a piece off. Takes cut_time seconds,
-##                  then the ant carries the piece home (1 unit of food).
+##   CUTTING_FOOD   Standing on food, cutting pieces off: one piece (1 unit of food)
+##                  every cut_time seconds, until it carries as much as it can
+##                  (carry_capacity) or the food runs out. Then it carries them home.
 ##   CARRYING_FOOD  Walks home by following "going out" trails backwards (towards
 ##                  stronger smell, which is near the nest), with a growing push
 ##                  towards the nest if it's struggling. Lays a "going home" trail.
@@ -56,6 +57,8 @@ var age := 0.0                  ## seconds since birth
 var lifespan: float             ## dies of old age after this many seconds (0 = never)
 var died_of_old_age := false
 var hp: float
+var max_hp: float
+var carried_food := 0           ## pieces of food the ant is holding
 var fight_will: float           ## personality: 0 = never starts a fight, 1 = loves fighting
 var fight_target: Enemy         ## the enemy this ant is fighting (FIGHTING mode only)
 var _mode_before_fight := Mode.EXPLORING
@@ -77,6 +80,7 @@ func _init(start: Vector2, settings: AntSettings, rng: RandomNumberGenerator, st
 	age = starting_age
 	lifespan = rng.randf_range(settings.lifespan_min, settings.lifespan_max)
 	hp = settings.hp
+	max_hp = settings.hp
 	fight_will = rng.randf()
 	is_scout = rng.randf() < settings.scout_fraction
 	if not is_scout and rng.randf() < settings.homebody_fraction:
@@ -86,7 +90,7 @@ func _init(start: Vector2, settings: AntSettings, rng: RandomNumberGenerator, st
 
 
 func is_carrying_food() -> bool:
-	return mode == Mode.CARRYING_FOOD or (mode == Mode.FIGHTING and _mode_before_fight == Mode.CARRYING_FOOD)
+	return carried_food > 0
 
 
 func is_dead() -> bool:
@@ -224,8 +228,13 @@ func _start_detour(sim: ColonySimulation) -> void:
 func _cut_food(sim: ColonySimulation) -> void:
 	if time_in_mode < _settings.cut_time:
 		return
+	time_in_mode = 0.0  # start cutting the next piece
 	var food := _food_within_reach(sim)
 	if food != MapGrid.NO_FOOD and sim.grid.take_food(food):
+		carried_food += 1
+		if carried_food < _settings.carry_capacity:
+			return  # room for more: keep cutting
+	if carried_food > 0:
 		_set_mode(Mode.CARRYING_FOOD)
 		heading += PI  # turn around and head home
 	else:
@@ -298,7 +307,8 @@ func _check_arrival_at_nest(sim: ColonySimulation) -> void:
 	if position.distance_to(sim.nest_position) > sim.nest_radius:
 		return
 	if mode == Mode.CARRYING_FOOD:
-		sim.deliver_food()
+		sim.deliver_food(carried_food)
+		carried_food = 0
 		time_since_trail_start = 0.0
 		if is_scout:
 			_set_mode(Mode.EXPLORING)  # scouts go look for new food

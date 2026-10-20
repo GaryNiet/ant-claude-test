@@ -21,7 +21,7 @@ func _ready() -> void:
 
 func _update_texture() -> void:
 	var grid: MapGrid = view.simulation.grid
-	if _image == null:
+	if _image == null or _image.get_width() != grid.width or _image.get_height() != grid.height:
 		_pixels.resize(grid.width * grid.height * 3)
 		_image = Image.create_from_data(grid.width, grid.height, false, Image.FORMAT_RGB8, _pixels)
 		_texture = ImageTexture.create_from_image(_image)

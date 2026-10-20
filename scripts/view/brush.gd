@@ -1,44 +1,90 @@
 extends Node2D
-## Lets the player paint on the map with the mouse: hold the paint button to add the
-## selected material (food or obstacle), hold the erase button to remove both.
-## Shows the brush as a circle under the mouse.
+## The player's mouse tools on the map:
+##   Inspect   click on anything to see information about it (in the side panel)
+##   Food      hold to paint food
+##   Obstacle  hold to paint obstacles
+##   Erase     hold to remove food and obstacles (right click erases with any tool)
+##   Nest      click to move the nest
+## Shows the brush as a circle under the mouse for the painting tools.
 
-enum Tool { FOOD, OBSTACLE }
+enum Tool { INSPECT, FOOD, OBSTACLE, ERASE, NEST }
+
+const TOOL_NAMES := {
+	Tool.INSPECT: "Inspect",
+	Tool.FOOD: "Food",
+	Tool.OBSTACLE: "Obstacle",
+	Tool.ERASE: "Erase",
+	Tool.NEST: "Nest",
+}
+
+## Keyboard action for each tool (see [controls]).
+const TOOL_ACTIONS := {
+	Tool.INSPECT: "tool_inspect",
+	Tool.FOOD: "tool_food",
+	Tool.OBSTACLE: "tool_obstacle",
+	Tool.ERASE: "tool_erase",
+	Tool.NEST: "tool_nest",
+}
 
 @onready var view: Node2D = get_parent()
 
-var selected_tool := Tool.FOOD
+var selected_tool := Tool.INSPECT
 var radius: float = GameSettings.get_setting("painting", "brush_radius")
 
 var _min_radius: float = GameSettings.get_setting("painting", "brush_min_radius")
 var _max_radius: float = GameSettings.get_setting("painting", "brush_max_radius")
 var _radius_step: float = GameSettings.get_setting("painting", "brush_radius_step")
 var _outline_color: Color = GameSettings.get_color("colors", "brush_outline")
-var _last_paint_position := Vector2.INF  ## where the previous frame painted (INF = not painting)
+var _is_painting := false
+var _is_erasing := false
+var _last_paint_position := Vector2.INF  ## where the previous frame painted (INF = just started)
 
 
-func tool_name() -> String:
-	return "food" if selected_tool == Tool.FOOD else "obstacle"
+func change_size(steps: int) -> void:
+	radius = clampf(radius + steps * _radius_step, _min_radius, _max_radius)
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("tool_food"):
-		selected_tool = Tool.FOOD
-	elif event.is_action_pressed("tool_obstacle"):
-		selected_tool = Tool.OBSTACLE
-	elif event.is_action_pressed("brush_bigger"):
-		radius = minf(radius + _radius_step, _max_radius)
+	for tool in TOOL_ACTIONS:
+		if event.is_action_pressed(TOOL_ACTIONS[tool]):
+			selected_tool = tool
+	if event.is_action_pressed("brush_bigger"):
+		change_size(1)
 	elif event.is_action_pressed("brush_smaller"):
-		radius = maxf(radius - _radius_step, _min_radius)
+		change_size(-1)
+	elif event.is_action_pressed("paint"):
+		_use_tool()
+	elif event.is_action_pressed("erase"):
+		_start_stroke(true)
+	elif event.is_action_released("paint") or event.is_action_released("erase"):
+		_is_painting = false
+
+
+func _use_tool() -> void:
+	var spot := get_local_mouse_position()  # already in map pixels (this node is scaled with the map)
+	match selected_tool:
+		Tool.INSPECT:
+			view.select_at(spot)
+		Tool.NEST:
+			view.simulation.move_nest(spot)
+		Tool.ERASE:
+			_start_stroke(true)
+		_:
+			_start_stroke(false)
+
+
+func _start_stroke(erase: bool) -> void:
+	_is_painting = true
+	_is_erasing = erase
+	_last_paint_position = Vector2.INF
 
 
 func _process(_delta: float) -> void:
-	var mouse := get_local_mouse_position()  # already in map pixels (this node is scaled with the map)
-	if Input.is_action_pressed("paint") or Input.is_action_pressed("erase"):
-		_paint_line(_last_paint_position if _last_paint_position != Vector2.INF else mouse, mouse)
+	if _is_painting:
+		var mouse := get_local_mouse_position()
+		var from := _last_paint_position if _last_paint_position != Vector2.INF else mouse
+		_paint_line(from, mouse)
 		_last_paint_position = mouse
-	else:
-		_last_paint_position = Vector2.INF
 	queue_redraw()
 
 
@@ -52,13 +98,14 @@ func _paint_line(from: Vector2, to: Vector2) -> void:
 
 func _paint_dab(center: Vector2) -> void:
 	var simulation: ColonySimulation = view.simulation
-	if Input.is_action_pressed("erase"):
+	if _is_erasing:
 		simulation.erase(center, radius)
 	elif selected_tool == Tool.FOOD:
 		simulation.paint_food(center, radius)
-	else:
+	elif selected_tool == Tool.OBSTACLE:
 		simulation.paint_obstacle(center, radius)
 
 
 func _draw() -> void:
-	draw_arc(get_local_mouse_position(), radius, 0.0, TAU, 48, _outline_color, 1.0)
+	if selected_tool in [Tool.FOOD, Tool.OBSTACLE, Tool.ERASE]:
+		draw_arc(get_local_mouse_position(), radius, 0.0, TAU, 48, _outline_color, 1.0 / view.scale.x)

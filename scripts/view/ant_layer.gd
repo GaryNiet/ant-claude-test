@@ -1,5 +1,6 @@
 extends Node2D
-## Draws the nest, the ants (dots) and the enemies (big dots with a health bar).
+## Draws the nest, the ants (dots), the enemies (big dots with a health bar) and a ring
+## around whatever the player selected.
 
 @onready var view: Node2D = get_parent()
 
@@ -18,6 +19,7 @@ var _health_bar_gap: float = GameSettings.get_setting("display", "enemy_health_b
 var _health_bar_thickness: float = GameSettings.get_setting("display", "enemy_health_bar_thickness")
 var _ant_radius: float = GameSettings.get_setting("display", "ant_radius")
 var _nest_draw_radius: float = GameSettings.get_setting("display", "nest_draw_radius")
+var _selection_color: Color = GameSettings.get_color("display", "selection_color")
 
 
 func _process(_delta: float) -> void:
@@ -31,6 +33,23 @@ func _draw() -> void:
 		draw_circle(ant.position, _ant_radius, _ant_dot_color(ant))
 	for enemy in simulation.enemies:
 		_draw_enemy(enemy)
+	_draw_selection(simulation)
+
+
+## A ring around the selected ant / enemy / nest, or a square around the selected cell.
+## Lines are kept 1 screen pixel thick whatever the zoom.
+func _draw_selection(simulation: ColonySimulation) -> void:
+	var line_width := 1.5 / view.scale.x
+	var selected: Variant = view.selection
+	if selected is Ant and not selected.is_dead():
+		draw_arc(selected.position, _ant_radius * 3.0, 0.0, TAU, 24, _selection_color, line_width)
+	elif selected is Enemy and not selected.is_dead() and not selected.has_left_the_map:
+		draw_arc(selected.position, _enemy_radius * 1.5, 0.0, TAU, 32, _selection_color, line_width)
+	elif selected is String and selected == view.SELECTED_NEST:
+		draw_arc(simulation.nest_position, _nest_draw_radius * 1.6, 0.0, TAU, 32, _selection_color, line_width)
+	elif selected is Vector2i:
+		var cell_size := simulation.grid.cell_size
+		draw_rect(Rect2(Vector2(selected) * cell_size, Vector2(cell_size, cell_size)), _selection_color, false, line_width)
 
 
 func _draw_enemy(enemy: Enemy) -> void:

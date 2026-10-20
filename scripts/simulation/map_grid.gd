@@ -41,10 +41,11 @@ var _decay_per_second_log: float        ## precomputed for the decay formula
 var _fight_decay_per_second_log: float  ## the fight pheromone fades faster
 
 
-func _init() -> void:
-	width = GameSettings.get_setting("map", "grid_width")
-	height = GameSettings.get_setting("map", "grid_height")
-	cell_size = GameSettings.get_setting("map", "cell_size")
+## Creates an empty map of `columns` x `rows` cells, each `cell_size_in_pixels` wide.
+func _init(columns: int, rows: int, cell_size_in_pixels: float) -> void:
+	width = columns
+	height = rows
+	cell_size = cell_size_in_pixels
 	_region_cells = GameSettings.get_setting("map", "food_lookup_region_cells")
 	max_strength = GameSettings.get_setting("pheromones", "max_strength")
 	var half_life: float = GameSettings.get_setting("pheromones", "half_life")
