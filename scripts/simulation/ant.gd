@@ -80,11 +80,11 @@ func update(sim: ColonySimulation, delta: float) -> void:
 # --- The four modes ---------------------------------------------------------
 
 func _explore(sim: ColonySimulation) -> float:
-	var food := sim.nearest_food(position, _settings.food_sight_radius)
-	if food != null:
+	var food := sim.grid.find_food_near(position, _settings.food_sight_radius)
+	if food != MapGrid.NO_FOOD:
 		_set_mode(Mode.GATHERING)
-		return _turn_towards(food.position)
-	if not is_scout and _can_smell(sim, PheromoneGrid.Kind.GOING_HOME):
+		return _turn_towards(food)
+	if not is_scout and _can_smell(sim, MapGrid.Kind.GOING_HOME):
 		_set_mode(Mode.GATHERING)  # collector found a trail that leads to food
 	elif time_in_mode > max_explore_time:
 		_set_mode(Mode.RETURNING_HOME)
@@ -93,13 +93,13 @@ func _explore(sim: ColonySimulation) -> float:
 
 
 func _gather(sim: ColonySimulation) -> float:
-	var food := sim.nearest_food(position, _settings.food_sight_radius)
-	if food != null:
-		if position.distance_to(food.position) <= _settings.pickup_distance and sim.take_food(food):
-			_set_mode(Mode.CARRYING_FOOD)
-			heading += PI  # turn around and head home
-			return 0.0
-		return _turn_towards(food.position)
+	if sim.grid.take_food(position):  # standing on a cell with food: pick 1 up
+		_set_mode(Mode.CARRYING_FOOD)
+		heading += PI  # turn around and head home
+		return 0.0
+	var food := sim.grid.find_food_near(position, _settings.food_sight_radius)
+	if food != MapGrid.NO_FOOD:
+		return _turn_towards(food)
 
 	if time_in_mode > _settings.gather_give_up_time:
 		_set_mode(Mode.RETURNING_HOME)
@@ -144,6 +144,7 @@ func _check_arrival_at_nest(sim: ColonySimulation) -> void:
 ## Compares the smell at 3 sensors (left, front, right) and returns which way to turn.
 ## Each sensor's score = going_out * going_out_weight + going_home * going_home_weight.
 ## The ant turns towards the highest score (a negative weight means "avoid this smell").
+## A sensor that touches an obstacle gets the worst possible score, so ants steer around them.
 func _steer_by_smell(sim: ColonySimulation, going_out_weight: float, going_home_weight: float) -> float:
 	var left := _sensor_score(sim, -_settings.sensor_angle, going_out_weight, going_home_weight)
 	var front := _sensor_score(sim, 0.0, going_out_weight, going_home_weight)
@@ -155,12 +156,14 @@ func _steer_by_smell(sim: ColonySimulation, going_out_weight: float, going_home_
 
 func _sensor_score(sim: ColonySimulation, angle_offset: float, going_out_weight: float, going_home_weight: float) -> float:
 	var spot := _sensor_position(angle_offset)
-	return (_smell(sim, PheromoneGrid.Kind.GOING_OUT, spot) * going_out_weight
-		+ _smell(sim, PheromoneGrid.Kind.GOING_HOME, spot) * going_home_weight)
+	if sim.grid.is_obstacle(spot):
+		return -INF
+	return (_smell(sim, MapGrid.Kind.GOING_OUT, spot) * going_out_weight
+		+ _smell(sim, MapGrid.Kind.GOING_HOME, spot) * going_home_weight)
 
 
 ## True if any of the 3 sensors smells pheromone `kind` above the detection threshold.
-func _can_smell(sim: ColonySimulation, kind: PheromoneGrid.Kind) -> bool:
+func _can_smell(sim: ColonySimulation, kind: MapGrid.Kind) -> bool:
 	for angle_offset in [-_settings.sensor_angle, 0.0, _settings.sensor_angle]:
 		if _smell(sim, kind, _sensor_position(angle_offset)) > _settings.detection_threshold:
 			return true
@@ -168,8 +171,8 @@ func _can_smell(sim: ColonySimulation, kind: PheromoneGrid.Kind) -> bool:
 
 
 ## How strong pheromone `kind` smells to a sensor at `spot`.
-func _smell(sim: ColonySimulation, kind: PheromoneGrid.Kind, spot: Vector2) -> float:
-	return sim.pheromones.sample_area(kind, spot, _settings.sensor_radius_in_cells)
+func _smell(sim: ColonySimulation, kind: MapGrid.Kind, spot: Vector2) -> float:
+	return sim.grid.sample_area(kind, spot, _settings.sensor_radius_in_cells)
 
 
 func _sensor_position(angle_offset: float) -> Vector2:
@@ -184,16 +187,23 @@ func _turn_towards(target: Vector2) -> float:
 
 # --- Movement and trails ----------------------------------------------------
 
-## Walks forward and bounces off the map edges.
+## Walks forward and bounces off obstacles and the map edges (like a ball off a wall:
+## hitting a vertical wall flips the left/right direction, a horizontal one flips up/down).
 func _move_forward(sim: ColonySimulation, delta: float) -> void:
-	position += Vector2.from_angle(heading) * _settings.speed * delta
-	var map_size := sim.pheromones.world_size()
-	if position.x < 0.0 or position.x > map_size.x:
+	var step := Vector2.from_angle(heading) * _settings.speed * delta
+	if _is_blocked(sim, position + Vector2(step.x, 0.0)):
 		heading = PI - heading
-		position.x = clampf(position.x, 0.0, map_size.x)
-	if position.y < 0.0 or position.y > map_size.y:
+		step.x = 0.0
+	if _is_blocked(sim, position + Vector2(step.x, step.y)):
 		heading = -heading
-		position.y = clampf(position.y, 0.0, map_size.y)
+		step.y = 0.0
+	position += step
+
+
+## True if the ant can't step onto `target`. An ant that is already inside an obstacle
+## (because the player painted one on top of it) is allowed to walk out.
+func _is_blocked(sim: ColonySimulation, target: Vector2) -> bool:
+	return sim.grid.is_obstacle(target) and not sim.grid.is_obstacle(position)
 
 
 func _lay_trail(sim: ColonySimulation, delta: float) -> void:
@@ -201,6 +211,6 @@ func _lay_trail(sim: ColonySimulation, delta: float) -> void:
 	var fade := exp(-time_since_trail_start / _settings.trail_fade_time)
 	var lays_going_out := mode == Mode.EXPLORING or (mode == Mode.GATHERING and _settings.gatherers_lay_going_out)
 	if lays_going_out:
-		sim.pheromones.deposit(PheromoneGrid.Kind.GOING_OUT, position, _settings.going_out_deposit * fade * delta)
+		sim.grid.deposit(MapGrid.Kind.GOING_OUT, position, _settings.going_out_deposit * fade * delta)
 	elif mode == Mode.CARRYING_FOOD:
-		sim.pheromones.deposit(PheromoneGrid.Kind.GOING_HOME, position, _settings.going_home_deposit * fade * delta)
+		sim.grid.deposit(MapGrid.Kind.GOING_HOME, position, _settings.going_home_deposit * fade * delta)

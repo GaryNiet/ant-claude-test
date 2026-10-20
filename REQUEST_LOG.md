@@ -4,6 +4,29 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #7 — 2026-10-20
+
+**Request:**
+> Make the simulation interactive. Let user paint on the food. Also make obstacles that can be painted on. Ants cannot traverse obstacles
+
+**Done:**
+- Painting with the mouse: left click paints, right click erases, keys 1/2 pick food or
+  obstacle, mouse wheel (or =/-) changes brush size. Works while paused. New `[painting]` settings.
+- Food now lives in the map grid (units per cell) instead of a list of piles, so it can be painted
+  anywhere; random round piles still appear over time (`[food]` settings reworked).
+  The map grid (`map_grid.gd`, was `pheromone_grid.gd`) now holds pheromones, food and obstacles.
+- Obstacles: ants bounce off them like off the map edge, their smell sensors steer away from
+  them, and collisions never push an ant into one. Painting an obstacle removes food and
+  pheromones under it; none can be painted right around the nest.
+- Drawing split into layers: pheromones (smooth), food + obstacles (sharp squares), ants, brush.
+- Controls can now include mouse buttons in `[controls]`.
+- Tested: 5 minutes with walls painted, no ant ever inside an obstacle; painting checked
+  through real mouse input in a screenshot.
+
+**Commits:** _(filled in below once committed)_
+
+---
+
 ## #6 — 2026-10-20
 
 **Request:**

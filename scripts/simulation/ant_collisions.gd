@@ -12,6 +12,7 @@ var enabled: bool = GameSettings.get_setting("collisions", "enabled")
 var ant_radius: float = GameSettings.get_setting("collisions", "ant_radius")
 var square_size: float = GameSettings.get_setting("collisions", "grid_square_size")
 var contacts_last_tick := 0  ## number of overlapping pairs found in the last tick (for stats)
+var _grid: MapGrid           ## the map, to avoid pushing ants into obstacles
 
 var _columns: int
 var _rows: int
@@ -31,16 +32,15 @@ func _init(map_size: Vector2) -> void:
 	_first_in_square.resize(_columns * _rows)
 
 
-## Pushes apart every pair of overlapping ants, then keeps them inside the map.
-func resolve(ants: Array[Ant], map_size: Vector2) -> void:
+## Pushes apart every pair of overlapping ants (never into an obstacle or off the map).
+func resolve(ants: Array[Ant], grid: MapGrid) -> void:
 	contacts_last_tick = 0
 	if not enabled:
 		return
+	_grid = grid
 	_sort_ants_into_squares(ants)
 	for ant_index in ants.size():
 		_push_away_neighbours(ants, ant_index)
-	for ant in ants:
-		ant.position = ant.position.clamp(Vector2.ZERO, map_size)
 
 
 ## Fills the grid arrays (a "counting sort": count ants per square, then place them).
@@ -91,9 +91,14 @@ func _push_apart(a: Ant, b: Ant) -> void:
 	var distance := sqrt(distance_squared)
 	# Two ants exactly on top of each other: push them apart sideways.
 	var direction := offset / distance if distance > 0.001 else Vector2.RIGHT
-	var half_overlap := (touching_distance - distance) * 0.5
-	a.position -= direction * half_overlap
-	b.position += direction * half_overlap
+	var half_overlap := direction * (touching_distance - distance) * 0.5
+	_move_if_free(a, a.position - half_overlap)
+	_move_if_free(b, b.position + half_overlap)
+
+
+func _move_if_free(ant: Ant, target: Vector2) -> void:
+	if not _grid.is_obstacle(target):
+		ant.position = target
 
 
 func _square_at(world_position: Vector2) -> int:

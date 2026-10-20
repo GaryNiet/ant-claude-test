@@ -1,14 +1,14 @@
 class_name ColonySimulation
 extends RefCounted
-## The whole simulation: the pheromone grid, the nest, the ants and the food.
+## The whole simulation: the map grid (pheromones, food, obstacles), the nest and the ants.
 ## It knows nothing about drawing; call step() at a fixed rate to advance it.
+## The painting functions let the player add food and obstacles while it runs.
 
 var rng := RandomNumberGenerator.new()
-var pheromones := PheromoneGrid.new()
+var grid := MapGrid.new()
 var ant_settings := AntSettings.new()
 var ants: Array[Ant] = []
-var food_sources: Array[FoodSource] = []
-var collisions := AntCollisions.new(pheromones.world_size())
+var collisions := AntCollisions.new(grid.world_size())
 
 var nest_position: Vector2
 var nest_radius: float = GameSettings.get_setting("nest", "radius")
@@ -23,14 +23,19 @@ var _food_rate_window: float = GameSettings.get_setting("display", "food_rate_wi
 var _ant_count: int = GameSettings.get_setting("nest", "ant_count")
 var _ant_spawn_interval: float = GameSettings.get_setting("nest", "spawn_interval")
 
-# Food spawning
-var _max_food_sources: int = GameSettings.get_setting("food", "max_sources")
+# Random food piles
 var _food_spawn_interval: float = GameSettings.get_setting("food", "spawn_interval")
-var _food_min_amount: int = GameSettings.get_setting("food", "min_amount")
-var _food_max_amount: int = GameSettings.get_setting("food", "max_amount")
+var _max_food_on_map: int = GameSettings.get_setting("food", "max_food_on_map")
+var _pile_min_radius: float = GameSettings.get_setting("food", "pile_min_radius")
+var _pile_max_radius: float = GameSettings.get_setting("food", "pile_max_radius")
+var _pile_food_per_cell: int = GameSettings.get_setting("food", "food_per_cell")
 var _food_min_distance_from_nest: float = GameSettings.get_setting("food", "min_distance_from_nest")
 var _food_edge_margin: float = GameSettings.get_setting("food", "edge_margin")
 var _time_until_next_food := 0.0
+
+# Painting
+var _painted_food_per_cell: int = GameSettings.get_setting("painting", "food_per_cell")
+var _obstacle_free_radius: float = GameSettings.get_setting("painting", "obstacle_free_radius_around_nest")
 
 
 func _init() -> void:
@@ -39,11 +44,11 @@ func _init() -> void:
 		rng.randomize()
 	else:
 		rng.seed = random_seed
-	nest_position = pheromones.world_size() / 2.0
+	nest_position = grid.world_size() / 2.0
 	_time_until_next_food = _food_spawn_interval
-	var initial_sources: int = GameSettings.get_setting("food", "initial_sources")
-	for i in initial_sources:
-		_spawn_food_source()
+	var initial_piles: int = GameSettings.get_setting("food", "initial_piles")
+	for i in initial_piles:
+		_spawn_food_pile()
 
 
 ## Advances the simulation by one tick of `delta` seconds.
@@ -53,33 +58,36 @@ func step(delta: float) -> void:
 	_spawn_food_over_time(delta)
 	for ant in ants:
 		ant.update(self, delta)
-	collisions.resolve(ants, pheromones.world_size())
-	pheromones.decay(delta)
+	collisions.resolve(ants, grid)
+	grid.decay(delta)
+
+
+# --- Painting (called by the player's brush) --------------------------------
+
+## Fills the cells in the circle with food (cells that already have more keep it).
+func paint_food(center: Vector2, radius: float) -> void:
+	for index in grid.cells_in_circle(center, radius):
+		if grid.obstacle[index] == 0 and grid.food[index] < _painted_food_per_cell:
+			grid.set_food(index, _painted_food_per_cell)
+
+
+## Turns the cells in the circle into obstacles, except right around the nest.
+func paint_obstacle(center: Vector2, radius: float) -> void:
+	for index in grid.cells_in_circle(center, radius):
+		var cell_middle := (Vector2(index % grid.width, index / grid.width) + Vector2(0.5, 0.5)) * grid.cell_size
+		if cell_middle.distance_to(nest_position) > _obstacle_free_radius and grid.obstacle[index] == 0:
+			grid.set_obstacle(index, true)
+
+
+## Removes food and obstacles in the circle (pheromones are left alone).
+func erase(center: Vector2, radius: float) -> void:
+	for index in grid.cells_in_circle(center, radius):
+		grid.set_food(index, 0)
+		if grid.obstacle[index] == 1:
+			grid.set_obstacle(index, false)
 
 
 # --- Called by ants ---------------------------------------------------------
-
-## Closest food pile within `radius` of `from`, or null if none.
-func nearest_food(from: Vector2, radius: float) -> FoodSource:
-	var closest: FoodSource = null
-	var closest_distance := radius
-	for food in food_sources:
-		var distance := from.distance_to(food.position)
-		if distance <= closest_distance:
-			closest = food
-			closest_distance = distance
-	return closest
-
-
-## Takes 1 unit from `food`. Returns false if it was already empty.
-func take_food(food: FoodSource) -> bool:
-	if food.is_empty():
-		return false
-	food.amount -= 1
-	if food.is_empty():
-		food_sources.erase(food)
-	return true
-
 
 func deliver_food() -> void:
 	total_food_collected += 1
@@ -96,13 +104,6 @@ func food_per_second() -> float:
 	if window <= 0.0:
 		return 0.0
 	return _delivery_times.size() / window
-
-
-func food_left_on_map() -> int:
-	var total := 0
-	for food in food_sources:
-		total += food.amount
-	return total
 
 
 func count_scouts() -> int:
@@ -135,17 +136,20 @@ func _spawn_food_over_time(delta: float) -> void:
 	if _time_until_next_food > 0.0:
 		return
 	_time_until_next_food = _food_spawn_interval
-	if food_sources.size() < _max_food_sources:
-		_spawn_food_source()
+	if grid.total_food < _max_food_on_map:
+		_spawn_food_pile()
 
 
-## Places a pile with a random amount at a random spot far enough from the nest.
-func _spawn_food_source() -> void:
-	var map_size := pheromones.world_size()
+## Places a round pile of random size at a random free spot far enough from the nest.
+func _spawn_food_pile() -> void:
+	var map_size := grid.world_size()
 	for attempt in 100:
 		var spot := Vector2(
 			rng.randf_range(_food_edge_margin, map_size.x - _food_edge_margin),
 			rng.randf_range(_food_edge_margin, map_size.y - _food_edge_margin))
-		if spot.distance_to(nest_position) >= _food_min_distance_from_nest:
-			food_sources.append(FoodSource.new(spot, rng.randi_range(_food_min_amount, _food_max_amount)))
-			return
+		if spot.distance_to(nest_position) < _food_min_distance_from_nest or grid.is_obstacle(spot):
+			continue
+		for index in grid.cells_in_circle(spot, rng.randf_range(_pile_min_radius, _pile_max_radius)):
+			if grid.obstacle[index] == 0 and grid.food[index] < _pile_food_per_cell:
+				grid.set_food(index, _pile_food_per_cell)
+		return

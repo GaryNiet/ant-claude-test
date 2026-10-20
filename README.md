@@ -6,11 +6,22 @@ A video game prototype made with **Godot 4.3+** (standard version, not .NET).
 1. Get the code (first time): `git clone https://github.com/GaryNiet/ant-claude-test.git`
    Later updates: `git pull`
 2. Open Godot → **Import** → select `project.godot` in this folder.
-3. Press **F5** (Run). **Space** pauses, **R** restarts with a new random map.
+3. Press **F5** (Run).
+
+| Control | Action |
+|---|---|
+| Left mouse | Paint with the selected tool |
+| Right mouse | Erase food and obstacles |
+| **1** / **2** | Select tool: food / obstacle |
+| Mouse wheel or **=** / **-** | Brush size |
+| **Space** | Pause (you can still paint while paused) |
+| **R** | Restart with a new random map |
+
+All controls can be changed in `game_settings.cfg` under `[controls]`.
 
 ## What you see
 An ant colony simulation. Purple dot = nest, white dots = collector ants, light-blue dots = scout ants, orange dots = ants carrying
-food, green dots = food piles (bigger = more food). Blue glow = "going out" pheromone,
+food, green squares = food (brighter = more), grey = obstacles (ants can't cross them). Blue glow = "going out" pheromone,
 red glow = "going home" pheromone (pink where both overlap). Stats are in the top-left corner.
 
 ![screenshot](docs/screenshot.png)

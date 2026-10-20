@@ -11,7 +11,6 @@ var sensor_distance: float = GameSettings.get_setting("ant", "sensor_distance")
 var sensor_angle: float = GameSettings.get_setting("ant", "sensor_angle")
 var sensor_radius_in_cells: int = GameSettings.get_setting("ant", "sensor_radius_in_cells")
 var food_sight_radius: float = GameSettings.get_setting("ant", "food_sight_radius")
-var pickup_distance: float = GameSettings.get_setting("ant", "pickup_distance")
 var gatherers_lay_going_out: bool = GameSettings.get_setting("ant", "gatherers_lay_going_out")
 
 # Personality — [ant_personality]
