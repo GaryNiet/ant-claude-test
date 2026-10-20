@@ -4,6 +4,24 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #4 — 2026-10-20
+
+**Request:**
+> Explore the possibility of having ants have collisions between them. Give me the effect it'll have on trails, speed, performance. What would be the limit? Look for the most performant collision detection.
+
+**Done:**
+- Study only, no change to the game. Prototyped collisions in a scratch copy, benchmarked
+  brute force vs. uniform grid at 100–10,000 ants, and compared behaviour with/without collisions.
+- Results and recommendations written to `docs/collision_study.md`.
+- Main findings: a uniform grid is the most performant detection (brute force is unusable
+  beyond ~150 ants); at 100 ants collisions barely change speed or food collected and make
+  trails slightly wider; the real limit is the ant brain (~13 µs per ant per tick in GDScript):
+  ~1,000 ants smooth without collisions, ~700 with.
+
+**Commits:** _(filled in below once committed)_
+
+---
+
 ## #3 — 2026-10-20
 
 **Request:**
