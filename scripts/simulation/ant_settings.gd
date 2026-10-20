@@ -14,6 +14,7 @@ var pickup_distance: float = GameSettings.get_setting("ant", "pickup_distance")
 var gatherers_lay_going_out: bool = GameSettings.get_setting("ant", "gatherers_lay_going_out")
 
 # Personality — [ant_personality]
+var scout_fraction: float = GameSettings.get_setting("ant_personality", "scout_fraction")
 var homebody_fraction: float = GameSettings.get_setting("ant_personality", "homebody_fraction")
 var homebody_min_explore_time: float = GameSettings.get_setting("ant_personality", "homebody_min_explore_time")
 var homebody_max_explore_time: float = GameSettings.get_setting("ant_personality", "homebody_max_explore_time")

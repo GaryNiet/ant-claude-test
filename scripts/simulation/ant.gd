@@ -16,6 +16,14 @@ extends RefCounted
 ##   RETURNING_HOME Gave up exploring without finding food. Walks home the same way
 ##                  as a food carrier, but lays no trail.
 ##
+## Personality (picked at random when the ant is born):
+##   Collector  Focused on collecting: as soon as it smells a food trail it follows it,
+##              and after delivering food it goes straight back for more.
+##              Some collectors are "homebodies" that only explore briefly near the nest.
+##   Scout      Focused on exploring: ignores food trails and keeps looking for new places.
+##              It only collects food it finds itself (which starts a new trail for the
+##              collectors), then goes back to exploring.
+##
 ## Why trails can be followed "backwards": an ant lays less pheromone the longer it
 ## has been walking, so every trail is strongest near where it started.
 
@@ -24,6 +32,7 @@ enum Mode { EXPLORING, GATHERING, CARRYING_FOOD, RETURNING_HOME }
 var position: Vector2
 var heading: float              ## direction of travel in radians (0 = right, PI/2 = down)
 var mode := Mode.EXPLORING
+var is_scout: bool              ## personality: true = scout, false = collector
 var max_explore_time: float     ## personality: seconds of exploring before giving up
 var time_in_mode := 0.0
 var time_since_trail_start := 0.0  ## seconds since leaving the nest or picking up food
@@ -35,7 +44,8 @@ func _init(start: Vector2, settings: AntSettings, rng: RandomNumberGenerator) ->
 	position = start
 	_settings = settings
 	heading = rng.randf() * TAU
-	if rng.randf() < settings.homebody_fraction:
+	is_scout = rng.randf() < settings.scout_fraction
+	if not is_scout and rng.randf() < settings.homebody_fraction:
 		max_explore_time = rng.randf_range(settings.homebody_min_explore_time, settings.homebody_max_explore_time)
 	else:
 		max_explore_time = rng.randf_range(settings.explorer_min_explore_time, settings.explorer_max_explore_time)
@@ -74,8 +84,8 @@ func _explore(sim: ColonySimulation) -> float:
 	if food != null:
 		_set_mode(Mode.GATHERING)
 		return _turn_towards(food.position)
-	if _can_smell(sim, PheromoneGrid.Kind.GOING_HOME):
-		_set_mode(Mode.GATHERING)  # found a trail that leads to food
+	if not is_scout and _can_smell(sim, PheromoneGrid.Kind.GOING_HOME):
+		_set_mode(Mode.GATHERING)  # collector found a trail that leads to food
 	elif time_in_mode > max_explore_time:
 		_set_mode(Mode.RETURNING_HOME)
 	# Negative weight = prefer the weakest "going out" smell = unexplored places.
@@ -116,9 +126,13 @@ func _check_arrival_at_nest(sim: ColonySimulation) -> void:
 		return
 	if mode == Mode.CARRYING_FOOD:
 		sim.deliver_food()
-		_set_mode(Mode.GATHERING)  # go back for more, following the food trail
-		heading += PI
 		time_since_trail_start = 0.0
+		if is_scout:
+			_set_mode(Mode.EXPLORING)  # scouts go look for new food
+			heading = sim.rng.randf() * TAU
+		else:
+			_set_mode(Mode.GATHERING)  # collectors go back for more, following the food trail
+			heading += PI
 	elif mode == Mode.RETURNING_HOME:
 		_set_mode(Mode.EXPLORING)  # rested, try a new random direction
 		heading = sim.rng.randf() * TAU

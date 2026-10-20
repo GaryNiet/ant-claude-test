@@ -9,7 +9,7 @@ A video game prototype made with **Godot 4.3+** (standard version, not .NET).
 3. Press **F5** (Run). **Space** pauses, **R** restarts with a new random map.
 
 ## What you see
-An ant colony simulation. Purple dot = nest, white dots = ants, orange dots = ants carrying
+An ant colony simulation. Purple dot = nest, white dots = collector ants, light-blue dots = scout ants, orange dots = ants carrying
 food, green dots = food piles (bigger = more food). Blue glow = "going out" pheromone,
 red glow = "going home" pheromone (pink where both overlap). Stats are in the top-left corner.
 

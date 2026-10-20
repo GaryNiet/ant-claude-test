@@ -16,6 +16,7 @@ var _pheromone_pixels := PackedByteArray()
 # Drawing settings
 var _nest_color: Color = GameSettings.get_color("colors", "nest")
 var _ant_color: Color = GameSettings.get_color("colors", "ant")
+var _scout_color: Color = GameSettings.get_color("colors", "scout")
 var _ant_with_food_color: Color = GameSettings.get_color("colors", "ant_with_food")
 var _food_color: Color = GameSettings.get_color("colors", "food")
 var _going_out_color: Color = GameSettings.get_color("colors", "going_out_pheromone")
@@ -96,5 +97,12 @@ func _draw() -> void:
 		draw_circle(food.position, sqrt(food.amount) * _food_radius_per_unit * 2.0, _food_color)
 	draw_circle(simulation.nest_position, _nest_draw_radius, _nest_color)
 	for ant in simulation.ants:
-		var color := _ant_with_food_color if ant.is_carrying_food() else _ant_color
-		draw_circle(ant.position, _ant_radius, color)
+		draw_circle(ant.position, _ant_radius, _ant_dot_color(ant))
+
+
+func _ant_dot_color(ant: Ant) -> Color:
+	if ant.is_carrying_food():
+		return _ant_with_food_color
+	if ant.is_scout:
+		return _scout_color
+	return _ant_color

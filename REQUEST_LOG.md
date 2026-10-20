@@ -4,6 +4,25 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #3 — 2026-10-20
+
+**Request:**
+> Yes. Give ants a randomized bahaviour. For now 80% focused on collection if there is something to collect and 20% on exploring
+
+**Done:**
+- Each ant is randomly born a **scout** (20%, `scout_fraction`) or a **collector** (80%).
+- Collectors behave as before: follow food trails whenever they smell one, go back for more
+  after delivering, and explore only when there's nothing to collect.
+- Scouts ignore food trails and keep exploring; they only carry food they find themselves
+  (starting a new trail for collectors), then go back to exploring.
+- Homebodies (stay near the nest) now apply to collectors only.
+- Scouts drawn in light blue; stats panel shows scout/collector counts.
+- Test (4 random maps, 5 minutes each): 643 food on average vs 525 without scouts (+22%).
+
+**Commits:** _(filled in below once committed)_
+
+---
+
 ## #2 — 2026-10-20
 
 **Request:**

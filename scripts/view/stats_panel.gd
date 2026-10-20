@@ -19,7 +19,7 @@ func _process(_delta: float) -> void:
 		"Food per second: %.2f" % sim.food_per_second(),
 		"Food left on map: %d in %d piles" % [sim.food_left_on_map(), sim.food_sources.size()],
 		"",
-		"Ants: %d" % sim.ants.size(),
+		"Ants: %d  (%d scouts, %d collectors)" % [sim.ants.size(), sim.count_scouts(), sim.ants.size() - sim.count_scouts()],
 		"  exploring: %d" % sim.count_ants_in_mode(Ant.Mode.EXPLORING),
 		"  gathering: %d" % sim.count_ants_in_mode(Ant.Mode.GATHERING),
 		"  carrying food: %d" % sim.count_ants_in_mode(Ant.Mode.CARRYING_FOOD),

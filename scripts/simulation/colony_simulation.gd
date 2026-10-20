@@ -103,6 +103,14 @@ func food_left_on_map() -> int:
 	return total
 
 
+func count_scouts() -> int:
+	var count := 0
+	for ant in ants:
+		if ant.is_scout:
+			count += 1
+	return count
+
+
 func count_ants_in_mode(mode: Ant.Mode) -> int:
 	var count := 0
 	for ant in ants:
