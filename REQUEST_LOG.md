@@ -4,6 +4,27 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #6 — 2026-10-20
+
+**Request:**
+> Let's keep it on the cpu, I don't like these downsides.
+> Go ahead with the gdscript. Adapt the pheromone detection radius and width if needed
+
+**Done:**
+- Added ant-to-ant collisions (`scripts/simulation/ant_collisions.gd`): uniform grid lookup,
+  overlapping ants pushed apart. New `[collisions]` settings: on/off, ant body size, grid square size.
+- Added `sensor_radius_in_cells` so each smell sensor can read an area instead of 1 cell.
+- Tested 4 setups on 8 maps: collisions on = 676 food on average vs 642 off. Wider sensors
+  (3x3) were worse (513) and 2x slower; further sensors changed nothing. So sensors and trail
+  width were left unchanged (`sensor_radius_in_cells = 0`). Results added to `docs/collision_study.md`.
+- Stats panel shows how many ants are touching.
+
+**Commits:**
+- `aba55be` — Add ant-to-ant collisions using a uniform grid, plus area smell sensors
+- _(second commit filled in below once committed)_
+
+---
+
 ## #5 — 2026-10-20
 
 **Request:**

@@ -1,6 +1,21 @@
 # Study: collisions between ants
 
-Date: 2026-10-20. Status: **explored, not added to the game** (prototype code kept out of the project).
+Date: 2026-10-20. Status: **added to the game** (request #6), settings in `[collisions]`.
+
+## Update: collisions in the game (8 maps x 5 minutes, 100 ants)
+
+| Setup | Food collected (avg) | Time per tick |
+|---|---:|---:|
+| Collisions off | 642 | 3.2 ms |
+| **Collisions on (chosen)** | **676** | 4.5 ms |
+| Collisions on + sensors read 3x3 cells | 513 | 9.2 ms |
+| Collisions on + sensors further ahead (24 px instead of 16) | 670 | 4.2 ms |
+
+Collisions on did slightly better than off on 6 of 8 maps. Smelling a wider area blurs the
+trail so ants follow it worse, and it's twice as slow; moving sensors further out changed nothing.
+So the sensors were left as they were. Trails are 1 cell (8 px) wide and collisions only push
+ants ~2 px sideways, so trail width didn't need changing either.
+(Timings measured with 4 runs at once, so they're higher than a single game would show.)
 
 ## Setup
 - Godot 4.3, GDScript, cloud test machine (4 cores). Your PC will likely be somewhat faster,
