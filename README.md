@@ -6,16 +6,20 @@ A video game prototype made with **Godot 4.3+** (standard version, not .NET).
 1. Get the code (first time): `git clone https://github.com/GaryNiet/ant-claude-test.git`
    Later updates: `git pull`
 2. Open Godot → **Import** → select `project.godot` in this folder.
-3. Press **F5** (Run).
+3. Press **F5** (Run). The game opens on `levels/default.level`.
 
 | Control | Action |
 |---|---|
-| Left mouse | Paint with the selected tool |
-| Right mouse | Erase food and obstacles |
-| **1** / **2** | Select tool: food / obstacle |
-| Mouse wheel or **=** / **-** | Brush size |
+| Tool bar (top) or keys **1**-**5** | Tool: Inspect / Food / Obstacle / Erase / Nest |
+| Left mouse | Use the tool (Inspect: click anything to see its info in the side panel) |
+| Right mouse | Erase food and obstacles (any tool) |
+| **[** / **]** or **-** / **=** | Brush size |
+| Mouse wheel | Zoom (towards the mouse) |
+| Middle mouse drag, arrows or **WASD** | Move the map |
 | **Space** | Pause (you can still paint while paused) |
-| **R** | Restart with a new random map |
+| **R** | Restart the level |
+| Side panel buttons | Upgrades, paid with food stored in the nest |
+| Save level / Load level | Save the current map as a level / start another level |
 
 All controls can be changed in `game_settings.cfg` under `[controls]`.
 
@@ -30,9 +34,11 @@ red glow = "going home" pheromone (pink where both overlap), yellow glow = fight
 ## Where things are
 | File | What it is |
 |------|------------|
+| `levels/` | Level files (`*.level`): map size, nest, starting ants, obstacles and food, as editable text. |
 | `game_settings.cfg` | **All tunable values** (speeds, sizes, colors, keys, window). Edit this to tweak the game. |
 | `REQUEST_LOG.md` | Dated log of every request and the commits that implemented it. |
 | `scripts/simulation/` | The simulation itself (no drawing): `colony_simulation.gd` runs it, `ant.gd` is the ant brain, `pheromone_grid.gd` the map of smells. |
-| `scripts/view/` | Drawing the simulation and the stats text. |
+| `scripts/view/` | Drawing the map, camera (zoom/pan), painting and selection. |
+| `scripts/ui/` | Tool bar and side panel (timer, upgrades, selected-object info, stats). |
 | `scenes/` | Godot scenes. |
 | `CLAUDE.md` | Rules the AI assistant follows when changing this project. |

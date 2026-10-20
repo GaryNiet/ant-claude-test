@@ -4,6 +4,67 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #14 — 2026-10-20
+
+**Request:**
+> Make the basic grid with a clump of food a "Level" . The game loads into a level. A level is a file that remembers the placement of everything on the grid. You can load into them. Code it in a way that levels could be different sizes. Levels don't need to remember pheromones and ant placement. Ants cannot just reappear at the nest.
+>
+> Add a zoom feature to the visualization.
+>
+> Make the window bigger, even in not necessarily the visualization area. Use the rest of the space to display the information.
+>
+> Add a tool bar for the painting of the grid.
+>
+> Add a save button that will memorize the grid into a level.
+>
+> Add a load level that'll load into a level.
+>
+> Add a timer that'll pause if the game is paused and starts when a level is loaded
+>
+> Add a few gameplay buttons. Ants still spawn automatically.
+>
+> Each of these buttons will have a cost of food:
+> Gain attack
+> Gain hp
+> Gain speed
+> Gain amount that can be carried
+> Gain cut speed
+> Faster spawn
+>
+> Balance this roughly
+>
+> Generally make everything a bit slower, it feels too fast right now.
+>
+> When clicking on anything, information on it will show up. Display the information you have
+
+**Done:**
+- Levels (`scripts/simulation/level.gd`, `levels/*.level`): plain text files with name, cell
+  size, starting ants, nest cell and a character map ("." empty, "#" obstacle, 1-9/a-z food).
+  Map size comes from the file, so levels can be any size. Included: `default.level`
+  (160x90, one food clump) and `walled_valley.level` (240x110 with walls). The game starts on
+  `[game] start_level`. On load the starting colony emerges from the nest one by one
+  (interpretation of "ants cannot just reappear at the nest").
+- Window 1600x900: tool bar on top (tools Inspect/Food/Obstacle/Erase/Nest, brush size,
+  pause, restart, fit map, save level, load level), side panel on the right (level, timer,
+  upgrades, selected-object info, colony stats). Save/Load use a file dialog in `levels/`.
+- Zoom with the mouse wheel towards the cursor, pan with middle-drag / arrows / WASD.
+- Timer: play time on the level, stops while paused, resets when a level is loaded.
+- Upgrades (bought with food stored in the nest): attack +25%, health +25%, speed +10%,
+  carry +1 food, cutting +30%, birth speed +20% per level; 5 levels, cost 40 x 1.6^level.
+  Ants carry several pieces now (cut one at a time). Births are timed (1 ant / 4 s if 8 food
+  stored) so food can build up for upgrades.
+- Inspect tool: click an ant, enemy, the nest or a map cell to see its details (live).
+- Slower: `[simulation] game_speed = 0.7` (everything runs at 70%, still 30 updates/s).
+- Balance test (30 min game time, 2 maps): without buying, the colony holds at ~80-105 ants
+  and stockpiles food; buying the cheapest upgrade whenever possible gives ~18 upgrades
+  (about level 3 in everything) and ~185-200 ants.
+
+**Commits:**
+- `b22cbdb` — Add levels (load/save), zoom and pan, tool bar, side panel with timer, upgrades and inspector; slower game speed
+- _(second commit filled in below once committed)_
+
+---
+
 ## #13 — 2026-10-20
 
 **Request:**
