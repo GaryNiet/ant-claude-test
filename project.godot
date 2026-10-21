@@ -1,28 +1,37 @@
-; Godot project file. You normally don't need to edit this.
-; All gameplay / tuning values live in game_settings.cfg instead.
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
 
 config_version=5
+
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 [application]
 
 config/name="Prototype"
 run/main_scene="res://scenes/main_menu.tscn"
-config/features=PackedStringArray("4.3")
-
-[display]
-
-; The window the game opens with (before the Startup script applies the player's choice from
-; the Settings menu): laid out at 1600x900, shown at 1920x1080, scaled keeping 16:9.
-; Keep these in line with [window] layout_width/height and default_resolution in game_settings.cfg.
-window/size/viewport_width=1600
-window/size/viewport_height=900
-window/size/window_width_override=1920
-window/size/window_height_override=1080
-window/stretch/mode="canvas_items"
-window/stretch/aspect="keep"
+config/features=PackedStringArray("4.7")
 
 [autoload]
 
 GameSettings="*res://scripts/game_settings.gd"
 Startup="*res://scripts/startup.gd"
 Sounds="*res://scripts/sounds.gd"
+
+[display]
+
+window/size/viewport_width=1600
+window/size/viewport_height=900
+window/size/window_width_override=1920
+window/size/window_height_override=1080
+window/stretch/mode="canvas_items"
+
+[dotnet]
+
+project/assembly_name="Prototype"
