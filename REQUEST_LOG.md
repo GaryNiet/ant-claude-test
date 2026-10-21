@@ -42,7 +42,7 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
   and a seamless loop, not by ear.)
 
 **Commits:**
-- (pending)
+- `7722def` — Rebalance (growing colonies, lasting food, rare strong spiders), damage numbers, music and sound effects
 
 ---
 
