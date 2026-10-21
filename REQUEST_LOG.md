@@ -4,6 +4,32 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #28 — 2026-10-21
+
+**Request:**
+> game's still a bit too fast to understand, make it slower.
+>
+> hatching should not be done in parralel. it is one after the other. make an indicator that shows hoe many larva are hatching with a bar that fills to see when they are going to pop
+>
+> players should be able to see the phromone trails they places themselves
+
+**Done:**
+- Slower: `[simulation] game_speed` 0.7 -> 0.5 (everything at half speed).
+- Hatching is now a queue: larvae hatch one after the other, 3 s each (was 6 s, all at once);
+  `[nest] hatch_time`. With the slower game that is one ant every 6 real seconds.
+- Gameplay bar, next to the hatch buttons: "Hatching: N / next in X s" over a bar that fills
+  while the current larva hatches (ochre, `[ui] progress_color`).
+- Trails drawn with the Trail tool have their own layer, always shown (also with the trails
+  display off), in pale yellow; they fade with the trail (`[painting] drawn_trail_*`).
+  Choosing the Trail tool no longer turns the whole trails display on.
+- Tested: 5 larvae queued hatch at 3, 6, 9, 12, 15 s (game time); screenshot with a drawn trail
+  shown while the trails display is off, and the hatching bar.
+
+**Commits:**
+- `89573cd` — Slower game, larvae hatch one after the other with a progress bar, drawn trails always shown
+
+---
+
 ## #27 — 2026-10-21
 
 **Request:**
