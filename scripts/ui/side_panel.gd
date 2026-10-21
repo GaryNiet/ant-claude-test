@@ -145,6 +145,7 @@ func _describe_nest(sim: ColonySimulation) -> String:
 		"Food stored: %d" % sim.food_stored,
 		"Next birth in %.1f s (needs %d food)" % [maxf(sim.time_until_birth, 0.0), sim.food_per_new_ant],
 		"Ants: %d" % sim.ants.size(),
+		"Size: %.0f px radius, %d tiles (grows with the colony)" % [sim.nest_radius, sim.nest_tile_count()],
 		"Position: %.0f, %.0f" % [sim.nest_position.x, sim.nest_position.y],
 	]))
 
@@ -152,9 +153,12 @@ func _describe_nest(sim: ColonySimulation) -> String:
 func _describe_cell(sim: ColonySimulation, cell: Vector2i) -> String:
 	var grid := sim.grid
 	var index := cell.y * grid.width + cell.x
+	var tile := Vector2i(cell.x / sim.ground.tile_cells, cell.y / sim.ground.tile_cells)
+	var ground_name: String = GroundMap.TYPE_NAMES[sim.ground.type_at(tile.x, tile.y)]
 	return "\n".join(PackedStringArray([
-		"MAP CELL %d, %d" % [cell.x, cell.y],
-		"Obstacle" if grid.obstacle[index] == 1 else "Food: %d" % grid.food[index],
+		"MAP CELL %d, %d  (tile %d, %d)" % [cell.x, cell.y, tile.x, tile.y],
+		"Ground: %s%s" % [ground_name.capitalize(), "" if sim.ground.is_walkable(tile.x, tile.y) else " (can't be walked on)"],
+		"Food: %d" % grid.food[index],
 		"Pheromones:  going out %.2f   going home %.2f   fight %.2f" % [grid.going_out[index], grid.going_home[index], grid.fight[index]],
 	]))
 

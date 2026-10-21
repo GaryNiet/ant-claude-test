@@ -1,6 +1,6 @@
 extends PanelContainer
 ## The bar at the top of the window: painting tools, brush size, pause/restart,
-## save/load level, "fit map" to reset the zoom, and the settings menu.
+## save/load level, "fit map" to reset the zoom, the settings menu and back to the main menu.
 
 var _view: Node2D
 var _brush: Node2D
@@ -18,11 +18,10 @@ func setup(view: Node2D, brush: Node2D, main: Node) -> void:
 	var row := HBoxContainer.new()
 	add_child(row)
 
-	row.add_child(_label("Tool:"))
 	var tool_group := ButtonGroup.new()
 	for tool in brush.TOOL_NAMES:
 		var shortcut_keys := ", ".join(GameSettings.get_list("controls", brush.TOOL_ACTIONS[tool]))
-		var button := _button("%s (%s)" % [brush.TOOL_NAMES[tool], shortcut_keys], _on_tool_pressed.bind(tool))
+		var button := _button("%s %s" % [shortcut_keys, brush.TOOL_NAMES[tool]], _on_tool_pressed.bind(tool))
 		button.toggle_mode = true
 		button.button_group = tool_group
 		_tool_buttons[tool] = button
@@ -38,7 +37,7 @@ func setup(view: Node2D, brush: Node2D, main: Node) -> void:
 	row.add_child(VSeparator.new())
 	_pause_button = _button("Pause", func() -> void: _view.is_paused = not _view.is_paused)
 	row.add_child(_pause_button)
-	row.add_child(_button("Restart level", _view.restart_level))
+	row.add_child(_button("Restart", _view.restart_level))
 	row.add_child(_button("Fit map", _view.fit_map_to_area))
 
 	row.add_child(VSeparator.new())
@@ -47,6 +46,7 @@ func setup(view: Node2D, brush: Node2D, main: Node) -> void:
 
 	row.add_child(VSeparator.new())
 	row.add_child(_button("Settings", _main.open_settings_menu))
+	row.add_child(_button("Menu (%s)" % ", ".join(GameSettings.get_list("controls", "main_menu")), _main.go_to_main_menu))
 
 
 func _process(_delta: float) -> void:

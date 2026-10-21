@@ -1,16 +1,7 @@
 extends Node2D
-## Root of the game: window, controls, screen layout (map, tool bar, side panel)
-## and saving / loading levels.
-
-
-## Mouse buttons by the names used in game_settings.cfg.
-const MOUSE_BUTTON_NAMES := {
-	"Mouse Left": MOUSE_BUTTON_LEFT,
-	"Mouse Right": MOUSE_BUTTON_RIGHT,
-	"Mouse Middle": MOUSE_BUTTON_MIDDLE,
-	"Wheel Up": MOUSE_BUTTON_WHEEL_UP,
-	"Wheel Down": MOUSE_BUTTON_WHEEL_DOWN,
-}
+## Root of the game screen: screen layout (map, tool bar, side panel), saving / loading
+## levels and going back to the main menu. The window and the controls are set up once
+## by the Startup autoload.
 
 
 @onready var _view: Node2D = $SimulationView
@@ -23,55 +14,30 @@ var _was_paused_before_dialog := false
 
 
 func _ready() -> void:
-	_apply_window_settings()
-	_register_controls()
 	_layout_ui()
 	_toolbar.setup(_view, $SimulationView/Brush, self)
 	_side_panel.setup(_view)
-	_settings_menu.setup(self)
+	_settings_menu.setup()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("main_menu"):
+		go_to_main_menu()
 
 
 func open_settings_menu() -> void:
 	_settings_menu.open()
 
 
-## The screen is always laid out at [window] layout_width x layout_height and scaled
-## to the window, so every 16:9 resolution shows exactly the same picture, just sharper.
-func _apply_window_settings() -> void:
-	var window := get_window()
-	window.title = GameSettings.get_setting("window", "title")
-	window.content_scale_size = Vector2i(
-		GameSettings.get_setting("window", "layout_width"),
-		GameSettings.get_setting("window", "layout_height"))
-	window.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
-	window.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_KEEP
-	RenderingServer.set_default_clear_color(GameSettings.get_color("window", "background_color"))
-	apply_resolution()
-
-
-## Sizes the window to the chosen resolution. If the screen is too small for it, the window
-## is shrunk (still 16:9) to fit the usable screen area.
-func apply_resolution() -> void:
-	var window := get_window()
-	var wanted := Vector2(PlayerSettings.parse_resolution(PlayerSettings.resolution()))
-	var screen := Vector2(DisplayServer.screen_get_usable_rect(window.current_screen).size)
-	var shrink := minf(1.0, minf(screen.x / wanted.x, screen.y / wanted.y))
-	window.size = Vector2i(wanted * shrink)
-	window.move_to_center()
+func go_to_main_menu() -> void:
+	GameSession.back_to_main_menu(get_tree())
 
 
 ## Tool bar across the top, side panel on the right, both with the same look.
 func _layout_ui() -> void:
 	var toolbar_height: float = GameSettings.get_setting("ui", "toolbar_height")
 	var side_panel_width: float = GameSettings.get_setting("ui", "side_panel_width")
-	var theme := Theme.new()
-	theme.default_font_size = GameSettings.get_setting("ui", "font_size")
-	var background := StyleBoxFlat.new()
-	background.bg_color = GameSettings.get_color("ui", "panel_color")
-	background.set_content_margin_all(6)
-	theme.set_stylebox("panel", "PanelContainer", background)
-	theme.set_color("font_color", "Label", GameSettings.get_color("colors", "hud_text"))
-
+	var theme := UiTheme.make()
 	_toolbar.theme = theme
 	_toolbar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	_toolbar.offset_bottom = toolbar_height
@@ -94,7 +60,7 @@ func open_load_dialog() -> void:
 	dialog.file_selected.connect(_view.load_level)
 
 
-## The current map (food, obstacles, nest) becomes a level file named after the file.
+## The current map (ground tiles, food, nest) becomes a level file named after the file.
 func _save_level(path: String) -> void:
 	var level := Level.from_simulation(_view.simulation, path.get_file().get_basename().capitalize())
 	var error := level.save_file(path)
@@ -120,30 +86,3 @@ func _make_file_dialog(mode: FileDialog.FileMode, title: String) -> FileDialog:
 			dialog.queue_free())
 	dialog.popup_centered()
 	return dialog
-
-
-## Creates one input action per entry in [controls], bound to the keys/buttons listed there.
-func _register_controls() -> void:
-	for action in GameSettings.get_keys("controls"):
-		if not InputMap.has_action(action):
-			InputMap.add_action(action)
-		for input_name in GameSettings.get_list("controls", action):
-			var event := _input_event_from_name(input_name)
-			if event == null:
-				push_error("Unknown key or button name '%s' for %s" % [input_name, action])
-				continue
-			InputMap.action_add_event(action, event)
-
-
-
-## Turns a name like "Space", "A" or "Mouse Left" into an input event (null if unknown).
-func _input_event_from_name(input_name: String) -> InputEvent:
-	if MOUSE_BUTTON_NAMES.has(input_name):
-		var mouse_event := InputEventMouseButton.new()
-		mouse_event.button_index = MOUSE_BUTTON_NAMES[input_name]
-		return mouse_event
-	var key_event := InputEventKey.new()
-	key_event.physical_keycode = OS.find_keycode_from_string(input_name)
-	if key_event.physical_keycode == KEY_NONE:
-		return null
-	return key_event

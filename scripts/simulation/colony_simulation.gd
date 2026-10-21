@@ -1,14 +1,17 @@
 class_name ColonySimulation
 extends RefCounted
-## The whole simulation: the map grid (pheromones, food, obstacles), the nest, the ants
-## and the enemies. It starts from a Level (the map layout). Food delivered to the nest is
-## stored; the nest turns it into new ants, and the player can spend it on upgrades.
+## The whole simulation: the ground (tiles: dirt, grass, water, obstacles, nest), the map
+## grid on top of it (pheromones and food, in smaller cells), the nest, the ants and the
+## enemies. It starts from a Level (the map layout). Food delivered to the nest is stored;
+## the nest turns it into new ants, and the player can spend it on upgrades.
+## The nest grows with the colony: the more ants, the more tiles it covers.
 ## It knows nothing about drawing; call step() at a fixed rate to advance it.
-## It starts with one blob of food; the player paints more food and obstacles while it runs.
+## The player paints food and ground tiles while it runs.
 
 var level: Level   ## the level this simulation started from
 var rng := RandomNumberGenerator.new()
 var grid: MapGrid
+var ground: GroundMap
 var ant_settings := AntSettings.new()
 var upgrades := ColonyUpgrades.new()
 var ants: Array[Ant] = []
@@ -17,7 +20,10 @@ var enemy_settings := EnemySettings.new()
 var collisions: AntCollisions
 
 var nest_position: Vector2
-var nest_radius: float = GameSettings.get_setting("nest", "radius")
+var nest_radius: float          ## ants count as "home" inside this distance; grows with the colony
+var _nest_min_radius: float = GameSettings.get_setting("nest", "radius")
+var _nest_area_per_ant: float = GameSettings.get_setting("nest", "area_per_ant")
+var _nest_sized_for_ants := -1  ## colony size the nest was last sized for
 
 # Statistics
 var elapsed_time := 0.0
@@ -55,14 +61,17 @@ func _init(starting_level: Level) -> void:
 		rng.randomize()
 	else:
 		rng.seed = random_seed
-	grid = MapGrid.new(level.width, level.height, level.cell_size)
+	grid = MapGrid.new(level.width(), level.height(), level.cell_size)
+	ground = GroundMap.new(level.columns, level.rows, level.tile_cells, level.cell_size, level.tiles)
+	nest_position = (Vector2(level.nest_cell) + Vector2(0.5, 0.5)) * grid.cell_size
+	_grow_nest()
+	for row in ground.rows:
+		for column in ground.columns:
+			_update_cells_of_tile(Vector2i(column, row))
 	for index in level.food.size():
-		if level.obstacle[index] == 1:
-			grid.set_obstacle(index, true)
-		elif level.food[index] > 0:
+		if grid.obstacle[index] == 0 and level.food[index] > 0:
 			grid.set_food(index, level.food[index])
 	collisions = AntCollisions.new(grid.world_size())
-	nest_position = (Vector2(level.nest_cell) + Vector2(0.5, 0.5)) * grid.cell_size
 	time_until_birth = birth_interval()
 	_time_until_next_enemy = enemy_settings.first_arrival
 
@@ -72,6 +81,7 @@ func step(delta: float) -> void:
 	elapsed_time += delta
 	_spawn_first_ants()
 	_give_birth_over_time(delta)
+	_grow_nest()
 	_spawn_enemies_over_time(delta)
 	for ant in ants:
 		ant.update(self, delta)
@@ -92,20 +102,32 @@ func paint_food(center: Vector2, radius: float) -> void:
 			grid.set_food(index, _painted_food_per_cell)
 
 
-## Turns the cells in the circle into obstacles, except right around the nest.
-func paint_obstacle(center: Vector2, radius: float) -> void:
-	for index in grid.cells_in_circle(center, radius):
-		var cell_middle := (Vector2(index % grid.width, index / grid.width) + Vector2(0.5, 0.5)) * grid.cell_size
-		if cell_middle.distance_to(nest_position) > _obstacle_free_radius and grid.obstacle[index] == 0:
-			grid.set_obstacle(index, true)
+## Changes the ground of the tiles in the circle (at least the tile under the brush).
+## Tiles that can't be walked on (water, obstacles) are not painted right around the nest.
+func paint_ground(center: Vector2, radius: float, type: GroundMap.Type) -> void:
+	for tile in ground.tiles_in_circle(center, radius):
+		var too_close_to_nest := ground.tile_center(tile.x, tile.y).distance_to(nest_position) <= _obstacle_free_radius
+		if too_close_to_nest and not ground.is_walkable_type(type):
+			continue
+		if ground.set_ground(tile.x, tile.y, type):
+			_update_cells_of_tile(tile)
 
 
-## Removes food and obstacles in the circle (pheromones are left alone).
-func erase(center: Vector2, radius: float) -> void:
+## Removes the food in the circle (pheromones are left alone).
+func erase_food(center: Vector2, radius: float) -> void:
 	for index in grid.cells_in_circle(center, radius):
 		grid.set_food(index, 0)
-		if grid.obstacle[index] == 1:
-			grid.set_obstacle(index, false)
+
+
+## Makes the cells of a tile blocked or free, matching what the tile shows
+## (blocking a cell removes its food and pheromones).
+func _update_cells_of_tile(tile: Vector2i) -> void:
+	var blocked := 0 if ground.is_walkable(tile.x, tile.y) else 1
+	for row in range(tile.y * ground.tile_cells, (tile.y + 1) * ground.tile_cells):
+		for column in range(tile.x * ground.tile_cells, (tile.x + 1) * ground.tile_cells):
+			var index := row * grid.width + column
+			if grid.obstacle[index] != blocked:
+				grid.set_obstacle(index, blocked == 1)
 
 
 # --- Called by ants ---------------------------------------------------------
@@ -152,14 +174,37 @@ func buy_upgrade(kind: ColonyUpgrades.Kind) -> bool:
 	return true
 
 
-## Moves the nest to the cell at `spot` (not onto an obstacle) and clears obstacles around it.
+## Moves the nest to the cell at `spot` (not onto water or an obstacle) and turns tiles
+## that can't be walked on right around it into dirt.
 func move_nest(spot: Vector2) -> void:
 	if grid.is_obstacle(spot):
 		return
 	nest_position = grid.cell_center(spot)
-	for index in grid.cells_in_circle(nest_position, _obstacle_free_radius):
-		if grid.obstacle[index] == 1:
-			grid.set_obstacle(index, false)
+	for tile in ground.tiles_in_circle(nest_position, _obstacle_free_radius):
+		if not ground.is_walkable_type(ground.tiles[tile.y * ground.columns + tile.x]):
+			ground.set_ground(tile.x, tile.y, GroundMap.Type.DIRT)
+	_nest_sized_for_ants = -1  # redraw the nest at its new place
+	_grow_nest()
+
+
+## The nest covers about area_per_ant square pixels per ant (never less than the minimum
+## radius), so it grows as the colony grows. It covers every tile whose center is inside it.
+func _grow_nest() -> void:
+	if ants.size() == _nest_sized_for_ants:
+		return
+	_nest_sized_for_ants = ants.size()
+	nest_radius = maxf(_nest_min_radius, sqrt(ants.size() * _nest_area_per_ant / PI))
+	var covered := PackedByteArray()
+	covered.resize(ground.columns * ground.rows)
+	for tile in ground.tiles_in_circle(nest_position, nest_radius):
+		covered[tile.y * ground.columns + tile.x] = 1
+	for tile in ground.set_nest_tiles(covered):
+		_update_cells_of_tile(tile)
+
+
+## Number of tiles the nest covers.
+func nest_tile_count() -> int:
+	return ground.nest_tiles.count(1)
 
 
 ## Closest living enemy within `radius` of `from`, or null if none.

@@ -1,13 +1,16 @@
 extends Node2D
 ## The player's mouse tools on the map:
 ##   Inspect   click on anything to see information about it (in the side panel)
-##   Food      hold to paint food
-##   Obstacle  hold to paint obstacles
-##   Erase     hold to remove food and obstacles (right click erases with any tool)
+##   Food      hold to paint food (on ground that can be walked on)
+##   Obstacle  hold to paint obstacle tiles
+##   Erase     hold to remove food (right click erases food with any tool)
 ##   Nest      click to move the nest
+##   Dirt, Grass, Water   hold to paint ground tiles
 ## Shows the brush as a circle under the mouse for the painting tools.
+## Ground tools paint whole tiles: every tile whose center is in the circle, at least the
+## tile under the mouse.
 
-enum Tool { INSPECT, FOOD, OBSTACLE, ERASE, NEST }
+enum Tool { INSPECT, FOOD, OBSTACLE, ERASE, NEST, DIRT, GRASS, WATER }
 
 const TOOL_NAMES := {
 	Tool.INSPECT: "Inspect",
@@ -15,6 +18,17 @@ const TOOL_NAMES := {
 	Tool.OBSTACLE: "Obstacle",
 	Tool.ERASE: "Erase",
 	Tool.NEST: "Nest",
+	Tool.DIRT: "Dirt",
+	Tool.GRASS: "Grass",
+	Tool.WATER: "Water",
+}
+
+## The ground each ground tool paints.
+const TOOL_GROUND := {
+	Tool.OBSTACLE: GroundMap.Type.OBSTACLE,
+	Tool.DIRT: GroundMap.Type.DIRT,
+	Tool.GRASS: GroundMap.Type.GRASS,
+	Tool.WATER: GroundMap.Type.WATER,
 }
 
 ## Keyboard action for each tool (see [controls]).
@@ -24,6 +38,9 @@ const TOOL_ACTIONS := {
 	Tool.OBSTACLE: "tool_obstacle",
 	Tool.ERASE: "tool_erase",
 	Tool.NEST: "tool_nest",
+	Tool.DIRT: "tool_dirt",
+	Tool.GRASS: "tool_grass",
+	Tool.WATER: "tool_water",
 }
 
 @onready var view: Node2D = get_parent()
@@ -99,13 +116,13 @@ func _paint_line(from: Vector2, to: Vector2) -> void:
 func _paint_dab(center: Vector2) -> void:
 	var simulation: ColonySimulation = view.simulation
 	if _is_erasing:
-		simulation.erase(center, radius)
+		simulation.erase_food(center, radius)
 	elif selected_tool == Tool.FOOD:
 		simulation.paint_food(center, radius)
-	elif selected_tool == Tool.OBSTACLE:
-		simulation.paint_obstacle(center, radius)
+	elif TOOL_GROUND.has(selected_tool):
+		simulation.paint_ground(center, radius, TOOL_GROUND[selected_tool])
 
 
 func _draw() -> void:
-	if selected_tool in [Tool.FOOD, Tool.OBSTACLE, Tool.ERASE]:
+	if selected_tool not in [Tool.INSPECT, Tool.NEST]:
 		draw_arc(get_local_mouse_position(), radius, 0.0, TAU, 48, _outline_color, 1.0 / view.scale.x)

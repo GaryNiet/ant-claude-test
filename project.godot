@@ -6,9 +6,10 @@ config_version=5
 [application]
 
 config/name="Prototype"
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://scenes/main_menu.tscn"
 config/features=PackedStringArray("4.3")
 
 [autoload]
 
 GameSettings="*res://scripts/game_settings.gd"
+Startup="*res://scripts/startup.gd"

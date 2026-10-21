@@ -1,10 +1,12 @@
 extends Node2D
-## Draws the nest, the ants (dots), the enemies (big dots with a health bar) and a ring
-## around whatever the player selected.
+## Draws the nest entrance, the ants and the enemies, and a ring around whatever the player
+## selected. Ants and enemies are arrows pointing where they are heading (only the drawing:
+## their collision size stays a circle). An ant carrying food holds the food block in front
+## of it. (The nest tiles themselves are drawn by the ground layer.)
 
 @onready var view: Node2D = get_parent()
 
-var _nest_color: Color = GameSettings.get_color("colors", "nest")
+var _nest_entrance_color: Color = GameSettings.get_color("colors", "nest_entrance")
 var _ant_color: Color = GameSettings.get_color("colors", "ant")
 var _scout_color: Color = GameSettings.get_color("colors", "scout")
 var _ant_with_food_color: Color = GameSettings.get_color("colors", "ant_with_food")
@@ -17,8 +19,12 @@ var _enemy_appetite: float = GameSettings.get_setting("enemies", "appetite")
 var _food_color: Color = GameSettings.get_color("colors", "food")
 var _health_bar_gap: float = GameSettings.get_setting("display", "enemy_health_bar_gap")
 var _health_bar_thickness: float = GameSettings.get_setting("display", "enemy_health_bar_thickness")
-var _ant_radius: float = GameSettings.get_setting("display", "ant_radius")
-var _nest_draw_radius: float = GameSettings.get_setting("display", "nest_draw_radius")
+var _ant_length: float = GameSettings.get_setting("display", "ant_length")
+var _ant_width: float = GameSettings.get_setting("display", "ant_width")
+var _enemy_length: float = GameSettings.get_setting("display", "enemy_length")
+var _enemy_width: float = GameSettings.get_setting("display", "enemy_width")
+var _food_block_size: float = GameSettings.get_setting("display", "carried_food_block_size")
+var _nest_entrance_radius: float = GameSettings.get_setting("display", "nest_entrance_radius")
 var _selection_color: Color = GameSettings.get_color("display", "selection_color")
 
 
@@ -28,9 +34,9 @@ func _process(_delta: float) -> void:
 
 func _draw() -> void:
 	var simulation: ColonySimulation = view.simulation
-	draw_circle(simulation.nest_position, _nest_draw_radius, _nest_color)
+	draw_circle(simulation.nest_position, _nest_entrance_radius, _nest_entrance_color)
 	for ant in simulation.ants:
-		draw_circle(ant.position, _ant_radius, _ant_dot_color(ant))
+		_draw_ant(ant)
 	for enemy in simulation.enemies:
 		_draw_enemy(enemy)
 	_draw_selection(simulation)
@@ -42,18 +48,27 @@ func _draw_selection(simulation: ColonySimulation) -> void:
 	var line_width := 1.5 / view.scale.x
 	var selected: Variant = view.selection
 	if selected is Ant and not selected.is_dead():
-		draw_arc(selected.position, _ant_radius * 3.0, 0.0, TAU, 24, _selection_color, line_width)
+		draw_arc(selected.position, _ant_length, 0.0, TAU, 24, _selection_color, line_width)
 	elif selected is Enemy and not selected.is_dead() and not selected.has_left_the_map:
 		draw_arc(selected.position, _enemy_radius * 1.5, 0.0, TAU, 32, _selection_color, line_width)
 	elif selected is String and selected == view.SELECTED_NEST:
-		draw_arc(simulation.nest_position, _nest_draw_radius * 1.6, 0.0, TAU, 32, _selection_color, line_width)
+		draw_arc(simulation.nest_position, simulation.nest_radius, 0.0, TAU, 48, _selection_color, line_width)
 	elif selected is Vector2i:
 		var cell_size := simulation.grid.cell_size
 		draw_rect(Rect2(Vector2(selected) * cell_size, Vector2(cell_size, cell_size)), _selection_color, false, line_width)
 
 
+func _draw_ant(ant: Ant) -> void:
+	_draw_arrow(ant.position, ant.heading, _ant_length, _ant_width, _ant_color_for(ant))
+	if ant.is_carrying_food():
+		# The block grows with the pieces carried (its area is proportional to the food).
+		var size := _food_block_size * sqrt(ant.carried_food)
+		var forward := Vector2.from_angle(ant.heading)
+		_draw_square(ant.position + forward * (_ant_length + size) * 0.5, ant.heading, size, _food_color)
+
+
 func _draw_enemy(enemy: Enemy) -> void:
-	draw_circle(enemy.position, _enemy_radius, _enemy_color)
+	_draw_arrow(enemy.position, enemy.heading, _enemy_length, _enemy_width, _enemy_color)
 	if enemy.food_eaten > 0:  # belly: a green dot that grows with the food eaten
 		var fullness := minf(enemy.food_eaten / _enemy_appetite, 1.0)
 		draw_circle(enemy.position, _enemy_radius * 0.7 * fullness, _food_color)
@@ -63,7 +78,27 @@ func _draw_enemy(enemy: Enemy) -> void:
 	draw_line(bar_start, bar_end, _health_bar_color, _health_bar_thickness)
 
 
-func _ant_dot_color(ant: Ant) -> Color:
+## An arrow head centered on `center`, pointing along `heading`: a triangle with a notch
+## in its back, `length` long and `width` wide.
+func _draw_arrow(center: Vector2, heading: float, length: float, width: float, color: Color) -> void:
+	var forward := Vector2.from_angle(heading)
+	var side := forward.orthogonal()
+	var tip := center + forward * length * 0.5
+	var back := center - forward * length * 0.5
+	var notch := center - forward * length * 0.2
+	draw_colored_polygon(PackedVector2Array([tip, back + side * width * 0.5, notch, back - side * width * 0.5]), color)
+
+
+## A square of side `size` centered on `center`, turned by `angle`.
+func _draw_square(center: Vector2, angle: float, size: float, color: Color) -> void:
+	var half_forward := Vector2.from_angle(angle) * size * 0.5
+	var half_side := half_forward.orthogonal()
+	draw_colored_polygon(PackedVector2Array([
+		center + half_forward + half_side, center + half_forward - half_side,
+		center - half_forward - half_side, center - half_forward + half_side]), color)
+
+
+func _ant_color_for(ant: Ant) -> Color:
 	if ant.mode == Ant.Mode.FIGHTING:
 		return _ant_fighting_color
 	if ant.mode == Ant.Mode.CUTTING_FOOD:

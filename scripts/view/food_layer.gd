@@ -1,6 +1,7 @@
 extends Node2D
-## Draws food and obstacles: one pixel per map cell, stretched over the map with sharp edges.
-## Food cells get more opaque the more food they hold. Only redrawn when something changed.
+## Draws the food lying on the ground: one pixel per map cell, stretched over the map with
+## sharp edges. Food cells get more opaque the more food they hold. Only redrawn when the
+## food changed. (The ground itself is drawn by the ground layer.)
 
 @onready var view: Node2D = get_parent()
 
@@ -11,7 +12,6 @@ var _drawn_version := -1
 var _drawn_simulation: ColonySimulation
 
 var _food_color: Color = GameSettings.get_color("colors", "food")
-var _obstacle_color: Color = GameSettings.get_color("colors", "obstacle")
 var _full_food: float = GameSettings.get_setting("display", "food_full_opacity")
 var _faintest_food: float = GameSettings.get_setting("display", "food_min_opacity")
 
@@ -35,9 +35,7 @@ func _update_texture(grid: MapGrid) -> void:
 		_texture = ImageTexture.create_from_image(_image)
 	for index in grid.food.size():
 		var color := Color.TRANSPARENT
-		if grid.obstacle[index] == 1:
-			color = _obstacle_color
-		elif grid.food[index] > 0:
+		if grid.food[index] > 0:
 			color = _food_color
 			color.a = lerpf(_faintest_food, 1.0, minf(grid.food[index] / _full_food, 1.0))
 		_pixels[index * 4] = color.r8

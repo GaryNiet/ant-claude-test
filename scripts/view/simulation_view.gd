@@ -38,8 +38,8 @@ func _enter_tree() -> void:
 	var ticks_per_second: float = GameSettings.get_setting("simulation", "ticks_per_second")
 	_tick_length = 1.0 / ticks_per_second
 	_max_ticks_per_frame = GameSettings.get_setting("simulation", "max_ticks_per_frame")
-	if not load_level(GameSettings.get_setting("game", "start_level")):
-		push_error("Could not load the start level; check [game] start_level")
+	if not load_level(GameSession.current_level_path()):
+		push_error("Could not load the level %s; check [menu] levels" % GameSession.current_level_path())
 	get_viewport().size_changed.connect(func() -> void: _needs_fit = true)
 
 

@@ -1,10 +1,33 @@
-; Ant colony level. Map: "." empty, "#" obstacle, 1-9 / a-z = 1-35 food.
-name = Default
+; Ant colony level. Tiles: d dirt, g grass, w water, # obstacle. Food: . none, 1-9 / a-z = 1-35.
+name = Meadow
 cell_size = 8.0
+tile_cells = 4
 starting_ants = 100
-nest = 80, 45
-map:
-................................................................................................................................................................
+nest = 80, 44
+tiles:
+dddgggggdddddddddgggggggggdddddddddddddg
+dddgggggdddddddddgggggggggdddddddddddddg
+dddgggggddddddddddggggggggdddddddddddddg
+ddggggggdddddddddddgggggggddddddddddddgg
+ddggggggddddddddddddggggggddddddddddgggg
+dgggggggdddddddddddddddgdddddddddggggggg
+ggggggggddddddddddddddddddddddgggggggggg
+gggggggdddddddddddddddddddddgggggggggggg
+ggggggddddddddddddddddddddddgggggggggggg
+gggdddddddddddddddddddddddddgggggggggggg
+ddddddddddddddddddddddddddddgggggggggggg
+ddddddddddddddddddddddddddddgggggggggggd
+ddddddddddddddddddddddddddddgggggggggggd
+dddddddddddddddddddddddddddddggggggggddd
+ddddddddddddgggddddddddddddddggggggddddd
+ddddddddddddggggdddddddddddddgggdddddddd
+dddddddddddddgggdddddddddddddggddddddddd
+dddddddddddddddddddddddddddggggddddddddd
+ggddddddddddddddddddddddddgggggddddddddd
+gggddddddddddddddddddddddgggggggdddddddd
+ggggdddddddddddddddddddddgggggggdddddddd
+ggggdddddddddddddddddddddggggggggddddddd
+food:
 ................................................................................................................................................................
 ................................................................................................................................................................
 ................................................................................................................................................................
@@ -53,7 +76,6 @@ map:
 ......................................................................................................................aaaaa.....................................
 ......................................................................................................................aaaaa.....................................
 ........................................................................................................................a.......................................
-................................................................................................................................................................
 ................................................................................................................................................................
 ................................................................................................................................................................
 ................................................................................................................................................................

@@ -1,14 +1,13 @@
 extends PopupPanel
-## A small Settings window, opened from the tool bar. For now: the window resolution.
+## A small Settings window, opened from the main menu or the tool bar.
+## For now: the window resolution.
 
-var _main: Node
 var _resolution_choice: OptionButton
 var _note: Label
 
 
-## Builds the menu. Called by main.gd once everything exists.
-func setup(main: Node) -> void:
-	_main = main
+## Builds the menu. Called by the screen that owns it once everything exists.
+func setup() -> void:
 	var column := VBoxContainer.new()
 	add_child(column)
 
@@ -49,7 +48,7 @@ func open() -> void:
 func _on_resolution_selected(index: int) -> void:
 	var choice := _resolution_choice.get_item_text(index)
 	PlayerSettings.save_resolution(choice)
-	_main.apply_resolution()
+	Startup.apply_resolution()
 	_update_note()
 
 

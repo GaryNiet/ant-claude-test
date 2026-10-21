@@ -1,6 +1,7 @@
 extends Node2D
 ## Draws the three pheromones as a colored glow: one pixel per map cell, stretched over the
-## map with smoothing, the two colors added together (pink where both overlap).
+## map with smoothing, the colors added together (pink where going out and home overlap).
+## The glow is added on top of the ground (black = no pheromone = ground unchanged).
 
 @onready var view: Node2D = get_parent()
 
@@ -15,6 +16,9 @@ var _full_brightness: float = GameSettings.get_setting("display", "pheromone_ful
 
 
 func _ready() -> void:
+	var glow := CanvasItemMaterial.new()
+	glow.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	material = glow
 	view.stepped.connect(_update_texture)
 	_update_texture()
 
