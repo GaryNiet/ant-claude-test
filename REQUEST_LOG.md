@@ -4,6 +4,65 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #22 — 2026-10-21
+
+**Request** (sent by email, subject "[clod]"):
+> Separate the toolbar from the rest of the UI. Make it look more like buttons and in-game UI. Now it is only clickable labels. It should look like buttons. Buttons should have a click animation. Give the buttons icons. Food is an apple, terrain is mountains, and obstacles is a stop sign. The actual item buttons are just a picture of the ingame items.
+>
+> The toolbar should fit below the visualization, everything else should fit in the right of the window.
+>
+> Multiple ant nests should be possible. Ants will fight each other when they meet. Make a level that has another ant nest. Make a way to identify "our" ant nest. Upgrades only apply to our ant nest. When and only when another ant nest is selected, upgrade will apply only to it. Remember to update upgrade labels to represent current ant nest.
+>
+> Ants can consider opposing dead ants as food, can carry them back in a single chunk. Own dead ants are still left to decay.
+>
+> Art for the ant nest should be improved. General shape and color is fine, it just looks out of place right now.
+>
+> Dead spider sprite definitely needs a rework, legs are a mess.
+>
+> I'm wondering if there could be significant performance gain if updating the ant behavior less often. Say, when updating an ant, you check for the next few steps in a more optimized way if possible. If an ant is walking in a straight line, it could just memorize some waypoints and free up CPU for a while.
+>
+> Am I correct in saying the logic runs at 30hz, but the display is rending faster than that? How is this handled?
+
+**Done:**
+- UI: the tool bar is now under the map, with real buttons (raised, rounded, pushed in when
+  selected, shrinking a little while clicked) and icons: apple (Food), stop sign (Obstacles),
+  mountains (Terrain), magnifier, ant hill, eraser. On the Food / Obstacles / Terrain pages each
+  button shows the item itself (its sprite or tile). Everything else (pause, restart, fit map,
+  views, trails, save, load, settings, menu, then level, upgrades, selection, stats) is in the
+  panel on the right. Button colors and sizes in `[ui]`.
+- Colonies (`colony.gd`): a level can have rival nests (`rival_nest = column, row` lines).
+  Each colony has its own nest, food, upgrades, statistics and trails (ants only follow their
+  own colony's trails). Our nest has a flag; rival ants are red (debug view: red arrows).
+  Ants of different colonies fight whenever they touch (1 hit per second each, as with spiders).
+  Upgrades and stats are for our colony; while a rival nest is selected they are for that
+  colony, and the panel titles say which. The Nest tool moves the same colony's nest.
+- Dead ants of another colony are food: ants see them like food and carry one home in a
+  single chunk (4 food, `dead_rival_food`); a colony's own dead still fade away.
+- New Level 4 "Rival colonies": our nest on the left, a rival nest on the right, food in the middle.
+- Art: the ant hill is redrawn at the size it's shown (no more enlarged pixels), in the
+  colors of the dirt around it, without an outline, its base breaking up into loose grains, so
+  it sits in the ground instead of on it. Dead spider: legs curled up neatly over its body.
+- Performance (measured at ~106 ants on level 1): 8.4 ms per tick -> 3.8 ms.
+  - Pheromone fading was 2.8 ms: every cell, every tick. Now 1/8 of the rows fade each tick,
+    by 8 ticks' worth (same result): 0.4 ms (`decay_slices`).
+  - Ants were 3.3 ms. Following the suggestion: an ant now decides where to go (smelling, looking
+    for food and enemies, the expensive part) only every 3rd tick, each ant at its own moment,
+    and keeps turning the same way in between: 1.8 ms (`think_interval_ticks`). Memorised
+    waypoints wouldn't save more: ants never walk straight (they wobble and follow smells), and
+    the per-tick walking is cheap. Food collected is unchanged (8 games x 5 min: 950 on average
+    vs 880 deciding every tick, within the usual spread).
+- Question answered: yes, the simulation runs 30 ticks per second while the screen draws at its
+  own rate (60 Hz or more). Until now the extra frames showed the same positions, so ants moved
+  in 30 Hz steps. Now each ant and spider remembers where it was one tick ago and is drawn in
+  between, according to how far the time is to the next tick: smooth movement at any frame rate.
+- Tested in Godot 4.3: all 4 levels run, colonies fight and carry dead rivals home, save/load
+  keeps rival nests, screenshots of the new UI, nests, fights and tool bar pages checked.
+
+**Commits:**
+- `8d4d604` — Rival colonies, tool bar under the map with icon buttons, faster simulation, smooth movement, art fixes
+
+---
+
 ## #21 — 2026-10-21
 
 **Request** (sent by email, subject "[clod]"):
