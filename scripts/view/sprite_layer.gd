@@ -20,6 +20,8 @@ extends Node2D
 ## objects/<kind>.png, with optional variants objects/<kind>_2.png, _3...
 const ANT_NAME := "ant"
 const RIVAL_ANT_NAME := "ant_rival"
+const MAJOR_ANT_NAME := "ant_major"
+const RIVAL_MAJOR_ANT_NAME := "ant_rival_major"
 const FLAG_IMAGE := "flag.png"
 const SPIDER_NAME := "spider"
 const DIRECTIONS := ["se", "sw", "ne", "nw"]
@@ -45,6 +47,8 @@ enum Kind { OBJECT, NEST, ANT, DEAD_ANT, SPIDER }
 
 var _ant_frames := {}      ## direction -> Array of textures (walk frames)
 var _rival_ant_frames := {}
+var _major_ant_frames := {}
+var _rival_major_ant_frames := {}
 var _flag_texture: Texture2D
 var _spider_frames := {}
 var _crumb_texture: Texture2D
@@ -80,6 +84,8 @@ func _ready() -> void:
 	_glow_color.a = GameSettings.get_setting("objects", "food_glow_opacity")
 	_ant_frames = _load_directions(_folder, ANT_NAME)
 	_rival_ant_frames = _load_directions(_folder, RIVAL_ANT_NAME)
+	_major_ant_frames = _load_directions(_folder, MAJOR_ANT_NAME)
+	_rival_major_ant_frames = _load_directions(_folder, RIVAL_MAJOR_ANT_NAME)
 	_flag_texture = load("%s/%s" % [_folder, FLAG_IMAGE])
 	_spider_frames = _load_directions(_folder, SPIDER_NAME)
 	_crumb_texture = load("%s/%s" % [_folder, CRUMB_IMAGE])
@@ -137,7 +143,8 @@ func _things_back_to_front(simulation: ColonySimulation, to_screen: Transform2D)
 	for dead in simulation.dead_ants:
 		things.append({kind = Kind.DEAD_ANT, spot = to_screen * dead.position, thing = dead})
 	for colony in simulation.colonies:
-		things.append({kind = Kind.NEST, spot = to_screen * colony.nest_position, thing = colony})
+		if not colony.destroyed:
+			things.append({kind = Kind.NEST, spot = to_screen * colony.nest_position, thing = colony})
 	var between_ticks: float = view.tick_fraction()
 	for ant in simulation.ants:
 		var spot := ant.previous_position.lerp(ant.position, between_ticks)
@@ -259,20 +266,19 @@ func _foot_height(texture: Texture2D) -> float:
 func _draw_ant(ant: Ant, spot: Vector2, to_screen: Transform2D) -> void:
 	var direction := _screen_direction(ant.heading, to_screen)
 	var is_walking := ant.mode != Ant.Mode.FIGHTING and ant.mode != Ant.Mode.CUTTING_FOOD
-	var frames: Dictionary = _ant_frames if ant.colony.is_player else _rival_ant_frames
-	var texture := _frame(ant, frames[direction], is_walking)
+	var texture := _frame(ant, _frames_for(ant)[direction], is_walking)
 	var tint := _scout_tint if ant.is_scout else Color.WHITE
 	var towards_screen := direction.begins_with("s")
 	if ant.is_carrying_food() and not towards_screen:
 		_draw_crumb(ant, spot, texture, direction)  # held in front of the head, which faces away: behind the body
-	_draw_upright(texture, spot, _ant_size, _foot_height(texture), tint)
+	_draw_upright(texture, spot, _ant_size * ant.size_multiplier, _foot_height(texture), tint)
 	if ant.is_carrying_food() and towards_screen:
 		_draw_crumb(ant, spot, texture, direction)
 
 
 ## The crumb in the ant's mouth, bigger when it carries more pieces.
 func _draw_crumb(ant: Ant, spot: Vector2, ant_texture: Texture2D, direction: String) -> void:
-	var size := ant_texture.get_size() * (_ant_size / ant_texture.get_width())
+	var size := ant_texture.get_size() * (_ant_size * ant.size_multiplier / ant_texture.get_width())
 	var top_left := spot - Vector2(size.x * 0.5, size.y * _foot_height(ant_texture))
 	var mouth := MOUTH_TOWARDS_SCREEN if direction.begins_with("s") else MOUTH_AWAY_FROM_SCREEN
 	if direction.ends_with("w"):
@@ -280,6 +286,14 @@ func _draw_crumb(ant: Ant, spot: Vector2, ant_texture: Texture2D, direction: Str
 	var crumb := _crumb_size * sqrt(ant.carried_food)
 	var center := top_left + mouth * size
 	draw_texture_rect(_crumb_texture, Rect2(center - Vector2(crumb, crumb) * 0.5, Vector2(crumb, crumb)), false)
+
+
+## Our team's ants are orange, other teams' red; majors have their own sprites.
+func _frames_for(ant: Ant) -> Dictionary:
+	var ours: bool = ant.colony.team == view.simulation.player_colony.team
+	if ant.is_major:
+		return _major_ant_frames if ours else _rival_major_ant_frames
+	return _ant_frames if ours else _rival_ant_frames
 
 
 func _draw_spider(enemy: Enemy, spot: Vector2, to_screen: Transform2D) -> void:

@@ -36,7 +36,8 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	var simulation: ColonySimulation = view.simulation
 	for colony in simulation.colonies:
-		draw_circle(colony.nest_position, _nest_entrance_radius, _nest_entrance_color if colony.is_player else _rival_color)
+		if not colony.destroyed:
+			draw_circle(colony.nest_position, _nest_entrance_radius, _nest_entrance_color if colony.is_player else _rival_color)
 	for ant in simulation.ants:
 		_draw_ant(ant)
 	for enemy in simulation.enemies:
@@ -47,7 +48,7 @@ func _draw() -> void:
 ## SimulationView.tick_fraction), so they move smoothly between simulation ticks.
 func _draw_ant(ant: Ant) -> void:
 	var spot := ant.previous_position.lerp(ant.position, view.tick_fraction())
-	_draw_arrow(spot, ant.heading, _ant_length, _ant_width, _ant_color_for(ant))
+	_draw_arrow(spot, ant.heading, _ant_length * ant.size_multiplier, _ant_width * ant.size_multiplier, _ant_color_for(ant))
 	if ant.is_carrying_food():
 		# The block grows with the pieces carried (its area is proportional to the food).
 		var size := _food_block_size * sqrt(ant.carried_food)
@@ -94,7 +95,7 @@ func _ant_color_for(ant: Ant) -> Color:
 		return _ant_cutting_color
 	if ant.is_carrying_food():
 		return _ant_with_food_color
-	if not ant.colony.is_player:
+	if ant.colony.team != view.simulation.player_colony.team:
 		return _rival_color
 	if ant.is_scout:
 		return _scout_color

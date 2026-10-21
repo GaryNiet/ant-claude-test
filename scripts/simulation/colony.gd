@@ -1,49 +1,124 @@
 class_name Colony
 extends RefCounted
-## One ant colony: its nest, the food stored in it, its upgrades and its statistics.
-## A level can have several colonies; one of them is the player's ("our" colony), the others
-## are rivals. Ants only follow their own colony's trails and fight ants of other colonies.
+## One ant colony: its nest, the food and larvae stored in it, its tech tree upgrades, the
+## behaviour the player set, its maturity and its statistics.
+##
+## A level can have several colonies: one is the player's ("our" colony), the others are
+## rivals; nuptial flights add allied colonies. Colonies of the same team are allies; ants
+## fight ants of other teams. Ants only follow their own colony's trails.
+##
+## Hatching: the nest turns stored food into larvae. Larvae wait in the nest until they are
+## hatched (by the player, or automatically with infinite hatch); hatching takes hatch_time.
 
 var index: int            ## position in the simulation's list of colonies (also its trails)
 var name: String
 var is_player: bool
+var team: int             ## colonies with the same team are allies
 var nest_position: Vector2
+var position: Vector2:    ## where it is, for ants fighting the nest (= nest_position)
+	get:
+		return nest_position
 var nest_radius: float    ## ants count as "home" inside this distance; grows with the colony
-var ant_settings := AntSettings.new()   ## each colony's ants get its own upgrades
-var upgrades := ColonyUpgrades.new()
+var hp: float             ## nest health (rival ants attack a nest with no larvae left)
+var max_hp: float
+var destroyed := false
+var ant_settings := AntSettings.new()
+var techs := {}           ## tech tree node -> true when owned (shared with allied colonies)
+var maturity := 1         ## grows with the number of ants, never goes back
 
 var starting_ants: int
+var founded_time := 0.0   ## when the colony started (its first ants emerge from then on)
 var ant_count := 0        ## living ants of this colony
-var food_stored := 0      ## food in the nest, for new ants and upgrades
-var time_until_birth := 0.0
-var first_ants_spawned := 0  ## the starting colony emerges over time; this counts them
+var food_stored := 0      ## food in the nest, for larvae and upgrades
+var larvae := 0           ## larvae stored, waiting to hatch
+var hatching: Array[float] = []   ## seconds left for each larva that is hatching
+var infinite_hatch := false       ## hatch every larva as soon as it's laid
+var nests_to_found := 0           ## Nuptial flights bought but not placed yet
+var time_until_larva := 0.0
+var first_ants_spawned := 0       ## the starting colony emerges over time; this counts them
+var _mushroom_food := 0.0         ## mushroom food growing, added to the store by whole units
+
+# Behaviour, set by the player; only ants hatched after a change use the new values.
+var aggressivity: float = GameSettings.get_setting("behaviour", "aggressivity")
+var exploring: float = GameSettings.get_setting("behaviour", "exploring")
 
 # Statistics
 var total_food_collected := 0
 var ants_born := 0
 var ants_killed := 0         ## in fights (by spiders or rival ants)
 var ants_died_of_old_age := 0
+var larvae_stolen := 0       ## by rival ants raiding this nest
 var _delivery_times: Array[float] = []  ## when each recent food arrived, for food per second
 
-var _base_birth_interval: float = GameSettings.get_setting("nest", "birth_interval")
+var _larva_interval: float = GameSettings.get_setting("nest", "larva_interval")
+var _hatch_time: float = GameSettings.get_setting("nest", "hatch_time")
 var _food_rate_window: float = GameSettings.get_setting("display", "food_rate_window")
 
 
-func _init(colony_index: int, colony_name: String, player: bool, nest: Vector2, ants_at_start: int) -> void:
+func _init(colony_index: int, colony_name: String, player: bool, colony_team: int, nest: Vector2, ants_at_start: int) -> void:
 	index = colony_index
 	name = colony_name
 	is_player = player
+	team = colony_team
 	nest_position = nest
 	starting_ants = ants_at_start
-	time_until_birth = birth_interval()
+	max_hp = GameSettings.get_setting("nest", "hp")
+	hp = max_hp
+	infinite_hatch = not player or GameSettings.get_setting("nest", "player_starts_with_infinite_hatch")
+	time_until_larva = _larva_interval
 
 
-## Seconds between two births (shorter with the "Faster spawn" upgrade).
-func birth_interval() -> float:
-	return _base_birth_interval / (1.0 + upgrades.total_bonus(ColonyUpgrades.Kind.SPAWN))
+func has_tech(node: String) -> bool:
+	return techs.has(node)
 
 
-## Food arriving at the nest is stored (for new ants and upgrades).
+func is_dead() -> bool:
+	return destroyed
+
+
+## Rival ants attacking the nest (when it has no larvae left to steal).
+func take_damage(amount: float) -> void:
+	hp -= amount
+
+
+## Seconds between two larvae (shorter with the Faster larvae upgrades).
+func larva_interval(tree: TechTree) -> float:
+	var bonus := 0.0
+	for node in ["faster_larvae", "faster_larvae_2"]:
+		if has_tech(node):
+			bonus += tree.value(node, "speed_bonus")
+	return _larva_interval / (1.0 + bonus)
+
+
+## Starts hatching up to `count` stored larvae. Returns how many started.
+func hatch(count: int) -> int:
+	var started := mini(count, larvae)
+	for larva in started:
+		hatching.append(_hatch_time)
+	larvae -= started
+	return started
+
+
+## Advances the larvae being hatched; returns how many are ready to become ants.
+func update_hatching(delta: float) -> int:
+	var ready := 0
+	for number in range(hatching.size() - 1, -1, -1):
+		hatching[number] -= delta
+		if hatching[number] <= 0.0:
+			hatching.remove_at(number)
+			ready += 1
+	return ready
+
+
+## Mushroom harvest: free food trickles in (`food_per_minute`); whole units go to the store.
+func grow_mushrooms(food_per_minute: float, delta: float) -> void:
+	_mushroom_food += food_per_minute / 60.0 * delta
+	var whole := int(_mushroom_food)
+	food_stored += whole
+	_mushroom_food -= whole
+
+
+## Food arriving at the nest is stored (for larvae and upgrades).
 func deliver_food(amount: int, time: float) -> void:
 	total_food_collected += amount
 	food_stored += amount
@@ -55,7 +130,7 @@ func deliver_food(amount: int, time: float) -> void:
 func food_per_second(time: float) -> float:
 	while not _delivery_times.is_empty() and _delivery_times[0] < time - _food_rate_window:
 		_delivery_times.pop_front()
-	var window := minf(time, _food_rate_window)
+	var window := minf(time - founded_time, _food_rate_window)
 	if window <= 0.0:
 		return 0.0
 	return _delivery_times.size() / window

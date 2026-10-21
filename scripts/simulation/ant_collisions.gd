@@ -12,9 +12,10 @@ var enabled: bool = GameSettings.get_setting("collisions", "enabled")
 var ant_radius: float = GameSettings.get_setting("collisions", "ant_radius")
 var square_size: float = GameSettings.get_setting("collisions", "grid_square_size")
 var contacts_last_tick := 0  ## number of overlapping pairs found in the last tick (for stats)
-## Pairs [ant, ant] of different colonies touching in the last tick (they will fight).
+## Pairs [ant, ant] of different teams touching in the last tick (they will fight).
 var rival_contacts: Array[Array] = []
 var _rival_contact_distance_squared: float
+var _sorted_ants: Array[Ant] = []  ## the ants as they were sorted into squares (for nearest_rival)
 var _grid: MapGrid           ## the map, to avoid pushing ants into obstacles
 
 var _columns: int
@@ -45,6 +46,7 @@ func resolve(ants: Array[Ant], grid: MapGrid) -> void:
 	if not enabled:
 		return
 	_grid = grid
+	_sorted_ants = ants.duplicate()
 	_sort_ants_into_squares(ants)
 	for ant_index in ants.size():
 		_push_away_neighbours(ants, ant_index)
@@ -92,7 +94,7 @@ func _push_apart(a: Ant, b: Ant) -> void:
 	var offset := b.position - a.position
 	var touching_distance := ant_radius * 2.0
 	var distance_squared := offset.length_squared()
-	if a.colony != b.colony and distance_squared <= _rival_contact_distance_squared:
+	if a.colony.team != b.colony.team and distance_squared <= _rival_contact_distance_squared:
 		rival_contacts.append([a, b])
 	if distance_squared >= touching_distance * touching_distance:
 		return
@@ -108,6 +110,28 @@ func _push_apart(a: Ant, b: Ant) -> void:
 func _move_if_free(ant: Ant, target: Vector2) -> void:
 	if not _grid.is_obstacle(target):
 		ant.position = target
+
+
+## The closest living ant of another team than `team` within `radius` of `spot`, or null.
+## Uses the squares from the last resolve() (positions are at most one tick old).
+func nearest_rival(spot: Vector2, radius: float, team: int) -> Ant:
+	var closest: Ant = null
+	var closest_distance := radius
+	var reach := ceili(radius / square_size)
+	var middle := _square_at(spot)
+	var column := middle % _columns
+	var row := middle / _columns
+	for neighbour_row in range(maxi(row - reach, 0), mini(row + reach + 1, _rows)):
+		for neighbour_column in range(maxi(column - reach, 0), mini(column + reach + 1, _columns)):
+			var square := neighbour_row * _columns + neighbour_column
+			var first := _first_in_square[square]
+			for slot in range(first, first + _ants_in_square[square]):
+				var ant := _sorted_ants[_ants_by_square[slot]]
+				var distance := spot.distance_to(ant.position)
+				if ant.colony.team != team and not ant.is_dead() and distance <= closest_distance:
+					closest = ant
+					closest_distance = distance
+	return closest
 
 
 func _square_at(world_position: Vector2) -> int:

@@ -15,7 +15,7 @@ var _was_paused_before_dialog := false
 
 func _ready() -> void:
 	_layout_ui()
-	_gameplay_bar.setup(_view, self)
+	_gameplay_bar.setup(_view, self, $SimulationView/MapSpace/Brush)
 	_side_panel.setup(_view, $SimulationView/MapSpace/Brush)
 	_settings_menu.setup()
 

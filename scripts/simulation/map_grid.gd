@@ -116,6 +116,13 @@ func cell_coords(world_position: Vector2) -> Vector2i:
 
 # --- Pheromones -------------------------------------------------------------
 
+## Makes room for one more colony's trails (a nest founded during the game).
+func add_colony() -> void:
+	colony_count += 1
+	going_out.resize(cell_count * colony_count)
+	going_home.resize(cell_count * colony_count)
+
+
 ## Adds `amount` of pheromone `kind` of `colony` to the cell under `world_position`
 ## (the fight pheromone is shared by all colonies).
 func deposit(kind: Kind, world_position: Vector2, amount: float, colony := 0) -> void:

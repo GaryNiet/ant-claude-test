@@ -8,8 +8,9 @@ A video game prototype made with **Godot 4.3+** (standard version, not .NET).
 2. Open Godot → **Import** → select `project.godot` in this folder.
 3. Press **F5** (Run). The game opens on the main menu: pick Level 1 to 4, or open Settings.
 
-Screen: the map in the top left. Under it the **gameplay bar**: play/pause, the upgrade buttons
-(level and cost in food) and **Menu** (restart, save level, load level, settings, main menu).
+Screen: the map in the top left. Under it the **gameplay bar**: play/pause, **Hatch 1**, **Hatch 5**,
+**Hatch all** (toggle), **Behaviour**, **Tech tree**, the colony's food, ants, maturity and larvae,
+and **Menu** (restart, save level, load level, settings, main menu).
 On the right the **building / testing tools** (inspect, food, obstacles, terrain, nest, erase),
 debug buttons (fit map, debug view, trails) and all the data (level, selection, colony statistics).
 
@@ -24,7 +25,7 @@ debug buttons (fit map, debug view, trails) and all the data (level, selection, 
 | Middle mouse drag, arrows or **WASD** | Move the map |
 | **Space** | Pause (you can still paint while paused) |
 | **R** | Restart the level |
-| Gameplay bar | Upgrades, paid with food stored in the nest |
+| Gameplay bar | Hatch larvae, Behaviour sliders, Tech tree upgrades (paid with food stored in the nest) |
 | Save level / Load level (in Menu) | Save the current map as a level / start another level |
 | Settings (main menu or Menu) | Window resolution: 720p, 1080p, 1440p or 4K (16:9, remembered) |
 | **Escape** or Menu (gameplay bar) | Game menu: restart, save level, load level, settings, main menu |
@@ -40,10 +41,29 @@ facing the screen, in 4 directions with a walking animation; an ant hill that gr
 colony (a bigger hill with 3 entrances past ~160 ants); mossy patches on the dirt (decoration).
 Ants carrying food hold a crumb. Dead ants lie on their back and fade away.
 
+**Larvae and hatching:** the nest turns stored food into larvae (8 food each). You decide when they
+hatch (Hatch 1 / Hatch 5, or Hatch all to hatch every larva as it's laid); hatching takes 6 seconds.
+
+**Maturity:** like ages in Age of Empires. A colony reaches maturity 2 at 200 ants (it never goes
+back); maturity unlocks more of the tech tree. Levels are in `[maturity]`.
+
+**Behaviour** (sliders): aggressivity (how willing ants are to fight) and exploring distance. Only
+ants hatched after a change are affected.
+
+**Tech tree:** upgrades bought with stored food, in 3 vocations (fighting, hatching, harvesting) x
+2 maturity levels; a node needs the one above it. Fighting: chitinous armor, restraining bite,
+major ants, hunter lifestyle / powerful mandibles, acid spray, corrosive sting, super majors.
+Hatching: motherbase, faster larvae / even faster larvae. Harvesting: carry more, mushroom harvest,
+guarded paths / improved mushrooms, nuptial flights (found an allied nest by clicking the map).
+Everything is in `[tech_tree]` and `[tech_<name>]` in `game_settings.cfg`.
+
+**Raids:** an ant walking into a rival nest steals a larva (carried home as food); a nest with no
+larvae left is attacked, and destroyed (with its ants) when its health runs out.
+
 **Colonies:** a level can have rival colonies (Level 4). Our nest has a flag; rival ants are red.
 Ants of different colonies fight when they meet, and carry dead rival ants home as food (in one
-piece); their own dead fade away. Upgrades apply to our colony, or to a rival colony while its
-nest is selected (the side panel says which). Settings in `[colonies]`.
+piece); their own dead fade away. The gameplay bar (hatching, behaviour, tech tree) acts on our
+colony, or on a rival colony while its nest is selected (the bar says which). Settings in `[colonies]`.
 
 **Objects:** food and obstacles are objects with a fixed shape and sprite, placed from the tool bar.
 Food (blueberry, strawberry, seed, larva, dead spider) glows yellow and loses pixels as ants eat it;

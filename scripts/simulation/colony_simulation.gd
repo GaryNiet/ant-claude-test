@@ -4,10 +4,12 @@ extends RefCounted
 ## of it (pheromones, food and path wear, in smaller cells), the objects placed on the map
 ## (food items like blueberries, obstacles like rocks), the colonies (each with its nest),
 ## the ants and the enemies (spiders). It starts from a Level (the map layout).
-## Food delivered to a nest is stored; the nest turns it into new ants, and the player can
-## spend it on upgrades. A nest grows with its colony: the more ants, the more tiles it covers.
-## A level can have rival colonies: ants of different colonies fight when they meet, and
-## carry dead rival ants home as food (their own dead are left to fade away).
+## Food delivered to a nest is stored; the nest turns it into larvae, which hatch into ants
+## when the player says so, and the player can spend food on tech tree upgrades. A colony
+## matures (unlocking more upgrades) as it grows. A nest grows with its colony.
+## A level can have rival colonies: ants of different teams fight when they meet, carry dead
+## rival ants home as food (their own dead are left to fade away) and raid rival nests
+## (stealing larvae, or damaging a nest with none left until it is destroyed).
 ## It knows nothing about drawing; call step() at a fixed rate to advance it.
 ## The player places objects and paints ground tiles while it runs.
 
@@ -21,7 +23,8 @@ var objects_version := 0   ## goes up whenever an object is placed or removed
 ## Ants that died recently: {position, heading, time_dead, colony}. They fade away; rival
 ## colonies' ants can carry them home as food.
 var dead_ants: Array[Dictionary] = []
-var colonies: Array[Colony] = []
+var colonies: Array[Colony] = []   ## destroyed colonies stay in the list (their index is their trails)
+var tech_tree := TechTree.new()
 var player_colony: Colony
 var ants: Array[Ant] = []    ## ants of all colonies
 var enemies: Array[Enemy] = []
@@ -40,8 +43,11 @@ var food_eaten_by_enemies := 0
 
 # Ant spawning
 var _emerge_interval: float = GameSettings.get_setting("nest", "emerge_interval")
-var food_per_new_ant: int = GameSettings.get_setting("nest", "food_per_new_ant")
+var food_per_larva: int = GameSettings.get_setting("nest", "food_per_larva")
+var _max_larvae: int = GameSettings.get_setting("nest", "max_larvae")
 var _max_ants: int = GameSettings.get_setting("nest", "max_ants")
+var _larva_food: int = GameSettings.get_setting("nest", "larva_food")
+var _maturity_ants: PackedStringArray = GameSettings.get_list("maturity", "ants_needed")
 var _time_until_next_enemy: float
 var _dead_rival_food: int = GameSettings.get_setting("ant_life", "dead_rival_food")
 
@@ -85,7 +91,7 @@ func _create_colonies() -> void:
 		var colony_name: String = GameSettings.get_setting("colonies", "player_name") if is_player \
 			else str(GameSettings.get_setting("colonies", "rival_name")) % number
 		var nest := (Vector2(nests[number]) + Vector2(0.5, 0.5)) * level.cell_size
-		colonies.append(Colony.new(number, colony_name, is_player, nest, level.starting_ants))
+		colonies.append(Colony.new(number, colony_name, is_player, number, nest, level.starting_ants))
 	player_colony = colonies[0]
 
 
@@ -93,8 +99,15 @@ func _create_colonies() -> void:
 func step(delta: float) -> void:
 	elapsed_time += delta
 	for colony in colonies:
+		if colony.destroyed:
+			continue
 		_spawn_first_ants(colony)
-		_give_birth_over_time(colony, delta)
+		_lay_larvae(colony, delta)
+		_hatch_larvae(colony, delta)
+		_mature(colony)
+		_grow_mushrooms(colony, delta)
+		if colony.hp <= 0.0:
+			_destroy(colony)
 	_grow_nests()
 	_spawn_enemies_over_time(delta)
 	for ant in ants:
@@ -263,37 +276,109 @@ func take_food(spot: Vector2) -> bool:
 
 # --- Colonies: births, upgrades, nests ---------------------------------------
 
-## Every birth_interval seconds, if there is enough food stored, a new ant is born.
-func _give_birth_over_time(colony: Colony, delta: float) -> void:
-	colony.time_until_birth -= delta
-	if colony.time_until_birth > 0.0:
+## Every larva_interval seconds, if there is enough food stored, the nest lays a larva.
+func _lay_larvae(colony: Colony, delta: float) -> void:
+	colony.time_until_larva -= delta
+	if colony.time_until_larva > 0.0:
 		return
-	colony.time_until_birth = colony.birth_interval()
-	if colony.food_stored >= food_per_new_ant and ants.size() < _max_ants:
-		colony.food_stored -= food_per_new_ant
-		_add_ant(colony, 0.0)
-		colony.ants_born += 1
+	colony.time_until_larva = colony.larva_interval(tech_tree)
+	if colony.food_stored >= food_per_larva and colony.larvae < _max_larvae:
+		colony.food_stored -= food_per_larva
+		colony.larvae += 1
+
+
+## Hatched larvae become ants (or wait, as larvae, while the map has max_ants).
+## With infinite hatch, every stored larva starts hatching right away.
+func _hatch_larvae(colony: Colony, delta: float) -> void:
+	if colony.infinite_hatch:
+		colony.hatch(colony.larvae)
+	for larva in colony.update_hatching(delta):
+		if ants.size() < _max_ants:
+			_add_ant(colony, 0.0)
+			colony.ants_born += 1
+		else:
+			colony.larvae += 1
+
+
+## A colony matures when it has enough ants, and never goes back.
+func _mature(colony: Colony) -> void:
+	while colony.maturity < _maturity_ants.size() and colony.ant_count >= _maturity_ants[colony.maturity].to_int():
+		colony.maturity += 1
+
+
+## Mushroom harvest (and Improved mushrooms): a slow trickle of free food.
+func _grow_mushrooms(colony: Colony, delta: float) -> void:
+	var food_per_minute := 0.0
+	for node in ["mushroom_harvest", "improved_mushrooms"]:
+		if colony.has_tech(node):
+			food_per_minute += float(tech_tree.value(node, "food_per_minute"))
+	if food_per_minute > 0.0:
+		colony.grow_mushrooms(food_per_minute, delta)
+
+
+## A nest whose health ran out is destroyed: its ants die, it lays and hatches no more.
+func _destroy(colony: Colony) -> void:
+	colony.destroyed = true
+	colony.larvae = 0
+	colony.hatching.clear()
+	for ant in ants:
+		if ant.colony == colony:
+			ant.hp = 0.0
+	_nest_sized_for.clear()  # its nest tiles go back to the ground below
 
 
 func _add_ant(colony: Colony, starting_age: float) -> void:
-	ants.append(Ant.new(colony, rng, starting_age))
+	ants.append(Ant.new(colony, rng, starting_age, tech_tree))
 	colony.ant_count += 1
 
 
-## Spends `colony`'s stored food on the next level of an upgrade. Returns false if not possible.
-func buy_upgrade(colony: Colony, kind: ColonyUpgrades.Kind) -> bool:
-	var upgrades := colony.upgrades
-	if upgrades.is_maxed(kind) or colony.food_stored < upgrades.cost(kind):
+## The highest maturity level there is.
+func max_maturity() -> int:
+	return _maturity_ants.size()
+
+
+## Ants needed for `colony`'s next maturity level (-1 if it is at the highest).
+func ants_for_next_maturity(colony: Colony) -> int:
+	if colony.maturity >= _maturity_ants.size():
+		return -1
+	return _maturity_ants[colony.maturity].to_int()
+
+
+# --- Tech tree ------------------------------------------------------------------
+
+## Spends `colony`'s stored food on a tech tree node. Returns false if not possible
+## (see TechTree.why_not). Allies share their upgrades.
+func buy_tech(colony: Colony, node: String) -> bool:
+	if tech_tree.why_not(colony, node) != "":
 		return false
-	colony.food_stored -= upgrades.cost(kind)
-	upgrades.raise(kind)
-	var old_hp := colony.ant_settings.hp
-	colony.ant_settings.apply_upgrades(upgrades)
-	if kind == ColonyUpgrades.Kind.HP:  # living ants of the colony get the extra health too
-		for ant in ants:
-			if ant.colony == colony:
-				ant.hp += colony.ant_settings.hp - old_hp
-				ant.max_hp = colony.ant_settings.hp
+	colony.food_stored -= tech_tree.cost(node)
+	colony.techs[node] = true
+	for other in colonies:
+		if other.techs == colony.techs:  # the same dictionary: allies
+			other.ant_settings.apply_techs(other, tech_tree)
+	if node == "nuptial_flights":
+		colony.nests_to_found += 1
+	return true
+
+
+## Nuptial flights: founds an allied colony at `spot` (on free ground). It shares all of
+## `parent`'s upgrades, is on its team, always hatches, and is not controlled by the player.
+## Returns false if the spot is blocked or `parent` has no nest left to found.
+func found_allied_nest(parent: Colony, spot: Vector2) -> bool:
+	if parent.nests_to_found <= 0 or grid.is_obstacle(spot):
+		return false
+	parent.nests_to_found -= 1
+	var number := colonies.size()
+	var ally_name := str(GameSettings.get_setting("colonies", "ally_name")) % number
+	var starting: int = tech_tree.value("nuptial_flights", "starting_ants")
+	var ally := Colony.new(number, ally_name, false, parent.team, grid.cell_center(spot), starting)
+	ally.techs = parent.techs
+	ally.ant_settings.apply_techs(ally, tech_tree)
+	ally.founded_time = elapsed_time
+	colonies.append(ally)
+	grid.add_colony()
+	_nest_sized_for.clear()
+	_grow_nests()
 	return true
 
 
@@ -320,6 +405,8 @@ func move_nest(colony: Colony, spot: Vector2) -> void:
 func _grow_nests() -> void:
 	var changed := false
 	for colony in colonies:
+		if colony.destroyed:
+			continue
 		if _nest_sized_for.get(colony.index, -1) != colony.ant_count:
 			_nest_sized_for[colony.index] = colony.ant_count
 			colony.nest_radius = maxf(_nest_min_radius, sqrt(colony.ant_count * _nest_area_per_ant / PI))
@@ -329,6 +416,8 @@ func _grow_nests() -> void:
 	var covered := PackedByteArray()
 	covered.resize(ground.columns * ground.rows)
 	for colony in colonies:
+		if colony.destroyed:
+			continue
 		for tile in ground.tiles_in_circle(colony.nest_position, colony.nest_radius):
 			covered[tile.y * ground.columns + tile.x] = 1
 	for tile in ground.set_nest_tiles(covered):
@@ -340,44 +429,74 @@ func nest_tile_count(colony: Colony) -> int:
 	return ground.tiles_in_circle(colony.nest_position, colony.nest_radius).size()
 
 
-## The colony whose nest is closest to `spot`.
+## The (not destroyed) colony whose nest is closest to `spot`.
 func nearest_colony(spot: Vector2) -> Colony:
-	var closest := colonies[0]
+	var closest: Colony = null
 	for colony in colonies:
-		if spot.distance_to(colony.nest_position) < spot.distance_to(closest.nest_position):
+		if not colony.destroyed and (closest == null or spot.distance_to(colony.nest_position) < spot.distance_to(closest.nest_position)):
 			closest = colony
-	return closest
+	return closest if closest != null else colonies[0]
 
 
-## The colony whose nest covers `spot`, or null.
+## The (not destroyed) colony whose nest covers `spot`, or null.
 func colony_at(spot: Vector2) -> Colony:
 	for colony in colonies:
-		if spot.distance_to(colony.nest_position) <= colony.nest_radius:
+		if not colony.destroyed and spot.distance_to(colony.nest_position) <= colony.nest_radius:
 			return colony
 	return null
 
 
+## The nest of another team than `team` that covers `spot` (an ant raiding it), or null.
+func rival_colony_at(spot: Vector2, team: int) -> Colony:
+	var colony := colony_at(spot)
+	return colony if colony != null and colony.team != team else null
+
+
+## The closest nest of another team than `team` within `radius` of `spot`, or null.
+func rival_nest_near(spot: Vector2, radius: float, team: int) -> Colony:
+	var closest: Colony = null
+	var closest_distance := radius
+	for colony in colonies:
+		var distance := spot.distance_to(colony.nest_position)
+		if not colony.destroyed and colony.team != team and distance <= closest_distance:
+			closest = colony
+			closest_distance = distance
+	return closest
+
+
+## A raiding ant takes a larva from `colony`'s nest. Returns the food it is worth (0 if
+## the nest has no larvae left).
+func steal_larva(colony: Colony) -> int:
+	if colony.larvae <= 0:
+		return 0
+	colony.larvae -= 1
+	colony.larvae_stolen += 1
+	return _larva_food
+
+
 # --- Dead rival ants as food ---------------------------------------------------
 
-## Position of the closest dead ant of ANOTHER colony than `colony` within `radius`
+## Position of the closest dead ant of ANOTHER team than `colony`'s within `radius`
 ## (ants carry those home as food), or MapGrid.NO_FOOD.
 func rival_corpse_near(spot: Vector2, radius: float, colony: Colony) -> Vector2:
 	var closest := MapGrid.NO_FOOD
 	var closest_distance := radius
 	for dead in dead_ants:
 		var distance := spot.distance_to(dead.position)
-		if dead.colony != colony and distance <= closest_distance:
+		if dead.colony.team != colony.team and distance <= closest_distance:
 			closest = dead.position
 			closest_distance = distance
 	return closest
 
 
 ## Picks up a dead rival ant within `reach` of `spot` in a single chunk. Returns the food
-## it is worth, or 0 if there is none.
+## it is worth (more with Hunter lifestyle), or 0 if there is none.
 func take_rival_corpse(spot: Vector2, reach: float, colony: Colony) -> int:
 	for index in dead_ants.size():
-		if dead_ants[index].colony != colony and spot.distance_to(dead_ants[index].position) <= reach:
+		if dead_ants[index].colony.team != colony.team and spot.distance_to(dead_ants[index].position) <= reach:
 			dead_ants.remove_at(index)
+			if colony.has_tech("hunter_lifestyle"):
+				return roundi(_dead_rival_food * float(tech_tree.value("hunter_lifestyle", "food_multiplier")))
 			return _dead_rival_food
 	return 0
 
@@ -503,7 +622,7 @@ func count_ants_in_mode(colony: Colony, mode: Ant.Mode) -> int:
 ## The starting colony emerges from the nest one ant at a time. They start at random ages,
 ## so they don't all die of old age at the same moment.
 func _spawn_first_ants(colony: Colony) -> void:
-	var ants_that_should_have_emerged := mini(colony.starting_ants, int(elapsed_time / _emerge_interval) + 1)
+	var ants_that_should_have_emerged := mini(colony.starting_ants, int((elapsed_time - colony.founded_time) / _emerge_interval) + 1)
 	while colony.first_ants_spawned < ants_that_should_have_emerged:
 		_add_ant(colony, rng.randf_range(0.0, colony.ant_settings.starting_colony_max_age))
 		colony.first_ants_spawned += 1

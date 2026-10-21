@@ -1,12 +1,15 @@
 extends PanelContainer
-## The gameplay bar under the map: play / pause, the upgrade buttons and the game menu.
+## The gameplay bar under the map:
 ##
-##   Pause | Upgrades for <colony>: Attack, Health, Speed, Carry more, Cut faster, Faster spawn | Menu
+##   Pause | Hatch 1, Hatch 5, Infinite hatch | Behaviour, Tech tree | food, ants, maturity,
+##   larvae | Menu
 ##
-## The upgrades are for our colony, or for a rival colony while its nest is selected (see
-## SimulationView.target_colony); the title says which. Each upgrade button shows its level
-## and its cost in food. The Menu button opens: Restart level, Save level, Load level,
-## Settings, Main menu. (Building / testing tools and all the data are in the side panel.)
+## The hatch buttons start hatching stored larvae (Infinite hatch is a toggle: every larva
+## hatches as soon as it is laid). Behaviour opens sliders for the colony's ants; Tech tree
+## opens the upgrades. They act on our colony, or on a rival colony while its nest is
+## selected (see SimulationView.target_colony). The Menu button opens: Restart level,
+## Save level, Load level, Settings, Main menu.
+## (Building / testing tools and all the data are in the side panel.)
 
 enum MenuItem { RESTART, SAVE, LOAD, SETTINGS, MAIN_MENU }
 
@@ -17,46 +20,68 @@ const MENU_LABELS := {
 	MenuItem.SETTINGS: "Settings",
 	MenuItem.MAIN_MENU: "Main menu",
 }
+const BehaviourMenu := preload("res://scripts/ui/behaviour_menu.gd")
+const TechTreeMenu := preload("res://scripts/ui/tech_tree_menu.gd")
 
 var _view: Node2D
 var _main: Node
 var _pause_button: Button
-var _upgrades_title: Label
-var _upgrade_buttons := {}    ## ColonyUpgrades.Kind -> Button
+var _infinite_button: Button
+var _status: Label
 var _menu: PopupMenu
+var _behaviour_menu: PopupPanel
+var _tech_tree_menu: PopupPanel
 
+var _sprite_folder: String = GameSettings.get_setting("iso_view", "sprite_folder")
 var _button_size: float = GameSettings.get_setting("ui", "tool_button_size")
-var _upgrade_button_width: float = GameSettings.get_setting("ui", "upgrade_button_width")
+var _icon_size: int = GameSettings.get_setting("ui", "tool_icon_size")
 var _tool_font_size: int = GameSettings.get_setting("ui", "tool_font_size")
 
 
 ## Builds the bar. Called by main.gd once everything exists.
-func setup(view: Node2D, main: Node) -> void:
+func setup(view: Node2D, main: Node, brush: Node2D) -> void:
 	_view = view
 	_main = main
 	var row := HBoxContainer.new()
 	add_child(row)
 
-	_pause_button = _bar_button("", Vector2(_button_size, _button_size))
+	_pause_button = _bar_button("", null)
 	_pause_button.pressed.connect(func() -> void: _view.is_paused = not _view.is_paused)
 	row.add_child(_pause_button)
 	row.add_child(VSeparator.new())
 
-	_upgrades_title = Label.new()
-	_upgrades_title.custom_minimum_size.x = _button_size
-	_upgrades_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_upgrades_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	row.add_child(_upgrades_title)
-	for kind in ColonyUpgrades.Kind.values():
-		var button := _bar_button("", Vector2(_upgrade_button_width, _button_size))
-		button.pressed.connect(func() -> void: _view.simulation.buy_upgrade(_view.target_colony(), kind))
-		_upgrade_buttons[kind] = button
-		row.add_child(button)
+	var larva := _icon("larva")
+	var hatch_one := _bar_button("Hatch 1", larva)
+	hatch_one.pressed.connect(func() -> void: _view.target_colony().hatch(1))
+	row.add_child(hatch_one)
+	var hatch_five := _bar_button("Hatch 5", larva)
+	hatch_five.pressed.connect(func() -> void: _view.target_colony().hatch(5))
+	row.add_child(hatch_five)
+	_infinite_button = _bar_button("Hatch all", larva)
+	_infinite_button.toggle_mode = true
+	_infinite_button.toggled.connect(func(on: bool) -> void: _view.target_colony().infinite_hatch = on)
+	row.add_child(_infinite_button)
+	row.add_child(VSeparator.new())
 
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(spacer)
-	var menu_button := _bar_button("Menu\n(%s)" % _keys("main_menu"), Vector2(_button_size, _button_size))
+	_behaviour_menu = BehaviourMenu.new()
+	add_child(_behaviour_menu)
+	_behaviour_menu.setup(view)
+	var behaviour := _bar_button("Behaviour", _icon("behaviour"))
+	behaviour.pressed.connect(_behaviour_menu.open)
+	row.add_child(behaviour)
+	_tech_tree_menu = TechTreeMenu.new()
+	add_child(_tech_tree_menu)
+	_tech_tree_menu.setup(view, brush)
+	var tech_tree := _bar_button("Tech tree", _icon("tech_tree"))
+	tech_tree.pressed.connect(_tech_tree_menu.open)
+	row.add_child(tech_tree)
+	row.add_child(VSeparator.new())
+
+	_status = Label.new()
+	_status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(_status)
+	var menu_button := _bar_button("Menu\n(%s)" % _keys("main_menu"), null)
 	menu_button.pressed.connect(open_menu)
 	row.add_child(menu_button)
 	_build_menu()
@@ -65,24 +90,17 @@ func setup(view: Node2D, main: Node) -> void:
 func _process(_delta: float) -> void:
 	if _view == null:
 		return
-	_pause_button.text = "%s\n(%s)" % ["Play" if _view.is_paused else "Pause", _keys("pause")]
+	var sim: ColonySimulation = _view.simulation
 	var colony: Colony = _view.target_colony()
-	_upgrades_title.text = "Upgrades\n%s" % colony.name
-	_update_upgrade_buttons(colony)
-
-
-func _update_upgrade_buttons(colony: Colony) -> void:
-	var upgrades := colony.upgrades
-	for kind in _upgrade_buttons:
-		var button: Button = _upgrade_buttons[kind]
-		var level_text := "lv %d/%d" % [upgrades.level_of(kind), upgrades.max_level()]
-		button.tooltip_text = upgrades.describe_bonus(kind)
-		if upgrades.is_maxed(kind):
-			button.text = "%s\n%s\nmaxed" % [ColonyUpgrades.LABELS[kind], level_text]
-			button.disabled = true
-		else:
-			button.text = "%s\n%s\n%d food" % [ColonyUpgrades.LABELS[kind], level_text, upgrades.cost(kind)]
-			button.disabled = colony.food_stored < upgrades.cost(kind)
+	_pause_button.text = "%s\n(%s)" % ["Play" if _view.is_paused else "Pause", _keys("pause")]
+	_infinite_button.set_pressed_no_signal(colony.infinite_hatch)
+	_infinite_button.text = "Hatch all\n%s" % ("ON" if colony.infinite_hatch else "off")
+	var next_level := sim.ants_for_next_maturity(colony)
+	var maturity_text := "Maturity %d" % colony.maturity
+	if next_level > 0:
+		maturity_text += " (next at %d ants)" % next_level
+	_status.text = "%s\nFood: %d   Ants: %d\n%s\nLarvae: %d stored, %d hatching" % [
+		colony.name, colony.food_stored, colony.ant_count, maturity_text, colony.larvae, colony.hatching.size()]
 
 
 # --- The game menu ---------------------------------------------------------------------
@@ -119,15 +137,25 @@ func _on_menu_item(item: int) -> void:
 
 # --- Helpers ---------------------------------------------------------------------------
 
-## A bar button: never takes keyboard focus (so Space still pauses instead of clicking it).
-func _bar_button(text: String, minimum_size: Vector2) -> Button:
+## A square bar button with an optional picture on top. Never takes keyboard focus (so
+## Space still pauses instead of clicking it).
+func _bar_button(text: String, picture: Texture2D) -> Button:
 	var button := Button.new()
 	button.text = text
-	button.custom_minimum_size = minimum_size
+	button.icon = picture
+	button.expand_icon = picture != null
+	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+	button.custom_minimum_size = Vector2(_button_size, _button_size)
 	button.add_theme_font_size_override("font_size", _tool_font_size)
+	button.add_theme_constant_override("icon_max_width", _icon_size)
 	button.focus_mode = Control.FOCUS_NONE
 	UiTheme.add_click_animation(button)
 	return button
+
+
+func _icon(name: String) -> Texture2D:
+	return load("%s/icons/%s.png" % [_sprite_folder, name])
 
 
 ## The key(s) of a [controls] action, for button texts.

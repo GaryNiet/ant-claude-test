@@ -79,7 +79,9 @@ func _process(_delta: float) -> void:
 func _colony_stats(sim: ColonySimulation, colony: Colony) -> String:
 	var scouts := sim.count_scouts(colony)
 	var lines := PackedStringArray([
-		"Food stored in nest: %d   (new ant: %d food every %.1f s)" % [colony.food_stored, sim.food_per_new_ant, colony.birth_interval()],
+		"Food stored in nest: %d   (a larva: %d food every %.1f s)" % [colony.food_stored, sim.food_per_larva, colony.larva_interval(sim.tech_tree)],
+		"Larvae: %d stored, %d hatching%s   Maturity: %d" % [colony.larvae, colony.hatching.size(), "  (hatch all)" if colony.infinite_hatch else "", colony.maturity],
+		"Upgrades owned: %d of %d   Nest health: %.0f / %.0f" % [colony.techs.size(), sim.tech_tree.nodes.size(), colony.hp, colony.max_hp],
 		"Food collected: %d   (%.2f per second)" % [colony.total_food_collected, colony.food_per_second(sim.elapsed_time)],
 		"Food left on map: %d" % sim.grid.total_food,
 		"",
@@ -87,7 +89,7 @@ func _colony_stats(sim: ColonySimulation, colony: Colony) -> String:
 	])
 	for mode in Ant.Mode.values():
 		lines.append("    %s: %d" % [_mode_name(mode), sim.count_ants_in_mode(colony, mode)])
-	lines.append("Born: %d   killed in fights: %d   died of old age: %d" % [colony.ants_born, colony.ants_killed, colony.ants_died_of_old_age])
+	lines.append("Born: %d   killed in fights: %d   died of old age: %d   larvae stolen by raiders: %d" % [colony.ants_born, colony.ants_killed, colony.ants_died_of_old_age, colony.larvae_stolen])
 	lines.append("")
 	lines.append("Spiders: %d here, %d killed, %d escaped (ate %d food)" % [sim.enemies.size(), sim.enemies_killed, sim.enemies_escaped, sim.food_eaten_by_enemies])
 	return "\n".join(lines)
@@ -114,7 +116,7 @@ func _describe_ant(ant: Ant) -> String:
 	if ant.is_dead():
 		return "This ant died%s." % (" of old age" if ant.died_of_old_age else " in a fight")
 	var lines := PackedStringArray([
-		"ANT (%s) of %s" % ["scout" if ant.is_scout else "collector", ant.colony.name],
+		"%s (%s) of %s" % ["MAJOR ANT" if ant.is_major else "ANT", "scout" if ant.is_scout else "collector", ant.colony.name],
 		"Doing: %s" % _mode_name(ant.mode),
 		"Health: %.0f / %.0f" % [ant.hp, ant.max_hp],
 		"Carrying: %d food" % ant.carried_food,
@@ -168,9 +170,10 @@ func _describe_object(sim: ColonySimulation, object: MapObject) -> String:
 
 func _describe_nest(sim: ColonySimulation, colony: Colony) -> String:
 	return "\n".join(PackedStringArray([
-		"NEST of %s%s" % [colony.name, "" if colony.is_player else "  (the upgrade buttons below the map now apply to this colony)"],
+		"NEST of %s%s" % [colony.name, "" if colony.is_player else "  (the buttons below the map now act on this colony)"],
 		"Food stored: %d" % colony.food_stored,
-		"Next birth in %.1f s (needs %d food)" % [maxf(colony.time_until_birth, 0.0), sim.food_per_new_ant],
+		"Next larva in %.1f s (needs %d food); %d larvae stored, %d hatching" % [maxf(colony.time_until_larva, 0.0), sim.food_per_larva, colony.larvae, colony.hatching.size()],
+		"Nest health: %.0f / %.0f%s" % [colony.hp, colony.max_hp, "  (DESTROYED)" if colony.destroyed else ""],
 		"Ants: %d" % colony.ant_count,
 		"Size: %.0f px radius, %d tiles (grows with the colony)" % [colony.nest_radius, sim.nest_tile_count(colony)],
 		"Position: %.0f, %.0f" % [colony.nest_position.x, colony.nest_position.y],

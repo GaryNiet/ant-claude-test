@@ -43,6 +43,13 @@ extends RefCounted
 ## follows its own colony's trails. When it meets an ant of another colony, both fight.
 ## Dead ants of other colonies are food: an ant carries one home in a single chunk.
 ##
+## Behaviour and upgrades: the colony's Behaviour sliders (aggressivity, exploring distance)
+## and tech tree are read when the ant hatches (aggressivity and exploring only then: changes
+## only affect ants hatched later). Some ants hatch as majors (Major ants upgrade).
+##
+## Raids: an ant that walks into a rival nest steals a larva (carried home as food), or, if
+## the nest has none left and the ant is willing to fight, attacks the nest itself.
+##
 ## Thinking less often: deciding where to go (smelling with 3 sensors, looking for food and
 ## enemies) is the expensive part, so an ant only does it every think_interval_ticks ticks
 ## (each ant at its own moment) and keeps turning the same way in between. Walking, laying
@@ -74,7 +81,12 @@ var hp: float
 var max_hp: float
 var carried_food := 0           ## pieces of food the ant is holding
 var fight_will: float           ## personality: 0 = never starts a fight, 1 = loves fighting
-var fight_target: Object        ## the Enemy or rival Ant this ant is fighting (FIGHTING mode only)
+var fight_target: Object        ## the Enemy, rival Ant or rival nest (Colony) this ant is fighting
+var is_major := false           ## a big fighter (Major ants upgrade)
+var size_multiplier := 1.0      ## how much bigger it is drawn (majors)
+var attack_multiplier := 1.0
+var poison_time_left := 0.0     ## Corrosive sting: seconds of poison left
+var poison_damage_per_second := 0.0
 var _mode_before_fight := Mode.EXPLORING
 var _time_until_attack := 0.0
 
@@ -85,12 +97,16 @@ var _time_without_progress := 0.0  ## seconds since the ant last got noticeably 
 var _detour_time_left := 0.0       ## > 0 while taking a detour (no push)
 
 var _settings: AntSettings
+var _tree: TechTree
+var _on_path := false           ## standing on a worn path (for Guarded paths)
+var _time_until_acid := 0.0     ## Acid spray cooldown
 var _turn := 0.0                ## how it turns between two thinking ticks (-1 left .. +1 right)
 var _ticks_until_thinking: int
 
 
-func _init(ant_colony: Colony, rng: RandomNumberGenerator, starting_age := 0.0) -> void:
+func _init(ant_colony: Colony, rng: RandomNumberGenerator, starting_age: float, tree: TechTree) -> void:
 	colony = ant_colony
+	_tree = tree
 	position = colony.nest_position
 	previous_position = position
 	var settings := colony.ant_settings
@@ -101,12 +117,27 @@ func _init(ant_colony: Colony, rng: RandomNumberGenerator, starting_age := 0.0) 
 	lifespan = rng.randf_range(settings.lifespan_min, settings.lifespan_max)
 	hp = settings.hp
 	max_hp = settings.hp
-	fight_will = rng.randf()
+	fight_will = clampf(rng.randf() + colony.aggressivity - 0.5, 0.0, 1.0)  # aggressivity 0.5 = unchanged
 	is_scout = rng.randf() < settings.scout_fraction
 	if not is_scout and rng.randf() < settings.homebody_fraction:
 		max_explore_time = rng.randf_range(settings.homebody_min_explore_time, settings.homebody_max_explore_time)
 	else:
 		max_explore_time = rng.randf_range(settings.explorer_min_explore_time, settings.explorer_max_explore_time)
+	max_explore_time *= colony.exploring
+	if colony.has_tech("major_ants") and rng.randf() < float(tree.value("major_ants", "chance")):
+		_become_major()
+
+
+## Majors: bigger, much stronger, always eager to fight (even more with Super majors).
+func _become_major() -> void:
+	is_major = true
+	fight_will = 1.0
+	for node in ["major_ants", "super_majors"]:
+		if colony.has_tech(node):
+			hp *= float(_tree.value(node, "hp_multiplier"))
+			attack_multiplier *= float(_tree.value(node, "attack_multiplier"))
+			size_multiplier *= float(_tree.value(node, "size_multiplier"))
+	max_hp = hp
 
 
 func is_carrying_food() -> bool:
@@ -117,11 +148,44 @@ func is_dead() -> bool:
 	return hp <= 0.0
 
 
-## Called when an enemy or a rival ant hits this ant. An ant that survives always fights back.
+## Called when an enemy or a rival ant hits this ant (armor upgrades take some off).
+## An ant that survives always fights back.
 func take_damage(amount: float, attacker: Object) -> void:
-	hp -= amount
+	var reduction := _settings.damage_reduction
+	if _near_own_nest_with("motherbase"):
+		reduction += float(_tree.value("motherbase", "damage_reduction"))
+	hp -= maxf(amount - reduction, _settings.minimum_damage) if reduction > 0.0 else amount
 	if not is_dead() and mode != Mode.FIGHTING:
 		_start_fight(attacker)
+
+
+## Corrosive sting: loses `damage_per_second` health for `duration` seconds.
+func poison(damage_per_second: float, duration: float) -> void:
+	poison_damage_per_second = damage_per_second
+	poison_time_left = duration
+
+
+## How hard this ant hits: its colony's attack, more for majors and near the nest (Motherbase).
+func attack_power() -> float:
+	var power := _settings.attack * attack_multiplier
+	if _near_own_nest_with("motherbase"):
+		power += float(_tree.value("motherbase", "extra_attack"))
+	return power
+
+
+## True if the colony has the upgrade `node` and the ant is within its radius of the nest.
+func _near_own_nest_with(node: String) -> bool:
+	return colony.has_tech(node) and position.distance_to(colony.nest_position) <= float(_tree.value(node, "radius"))
+
+
+## Hits `target` (a spider, a rival ant or a rival nest), poisoning it with Corrosive sting.
+func _hit(target: Object) -> void:
+	if target is Ant:
+		target.take_damage(attack_power(), self)
+	else:
+		target.take_damage(attack_power())
+	if colony.has_tech("corrosive_sting") and not target is Colony:
+		target.poison(_tree.value("corrosive_sting", "damage_per_second"), _tree.value("corrosive_sting", "duration"))
 
 
 ## Called by the simulation every tick this ant touches `enemy`.
@@ -149,6 +213,11 @@ func _will_to_fight_at(sim: ColonySimulation, spot: Vector2) -> float:
 ## Advances the ant by one tick of `delta` seconds.
 func update(sim: ColonySimulation, delta: float) -> void:
 	previous_position = position
+	if poison_time_left > 0.0:
+		poison_time_left -= delta
+		hp -= poison_damage_per_second * delta
+		if is_dead():
+			return
 	time_in_mode += delta
 	time_since_trail_start += delta
 	age += delta
@@ -177,6 +246,9 @@ func update(sim: ColonySimulation, delta: float) -> void:
 ## Decides what to do and which way to turn: -1 = full left, 0 = straight, +1 = full right.
 ## `delta` = the time since the ant last thought.
 func _think(sim: ColonySimulation, delta: float) -> float:
+	_spray_acid(sim, delta)
+	if not is_carrying_food() and _raid_rival_nest(sim):
+		return 0.0
 	if (mode == Mode.EXPLORING or mode == Mode.GATHERING) and _wants_to_join_fight(sim):
 		_set_mode(Mode.JOINING_FIGHT)
 	match mode:
@@ -191,6 +263,48 @@ func _think(sim: ColonySimulation, delta: float) -> float:
 	return 0.0
 
 
+## Inside a rival nest: steals a larva and heads home with it, or, if there is none left,
+## attacks the nest itself (if willing to fight). Returns true if the ant did something.
+func _raid_rival_nest(sim: ColonySimulation) -> bool:
+	var rival := sim.rival_colony_at(position, colony.team)
+	if rival == null:
+		return false
+	var loot := sim.steal_larva(rival)
+	if loot > 0:
+		carried_food = loot
+		_set_mode(Mode.CARRYING_FOOD)
+		heading += PI
+		return true
+	if _will_to_fight_at(sim, position) >= _settings.contact_fight_will:
+		_start_fight(rival)
+		return true
+	return false
+
+
+## Acid spray: every `interval` seconds, hits the closest spider or rival ant within `range`
+## without touching it.
+func _spray_acid(sim: ColonySimulation, delta: float) -> void:
+	if not colony.has_tech("acid_spray"):
+		return
+	_time_until_acid -= delta
+	if _time_until_acid > 0.0:
+		return
+	var reach: float = _tree.value("acid_spray", "range")
+	var target: Object = sim.nearest_enemy(position, reach)
+	if target == null:
+		target = sim.collisions.nearest_rival(position, reach, colony.team)
+	if target == null:
+		return
+	_time_until_acid = _tree.value("acid_spray", "interval")
+	var damage: float = _tree.value("acid_spray", "damage")
+	if target is Ant:
+		target.take_damage(damage, self)
+	else:
+		target.take_damage(damage)
+	if colony.has_tech("corrosive_sting"):
+		target.poison(_tree.value("corrosive_sting", "damage_per_second"), _tree.value("corrosive_sting", "duration"))
+
+
 # --- The modes --------------------------------------------------------------
 
 func _explore(sim: ColonySimulation) -> float:
@@ -198,6 +312,10 @@ func _explore(sim: ColonySimulation) -> float:
 	if food != MapGrid.NO_FOOD:
 		_set_mode(Mode.GATHERING)
 		return _turn_towards(food)
+	if fight_will >= _settings.join_fight_will:  # eager fighters head for rival nests they see
+		var rival_nest := sim.rival_nest_near(position, _settings.raid_sight_radius, colony.team)
+		if rival_nest != null:
+			return _turn_towards(rival_nest.nest_position)
 	if not is_scout and _can_smell(sim, MapGrid.Kind.GOING_HOME):
 		_set_mode(Mode.GATHERING)  # collector found a trail that leads to food
 	elif time_in_mode > max_explore_time:
@@ -310,21 +428,22 @@ func _fight(sim: ColonySimulation, delta: float) -> void:
 		return
 	heading = (fight_target.position - position).angle()
 	sim.grid.deposit_zone(MapGrid.Kind.FIGHT, position, _settings.fight_zone_radius, _settings.fight_deposit * delta)
+	if fight_target is Ant and fight_target.colony.has_tech("restraining_bite"):
+		delta *= float(_tree.value("restraining_bite", "opponent_speed"))  # held down: attacks slower
 	_time_until_attack -= delta
 	if _time_until_attack <= 0.0:
 		_time_until_attack = _settings.attack_interval
-		if fight_target is Ant:
-			fight_target.take_damage(_settings.attack, self)
-		else:
-			fight_target.take_damage(_settings.attack)
+		_hit(fight_target)
 
 
-## True while the enemy or rival ant being fought is alive and still touching this ant.
+## True while the spider, rival ant or rival nest being fought is still there and touching.
 func _still_touching(target: Object) -> bool:
 	if target.is_dead():
 		return false
 	if target is Ant:
 		return position.distance_to(target.position) <= _settings.rival_contact_distance
+	if target is Colony:
+		return position.distance_to(target.nest_position) <= target.nest_radius + _settings.rival_contact_distance
 	return target.ants_in_contact.has(self)
 
 
@@ -333,6 +452,8 @@ func _start_fight(target: Object) -> void:
 	_mode_before_fight = Mode.EXPLORING if mode == Mode.JOINING_FIGHT else mode
 	fight_target = target
 	_time_until_attack = _settings.attack_interval
+	if _on_path and colony.has_tech("guarded_paths"):
+		_time_until_attack = 0.0  # strikes first
 	mode = Mode.FIGHTING
 	time_in_mode = 0.0
 
@@ -444,7 +565,8 @@ func _turn_towards(target: Vector2) -> float:
 func _move_forward(sim: ColonySimulation, delta: float) -> void:
 	sim.grid.wear_path(position, _settings.path_wear_per_second * delta)
 	var speed := _settings.speed
-	if sim.grid.is_unobstructed(position):
+	_on_path = sim.grid.is_unobstructed(position)
+	if _on_path:
 		speed *= 1.0 + _settings.path_speed_bonus
 	var step := Vector2.from_angle(heading) * speed * delta
 	if _is_blocked(sim, position + Vector2(step.x, 0.0)):

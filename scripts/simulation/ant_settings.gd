@@ -2,7 +2,8 @@ class_name AntSettings
 extends RefCounted
 ## All ant behaviour values, read once from game_settings.cfg and shared by every ant.
 ## (Reading them once is much faster than looking them up each tick for 100 ants.)
-## Values that upgrades improve keep their starting value in a base_ variable.
+## Each colony has its own copy: values that tech tree upgrades improve keep their starting
+## value in a base_ variable and are recalculated by apply_techs().
 
 # Movement and senses — [ant]
 var base_speed: float = GameSettings.get_setting("ant", "speed")
@@ -53,12 +54,15 @@ var base_hp: float = GameSettings.get_setting("ant_combat", "hp")
 var hp := base_hp
 var base_attack: float = GameSettings.get_setting("ant_combat", "attack")
 var attack := base_attack
+var damage_reduction := 0.0      ## taken off every hit (Chitinous armor)
+var minimum_damage: float = GameSettings.get_setting("tech_tree", "minimum_damage")
 var attack_interval: float = GameSettings.get_setting("ant_combat", "attack_interval")
 var join_fight_will: float = GameSettings.get_setting("ant_combat", "join_fight_will")
 var contact_fight_will: float = GameSettings.get_setting("ant_combat", "contact_fight_will")
 var nest_defense_bonus: float = GameSettings.get_setting("ant_combat", "nest_defense_bonus")
 var nest_defense_radius: float = GameSettings.get_setting("ant_combat", "nest_defense_radius")
 var enemy_sight_radius: float = GameSettings.get_setting("ant_combat", "enemy_sight_radius")
+var raid_sight_radius: float = GameSettings.get_setting("nest", "raid_sight_radius")
 var join_fight_give_up_time: float = GameSettings.get_setting("ant_combat", "join_fight_give_up_time")
 var fight_zone_radius: float = GameSettings.get_setting("ant_combat", "fight_zone_radius")
 var fight_deposit: float = GameSettings.get_setting("ant_combat", "fight_deposit")
@@ -73,10 +77,14 @@ var trail_fade_time: float = GameSettings.get_setting("pheromones", "trail_fade_
 var detection_threshold: float = GameSettings.get_setting("pheromones", "detection_threshold")
 
 
-## Recalculates the upgradable values from the base values and the upgrades bought.
-func apply_upgrades(upgrades: ColonyUpgrades) -> void:
-	speed = base_speed * (1.0 + upgrades.total_bonus(ColonyUpgrades.Kind.SPEED))
-	hp = base_hp * (1.0 + upgrades.total_bonus(ColonyUpgrades.Kind.HP))
-	attack = base_attack * (1.0 + upgrades.total_bonus(ColonyUpgrades.Kind.ATTACK))
-	carry_capacity = base_carry_capacity + int(upgrades.total_bonus(ColonyUpgrades.Kind.CARRY))
-	cut_time = base_cut_time / (1.0 + upgrades.total_bonus(ColonyUpgrades.Kind.CUT_SPEED))
+## Recalculates the improvable values from the base values and the colony's tech tree.
+func apply_techs(colony: Colony, tree: TechTree) -> void:
+	attack = base_attack
+	if colony.has_tech("powerful_mandibles"):
+		attack += float(tree.value("powerful_mandibles", "extra_attack"))
+	damage_reduction = 0.0
+	if colony.has_tech("chitinous_armor"):
+		damage_reduction += float(tree.value("chitinous_armor", "damage_reduction"))
+	carry_capacity = base_carry_capacity
+	if colony.has_tech("carry_more"):
+		carry_capacity += int(tree.value("carry_more", "extra_carry"))

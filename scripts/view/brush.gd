@@ -6,9 +6,10 @@ extends Node2D
 ##             is in the brush circle, at least the tile under the mouse
 ##   Erase     hold to remove the objects under the brush (right click erases with any tool)
 ##   Nest      click to move our nest (or the selected rival nest)
+##   Found nest  (after buying Nuptial flights) click to found the new allied nest
 ## Shows the brush circle (terrain, erase) or the object's footprint (place) under the mouse.
 
-enum Tool { INSPECT, PLACE, TERRAIN, ERASE, NEST }
+enum Tool { INSPECT, PLACE, TERRAIN, ERASE, NEST, FOUND_NEST }
 
 @onready var view: Node2D = get_parent().get_parent()  ## SimulationView (the parent is its MapSpace)
 
@@ -50,6 +51,11 @@ func _use_tool() -> void:
 			view.select_at(spot)
 		Tool.NEST:
 			view.simulation.move_nest(view.target_colony(), spot)
+		Tool.FOUND_NEST:
+			var parent: Colony = view.target_colony()
+			view.simulation.found_allied_nest(parent, spot)
+			if parent.nests_to_found <= 0:
+				selected_tool = Tool.INSPECT
 		Tool.PLACE:
 			view.simulation.place_object(object_kind, spot)
 		Tool.ERASE:
@@ -93,6 +99,9 @@ func _draw() -> void:
 	var line_width := 1.0 / view.scale.x
 	if selected_tool == Tool.TERRAIN or selected_tool == Tool.ERASE:
 		draw_arc(get_local_mouse_position(), radius, 0.0, TAU, 48, _outline_color, line_width)
+	elif selected_tool == Tool.FOUND_NEST:
+		var nest_space: float = GameSettings.get_setting("painting", "obstacle_free_radius_around_nest")
+		draw_arc(get_local_mouse_position(), nest_space, 0.0, TAU, 32, _outline_color, line_width * 2.0)
 	elif selected_tool == Tool.PLACE:
 		var footprint: float = view.simulation.object_kinds.footprint_radius(object_kind)
 		var center: Vector2 = view.simulation.grid.cell_center(get_local_mouse_position())

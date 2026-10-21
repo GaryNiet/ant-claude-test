@@ -294,18 +294,20 @@ def creature(size, body_parts, legs_far, legs_near, extras, shadow):
     return with_shadow(outlined, *shadow)
 
 
-def ant_sprite(towards_screen, frame):
-    """An ant walking to the right, towards the screen (head low and in front) or away from it."""
+def ant_sprite(towards_screen, frame, major=False):
+    """An ant walking to the right, towards the screen (head low and in front) or away from it.
+    A major (soldier) has a much bigger head and big mandibles."""
+    head_size = 1.45 if major else 1.0
     width, height = 28, 22
     ground = height - GROUND_MARGIN
     dark, mid, light, bright = rgb(ANT[1]), rgb(ANT[2]), rgb(ANT[3]), rgb(ANT[4])
     if towards_screen:
         abdomen, thorax, head = (7, 10), (13.5, 11), (19, 12)
         parts = [(abdomen, 4.3, 3.4, [dark, mid, bright]), (thorax, 2.4, 1.6, [dark, light, bright]),
-                 (head, 2.6, 2.4, [dark, mid, bright])]
+                 (head, 2.6 * head_size, 2.4 * head_size, [dark, mid, bright])]
     else:
         abdomen, thorax, head = (8, 12), (14, 10), (19, 8.5)
-        parts = [(head, 2.4, 2.2, [dark, mid, bright]), (thorax, 2.4, 1.6, [dark, light, bright]),
+        parts = [(head, 2.4 * head_size, 2.2 * head_size, [dark, mid, bright]), (thorax, 2.4, 1.6, [dark, light, bright]),
                  (abdomen, 4.5, 3.6, [dark, mid, bright])]
     legs_far, legs_near = [], []
     for number, along in enumerate([-1, 0, 1]):  # back, middle, front leg
@@ -321,8 +323,13 @@ def ant_sprite(towards_screen, frame):
             draw.line([(20, 10), (22.5, 6), (25, 7)], fill=antenna)
             draw.point((20, 11.5), fill=(20, 8, 4))           # eye
             draw.line([(21.5, 13.5), (22.5, 14)], fill=antenna)  # mandibles
+            if major:
+                draw.line([(21.5, 13), (25, 14), (26, 12.5)], fill=antenna, width=1)
+                draw.line([(21, 14.5), (24.5, 16), (25.5, 15)], fill=antenna, width=1)
         else:
             draw.line([(20, 7), (22, 4), (24, 4.5)], fill=antenna)
+            if major:
+                draw.line([(21.5, 8.5), (24.5, 8), (25, 6.5)], fill=antenna, width=1)
 
     return creature((width, height), parts, legs_far, legs_near, extras, ((14, ground), 9, 2))
 
@@ -513,6 +520,34 @@ def eraser_icon():
     draw.polygon([(4, 20), (10, 14), (22, 22), (16, 28)], fill=rgb(WATER[3]))
     draw.line([(4, 29), (28, 29)], fill=rgb(PEBBLE[1]), width=1)
     return outline(image, "#3a2020")
+
+
+def larva_icon():
+    """The larva sprite, centered on an icon."""
+    larva = larva_sprite()
+    image, draw = icon_canvas()
+    image.alpha_composite(larva, (2, 9))
+    return image
+
+
+def behaviour_icon():
+    """Two sliders."""
+    image, draw = icon_canvas()
+    for y, knob in [(10, 10), (22, 21)]:
+        draw.line([(4, y), (28, y)], fill=rgb(PEBBLE[1]), width=3)
+        ellipse(draw, (knob, y), 4, 4, rgb(CRUMB[2]))
+        ellipse(draw, (knob - 1, y - 1), 1.5, 1.5, rgb(CRUMB[3]))
+    return outline(image, DIRT[0])
+
+
+def tech_tree_icon():
+    """A small tree of linked nodes."""
+    image, draw = icon_canvas()
+    for start, end in [((16, 7), (8, 18)), ((16, 7), (24, 18)), ((8, 18), (8, 27)), ((24, 18), (20, 27)), ((24, 18), (28, 27))]:
+        draw.line([start, end], fill=rgb(PEBBLE[2]), width=2)
+    for center, color in [((16, 7), CRUMB[2]), ((8, 18), GRASS[3]), ((24, 18), STRAWBERRY[2]), ((8, 27), GRASS[3]), ((20, 27), STRAWBERRY[2]), ((28, 27), STRAWBERRY[2])]:
+        ellipse(draw, center, 3.5, 3.5, rgb(color))
+    return outline(image, DIRT[0])
 
 
 def nest_icon():
@@ -721,6 +756,9 @@ def glow_sprite():
 def make_sprites():
     save_four_directions(ant_sprite, "ant")
     save_four_directions(ant_sprite, "ant_rival", (ANT, RIVAL_ANT))
+    major = lambda towards_screen, frame: ant_sprite(towards_screen, frame, major=True)
+    save_four_directions(major, "ant_major")
+    save_four_directions(major, "ant_rival_major", (ANT, RIVAL_ANT))
     save_four_directions(spider_sprite, "spider")
     dead_ant = dead_ant_sprite()
     dead_rival = recolor(dead_ant, ANT, RIVAL_ANT)
@@ -729,7 +767,8 @@ def make_sprites():
         save(image.transpose(Image.FLIP_LEFT_RIGHT), "sprites", name + "_w.png")
     save(flag_sprite(), "sprites", "flag.png")
     for name, maker in [("food", apple_icon), ("terrain", mountains_icon), ("obstacles", stop_icon),
-                        ("inspect", magnifier_icon), ("erase", eraser_icon), ("nest", nest_icon)]:
+                        ("inspect", magnifier_icon), ("erase", eraser_icon), ("nest", nest_icon),
+                        ("larva", larva_icon), ("behaviour", behaviour_icon), ("tech_tree", tech_tree_icon)]:
         save(maker(), "sprites", "icons", name + ".png")
     save(crumb_sprite(), "sprites", "food_crumb.png")
     save(glow_sprite(), "sprites", "food_glow.png")
