@@ -15,8 +15,8 @@ var _was_paused_before_dialog := false
 
 func _ready() -> void:
 	_layout_ui()
-	_toolbar.setup(_view, $SimulationView/MapSpace/Brush, self)
-	_side_panel.setup(_view)
+	_toolbar.setup(_view, $SimulationView/MapSpace/Brush)
+	_side_panel.setup(_view, self)
 	_settings_menu.setup()
 
 
@@ -33,18 +33,19 @@ func go_to_main_menu() -> void:
 	GameSession.back_to_main_menu(get_tree())
 
 
-## Tool bar across the top, side panel on the right, both with the same look.
+## The map in the top left, the tool bar under it, the side panel on the right (full
+## height), all with the same look.
 func _layout_ui() -> void:
 	var toolbar_height: float = GameSettings.get_setting("ui", "toolbar_height")
 	var side_panel_width: float = GameSettings.get_setting("ui", "side_panel_width")
 	var theme := UiTheme.make()
 	_toolbar.theme = theme
-	_toolbar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_toolbar.offset_bottom = toolbar_height
+	_toolbar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_toolbar.offset_top = -toolbar_height
+	_toolbar.offset_right = -side_panel_width
 	_side_panel.theme = theme
 	_side_panel.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE)
 	_side_panel.offset_left = -side_panel_width
-	_side_panel.offset_top = toolbar_height
 
 
 # --- Saving and loading levels -----------------------------------------------

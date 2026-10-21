@@ -5,7 +5,7 @@ extends Node2D
 ##   Terrain   hold to paint dirt, grass or water, in whole tiles: every tile whose center
 ##             is in the brush circle, at least the tile under the mouse
 ##   Erase     hold to remove the objects under the brush (right click erases with any tool)
-##   Nest      click to move the nest
+##   Nest      click to move our nest (or the selected rival nest)
 ## Shows the brush circle (terrain, erase) or the object's footprint (place) under the mouse.
 
 enum Tool { INSPECT, PLACE, TERRAIN, ERASE, NEST }
@@ -49,7 +49,7 @@ func _use_tool() -> void:
 		Tool.INSPECT:
 			view.select_at(spot)
 		Tool.NEST:
-			view.simulation.move_nest(spot)
+			view.simulation.move_nest(view.target_colony(), spot)
 		Tool.PLACE:
 			view.simulation.place_object(object_kind, spot)
 		Tool.ERASE:

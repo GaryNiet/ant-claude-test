@@ -14,7 +14,8 @@ extends RefCounted
 ##     cell_size = 8                <- pixels per cell
 ##     tile_cells = 4               <- cells per tile side (4 x 8 px = 32 px tiles)
 ##     starting_ants = 100
-##     nest = 80, 45                <- column, row of the nest CELL
+##     nest = 80, 45                <- column, row of the player's nest CELL
+##     rival_nest = 120, 30         <- optional, one line per rival colony's nest
 ##     tiles:                       <- then one text line per row of TILES:
 ##     ddddggggwwwwdd
 ##       "d" = dirt   "g" = grass   "w" = water
@@ -37,6 +38,7 @@ var cell_size := 8.0    ## pixels per cell
 var tile_cells := 4     ## cells per tile side
 var starting_ants := 100
 var nest_cell := Vector2i.ZERO
+var rival_nest_cells: Array[Vector2i] = []
 var tiles := PackedByteArray()      ## ground type per tile, row by row
 var objects: Array[Dictionary] = [] ## {kind, cell}: objects to place, in order
 
@@ -86,7 +88,10 @@ static func from_simulation(sim: ColonySimulation, level_name: String) -> Level:
 	level.cell_size = sim.grid.cell_size
 	level.tile_cells = sim.ground.tile_cells
 	level.starting_ants = sim.level.starting_ants
-	level.nest_cell = sim.grid.cell_coords(sim.nest_position)
+	level.nest_cell = sim.grid.cell_coords(sim.player_colony.nest_position)
+	for colony in sim.colonies:
+		if not colony.is_player:
+			level.rival_nest_cells.append(sim.grid.cell_coords(colony.nest_position))
 	level.tiles = sim.ground.tiles.duplicate()
 	for object in sim.objects:
 		level.objects.append({kind = object.kind, cell = sim.grid.cell_coords(object.position)})
@@ -104,6 +109,8 @@ func save_file(path: String) -> Error:
 	file.store_line("tile_cells = %d" % tile_cells)
 	file.store_line("starting_ants = %d" % starting_ants)
 	file.store_line("nest = %d, %d" % [nest_cell.x, nest_cell.y])
+	for rival in rival_nest_cells:
+		file.store_line("rival_nest = %d, %d" % [rival.x, rival.y])
 	file.store_line("tiles:")
 	for row in rows:
 		var line := ""
@@ -143,10 +150,17 @@ func _read_setting(line: String) -> void:
 		"starting_ants":
 			starting_ants = value.to_int()
 		"nest":
-			var numbers := value.split(",")
-			nest_cell = Vector2i(numbers[0].to_int(), numbers[1].to_int())
+			nest_cell = _cell_from_text(value)
+		"rival_nest":
+			rival_nest_cells.append(_cell_from_text(value))
 		_:
 			push_error("Level: unknown setting '%s'" % key)
+
+
+## "80, 45" -> Vector2i(80, 45)
+func _cell_from_text(text: String) -> Vector2i:
+	var numbers := text.split(",")
+	return Vector2i(numbers[0].to_int(), numbers[1].to_int())
 
 
 func _read_tiles(lines: PackedStringArray) -> bool:

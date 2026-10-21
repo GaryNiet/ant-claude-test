@@ -6,12 +6,16 @@ A video game prototype made with **Godot 4.3+** (standard version, not .NET).
 1. Get the code (first time): `git clone https://github.com/GaryNiet/ant-claude-test.git`
    Later updates: `git pull`
 2. Open Godot → **Import** → select `project.godot` in this folder.
-3. Press **F5** (Run). The game opens on the main menu: pick Level 1, 2 or 3, or open Settings.
+3. Press **F5** (Run). The game opens on the main menu: pick Level 1 to 4, or open Settings.
+
+Screen: the map in the top left, the **tool bar** under it, everything else on the right
+(game buttons: pause, restart, fit map, views, trails, save, load, settings, menu; then the level,
+upgrades, the selected thing and colony statistics).
 
 | Control | Action |
 |---|---|
-| Tool bar (top) or keys **1**-**6** | Inspect / **Food >** / **Obstacles >** / **Terrain >** / Nest / Erase |
-| Food >, Obstacles >, Terrain > | The whole bar turns into that page (blueberry, strawberry, larva...; rock, twig, tree trunk...; dirt, grass, water). **Backspace** or Back returns |
+| Tool bar (bottom) or keys **1**-**6** | Inspect / **Food** (apple) / **Obstacles** (stop sign) / **Terrain** (mountains) / Nest / Erase |
+| Food, Obstacles, Terrain | The whole bar turns into that page, one button per item showing the item itself (blueberry, strawberry, larva...; rock, twig, tree trunk...; dirt, grass, water). **Backspace** or Back returns |
 | Left mouse | Use the tool: inspect anything, place one object per click, paint terrain, erase, move the nest |
 | Right mouse | Erase objects under the brush (any tool) |
 | **[** / **]** or **-** / **=** | Brush size |
@@ -34,6 +38,11 @@ orange ants (darker ones are scouts) and spiders (the enemies, with a health bar
 facing the screen, in 4 directions with a walking animation; an ant hill that grows with the
 colony (a bigger hill with 3 entrances past ~160 ants); mossy patches on the dirt (decoration).
 Ants carrying food hold a crumb. Dead ants lie on their back and fade away.
+
+**Colonies:** a level can have rival colonies (Level 4). Our nest has a flag; rival ants are red.
+Ants of different colonies fight when they meet, and carry dead rival ants home as food (in one
+piece); their own dead fade away. Upgrades apply to our colony, or to a rival colony while its
+nest is selected (the side panel says which). Settings in `[colonies]`.
 
 **Objects:** food and obstacles are objects with a fixed shape and sprite, placed from the tool bar.
 Food (blueberry, strawberry, seed, larva, dead spider) glows yellow and loses pixels as ants eat it;
@@ -67,9 +76,9 @@ tile with grass on one side): see `tiles/README.md`.
 ## Where things are
 | File | What it is |
 |------|------------|
-| `levels/` | Level files (`*.level`): map size, nest, starting ants, ground tiles and objects (food and obstacles), as editable text. Levels 1-3 are listed in `[menu] levels`. |
+| `levels/` | Level files (`*.level`): map size, nests (ours and rivals), starting ants, ground tiles and objects (food and obstacles), as editable text. Levels 1-4 are listed in `[menu] levels`. |
 | `tiles/` | Ground tile images (with variants and transitions). `tiles/README.md` explains the file names. |
-| `sprites/` | Ant and spider sprites (4 directions x 2 walk frames), dead ant, food crumb and glow, ant hills; `sprites/objects/` food and obstacle sprites. |
+| `sprites/` | Ant (ours and red rivals) and spider sprites (4 directions x 2 walk frames), dead ants, food crumb and glow, ant hills, our flag; `sprites/objects/` food and obstacle sprites; `sprites/icons/` tool bar icons. |
 | `tools/make_art.py` | Generates all tiles and sprites (Python + Pillow + numpy). Edit colors/shapes and re-run. |
 | `art/inspiration/` | The inspiration images the art is based on. |
 | `game_settings.cfg` | **All tunable values** (speeds, sizes, colors, keys, window). Edit this to tweak the game. |

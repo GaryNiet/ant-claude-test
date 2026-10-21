@@ -10,6 +10,7 @@ extends Node2D
 var _nest_entrance_color: Color = GameSettings.get_color("colors", "nest_entrance")
 var _ant_color: Color = GameSettings.get_color("colors", "ant")
 var _scout_color: Color = GameSettings.get_color("colors", "scout")
+var _rival_color: Color = GameSettings.get_color("colonies", "rival_tint")
 var _ant_with_food_color: Color = GameSettings.get_color("colors", "ant_with_food")
 var _ant_fighting_color: Color = GameSettings.get_color("colors", "ant_fighting")
 var _ant_cutting_color: Color = GameSettings.get_color("colors", "ant_cutting")
@@ -34,29 +35,34 @@ func _process(_delta: float) -> void:
 
 func _draw() -> void:
 	var simulation: ColonySimulation = view.simulation
-	draw_circle(simulation.nest_position, _nest_entrance_radius, _nest_entrance_color)
+	for colony in simulation.colonies:
+		draw_circle(colony.nest_position, _nest_entrance_radius, _nest_entrance_color if colony.is_player else _rival_color)
 	for ant in simulation.ants:
 		_draw_ant(ant)
 	for enemy in simulation.enemies:
 		_draw_enemy(enemy)
 
 
+## Ants and spiders are drawn between their previous and current position (see
+## SimulationView.tick_fraction), so they move smoothly between simulation ticks.
 func _draw_ant(ant: Ant) -> void:
-	_draw_arrow(ant.position, ant.heading, _ant_length, _ant_width, _ant_color_for(ant))
+	var spot := ant.previous_position.lerp(ant.position, view.tick_fraction())
+	_draw_arrow(spot, ant.heading, _ant_length, _ant_width, _ant_color_for(ant))
 	if ant.is_carrying_food():
 		# The block grows with the pieces carried (its area is proportional to the food).
 		var size := _food_block_size * sqrt(ant.carried_food)
 		var forward := Vector2.from_angle(ant.heading)
-		_draw_square(ant.position + forward * (_ant_length + size) * 0.5, ant.heading, size, _food_color)
+		_draw_square(spot + forward * (_ant_length + size) * 0.5, ant.heading, size, _food_color)
 
 
 func _draw_enemy(enemy: Enemy) -> void:
-	_draw_arrow(enemy.position, enemy.heading, _enemy_length, _enemy_width, _enemy_color)
+	var spot := enemy.previous_position.lerp(enemy.position, view.tick_fraction())
+	_draw_arrow(spot, enemy.heading, _enemy_length, _enemy_width, _enemy_color)
 	if enemy.food_eaten > 0:  # belly: a green dot that grows with the food eaten
 		var fullness := minf(enemy.food_eaten / _enemy_appetite, 1.0)
-		draw_circle(enemy.position, _enemy_radius * 0.7 * fullness, _food_color)
+		draw_circle(spot, _enemy_radius * 0.7 * fullness, _food_color)
 	var bar_width := _enemy_radius * 2.0
-	var bar_start := enemy.position + Vector2(-_enemy_radius, -_enemy_radius - _health_bar_gap)
+	var bar_start := spot + Vector2(-_enemy_radius, -_enemy_radius - _health_bar_gap)
 	var bar_end := bar_start + Vector2(bar_width * enemy.hp / enemy.max_hp, 0.0)
 	draw_line(bar_start, bar_end, _health_bar_color, _health_bar_thickness)
 
@@ -88,6 +94,8 @@ func _ant_color_for(ant: Ant) -> Color:
 		return _ant_cutting_color
 	if ant.is_carrying_food():
 		return _ant_with_food_color
+	if not ant.colony.is_player:
+		return _rival_color
 	if ant.is_scout:
 		return _scout_color
 	return _ant_color

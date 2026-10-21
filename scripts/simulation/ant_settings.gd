@@ -19,6 +19,7 @@ var base_carry_capacity: int = GameSettings.get_setting("ant", "carry_capacity")
 var carry_capacity := base_carry_capacity
 var food_reach: float = GameSettings.get_setting("ant", "food_reach")
 var gatherers_lay_going_out: bool = GameSettings.get_setting("ant", "gatherers_lay_going_out")
+var think_interval_ticks: int = GameSettings.get_setting("ant", "think_interval_ticks")
 
 # Paths — [paths]
 var path_wear_per_second: float = GameSettings.get_setting("paths", "wear_per_second")
@@ -61,6 +62,9 @@ var enemy_sight_radius: float = GameSettings.get_setting("ant_combat", "enemy_si
 var join_fight_give_up_time: float = GameSettings.get_setting("ant_combat", "join_fight_give_up_time")
 var fight_zone_radius: float = GameSettings.get_setting("ant_combat", "fight_zone_radius")
 var fight_deposit: float = GameSettings.get_setting("ant_combat", "fight_deposit")
+## Two ants of rival colonies this close (center to center) are touching: they fight.
+var rival_contact_distance: float = 2.0 * float(GameSettings.get_setting("collisions", "ant_radius")) \
+	+ float(GameSettings.get_setting("enemies", "contact_margin"))
 
 # Trails — [pheromones]
 var going_out_deposit: float = GameSettings.get_setting("pheromones", "going_out_deposit")

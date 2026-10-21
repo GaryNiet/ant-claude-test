@@ -3,6 +3,7 @@ extends Node2D
 ## map with smoothing, the colors added together (pink where going out and home overlap).
 ## The glow is added on top of the ground (black = no pheromone = ground unchanged).
 ## It is fainter in the isometric view, so the ground art stays readable.
+## The trails of all colonies are added together. Nothing is computed while it is hidden.
 
 @onready var view: Node2D = get_parent().get_parent()  ## SimulationView (the parent is its MapSpace)
 
@@ -27,14 +28,21 @@ func _ready() -> void:
 
 
 func _update_texture() -> void:
+	if not visible:
+		return
 	var grid: MapGrid = view.simulation.grid
 	if _image == null or _image.get_width() != grid.width or _image.get_height() != grid.height:
 		_pixels.resize(grid.width * grid.height * 3)
 		_image = Image.create_from_data(grid.width, grid.height, false, Image.FORMAT_RGB8, _pixels)
 		_texture = ImageTexture.create_from_image(_image)
-	for index in grid.going_out.size():
-		var out_brightness := minf(grid.going_out[index] / _full_brightness, 1.0)
-		var home_brightness := minf(grid.going_home[index] / _full_brightness, 1.0)
+	for index in grid.cell_count:
+		var going_out := 0.0
+		var going_home := 0.0
+		for colony in grid.colony_count:
+			going_out += grid.going_out[index + colony * grid.cell_count]
+			going_home += grid.going_home[index + colony * grid.cell_count]
+		var out_brightness := minf(going_out / _full_brightness, 1.0)
+		var home_brightness := minf(going_home / _full_brightness, 1.0)
 		var fight_brightness := minf(grid.fight[index] / _full_brightness, 1.0)
 		var color := (_going_out_color * out_brightness + _going_home_color * home_brightness
 			+ _fight_color * fight_brightness)

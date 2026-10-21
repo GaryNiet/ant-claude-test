@@ -48,4 +48,5 @@ func _button(text: String, on_pressed: Callable) -> Button:
 	button.custom_minimum_size.x = GameSettings.get_setting("menu", "button_width")
 	button.add_theme_font_size_override("font_size", GameSettings.get_setting("menu", "button_font_size"))
 	button.pressed.connect(on_pressed)
+	UiTheme.add_click_animation(button)
 	return button

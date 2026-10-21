@@ -4,6 +4,8 @@ extends RefCounted
 ##
 ## - "going out" pheromone  : laid by ants walking away from the nest (exploring / gathering)
 ## - "going home" pheromone : laid by ants carrying food back to the nest
+##                            (both are kept separately for each colony: ants only smell
+##                            their own colony's trails)
 ## - "fight" pheromone      : laid in a zone around ants that are fighting an enemy
 ## - food                   : units of food in the cell (an ant carries 1 unit)
 ## - obstacle               : ants can't walk through obstacle cells
@@ -12,9 +14,10 @@ extends RefCounted
 ##                            where ants walk faster. Not a tile type: any walkable ground
 ##                            can have it, a dirt tile may have unobstructed parts.
 ##
-## Pheromones fade a little every tick (exponential decay with a configurable half-life),
-## so busy paths stay strong while abandoned ones disappear. Path wear fades the same way,
-## but much more slowly.
+## Pheromones fade over time (exponential decay with a configurable half-life), so busy
+## paths stay strong while abandoned ones disappear. Path wear fades the same way, but much
+## more slowly. To save time, each tick only a slice of the rows fades (by the amount for
+## all the ticks since that slice last faded), see [pheromones] decay_slices.
 ## Everything outside the map counts as an obstacle.
 
 enum Kind { GOING_OUT, GOING_HOME, FIGHT }
@@ -26,6 +29,9 @@ var height: int         ## number of cells vertically
 var cell_size: float    ## size of one cell in pixels
 var max_strength: float
 
+var colony_count: int
+var cell_count: int     ## width x height
+## Trails of all colonies in one array: colony c's value for cell i is at c * cell_count + i.
 var going_out := PackedFloat32Array()
 var going_home := PackedFloat32Array()
 var fight := PackedFloat32Array()
@@ -48,12 +54,18 @@ var _food_in_region := PackedInt32Array()
 var _decay_per_second_log: float        ## precomputed for the decay formula
 var _fight_decay_per_second_log: float  ## the fight pheromone fades faster
 var _path_decay_per_second_log: float   ## path wear fades much slower
+var _decay_slices: int                  ## the rows are faded in this many slices, one per tick
+var _next_decay_slice := 0
 
 
-## Creates an empty map of `columns` x `rows` cells, each `cell_size_in_pixels` wide.
-func _init(columns: int, rows: int, cell_size_in_pixels: float) -> void:
+## Creates an empty map of `columns` x `rows` cells, each `cell_size_in_pixels` wide, with
+## trails for `colonies` colonies.
+func _init(columns: int, rows: int, cell_size_in_pixels: float, colonies: int) -> void:
 	width = columns
 	height = rows
+	cell_count = width * height
+	colony_count = colonies
+	_decay_slices = GameSettings.get_setting("pheromones", "decay_slices")
 	cell_size = cell_size_in_pixels
 	_region_cells = GameSettings.get_setting("map", "food_lookup_region_cells")
 	max_strength = GameSettings.get_setting("pheromones", "max_strength")
@@ -65,8 +77,8 @@ func _init(columns: int, rows: int, cell_size_in_pixels: float) -> void:
 	unobstructed_wear = GameSettings.get_setting("paths", "unobstructed_wear")
 	_max_path_wear = GameSettings.get_setting("paths", "max_wear")
 	path_wear.resize(width * height)
-	going_out.resize(width * height)
-	going_home.resize(width * height)
+	going_out.resize(cell_count * colony_count)
+	going_home.resize(cell_count * colony_count)
 	fight.resize(width * height)
 	food.resize(width * height)
 	obstacle.resize(width * height)
@@ -104,14 +116,17 @@ func cell_coords(world_position: Vector2) -> Vector2i:
 
 # --- Pheromones -------------------------------------------------------------
 
-## Adds `amount` of pheromone `kind` to the cell under `world_position`.
-func deposit(kind: Kind, world_position: Vector2, amount: float) -> void:
+## Adds `amount` of pheromone `kind` of `colony` to the cell under `world_position`
+## (the fight pheromone is shared by all colonies).
+func deposit(kind: Kind, world_position: Vector2, amount: float, colony := 0) -> void:
 	var index := cell_index(world_position)
 	if index == -1:
 		return
 	if kind == Kind.GOING_OUT:
+		index += colony * cell_count
 		going_out[index] = minf(going_out[index] + amount, max_strength)
 	elif kind == Kind.GOING_HOME:
+		index += colony * cell_count
 		going_home[index] = minf(going_home[index] + amount, max_strength)
 	else:
 		fight[index] = minf(fight[index] + amount, max_strength)
@@ -124,42 +139,51 @@ func deposit_zone(kind: Kind, center: Vector2, radius: float, amount: float) -> 
 		deposit(kind, cell_middle, amount)
 
 
-## Returns the strength of pheromone `kind` at `world_position` (0 outside the map).
-func sample(kind: Kind, world_position: Vector2) -> float:
+## Returns the strength of pheromone `kind` of `colony` at `world_position` (0 outside the map).
+func sample(kind: Kind, world_position: Vector2, colony := 0) -> float:
 	var index := cell_index(world_position)
 	if index == -1:
 		return 0.0
 	if kind == Kind.GOING_OUT:
-		return going_out[index]
+		return going_out[index + colony * cell_count]
 	if kind == Kind.GOING_HOME:
-		return going_home[index]
+		return going_home[index + colony * cell_count]
 	return fight[index]
 
 
 ## Average strength of pheromone `kind` over a square of cells centered on `world_position`.
 ## `radius_in_cells` = 0 reads 1 cell, 1 reads 3x3 cells, 2 reads 5x5 cells...
 ## A bigger area lets ants notice a trail that is a bit to the side of their sensor.
-func sample_area(kind: Kind, world_position: Vector2, radius_in_cells: int) -> float:
+func sample_area(kind: Kind, world_position: Vector2, radius_in_cells: int, colony := 0) -> float:
 	if radius_in_cells == 0:
-		return sample(kind, world_position)
+		return sample(kind, world_position, colony)
 	var total := 0.0
 	for row in range(-radius_in_cells, radius_in_cells + 1):
 		for column in range(-radius_in_cells, radius_in_cells + 1):
-			total += sample(kind, world_position + Vector2(column, row) * cell_size)
+			total += sample(kind, world_position + Vector2(column, row) * cell_size, colony)
 	var cells_read := (radius_in_cells * 2 + 1) * (radius_in_cells * 2 + 1)
 	return total / cells_read
 
 
-## Makes every pheromone and the path wear fade by the amount matching `delta` seconds.
+## Called every tick of `delta` seconds: fades the pheromones and the path wear of the next
+## slice of rows, by the amount for decay_slices ticks (each row's turn comes back after
+## that many ticks). Same result as fading everything every tick, for a fraction of the work.
 func decay(delta: float) -> void:
-	var factor := exp(_decay_per_second_log * delta)
-	var fight_factor := exp(_fight_decay_per_second_log * delta)
-	var path_factor := exp(_path_decay_per_second_log * delta)
-	for index in going_out.size():
-		going_out[index] *= factor
-		going_home[index] *= factor
+	var slice_delta := delta * _decay_slices
+	var factor := exp(_decay_per_second_log * slice_delta)
+	var fight_factor := exp(_fight_decay_per_second_log * slice_delta)
+	var path_factor := exp(_path_decay_per_second_log * slice_delta)
+	var rows_per_slice := ceili(float(height) / _decay_slices)
+	var first := mini(_next_decay_slice * rows_per_slice, height) * width
+	var last := mini((_next_decay_slice + 1) * rows_per_slice, height) * width
+	_next_decay_slice = (_next_decay_slice + 1) % _decay_slices
+	for index in range(first, last):
 		fight[index] *= fight_factor
 		path_wear[index] *= path_factor
+	for colony in colony_count:
+		for index in range(first + colony * cell_count, last + colony * cell_count):
+			going_out[index] *= factor
+			going_home[index] *= factor
 
 
 # --- Paths (unobstructed areas) ---------------------------------------------
@@ -189,8 +213,9 @@ func is_obstacle(world_position: Vector2) -> bool:
 func set_obstacle(index: int, is_blocked: bool) -> void:
 	if is_blocked:
 		set_food(index, 0)
-		going_out[index] = 0.0
-		going_home[index] = 0.0
+		for colony in colony_count:
+			going_out[index + colony * cell_count] = 0.0
+			going_home[index + colony * cell_count] = 0.0
 		fight[index] = 0.0
 		path_wear[index] = 0.0
 	obstacle[index] = 1 if is_blocked else 0

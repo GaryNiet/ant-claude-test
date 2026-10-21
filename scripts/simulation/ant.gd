@@ -39,6 +39,15 @@ extends RefCounted
 ##     medium (>= contact_fight_will) fights an enemy it bumps into
 ##     low                            only fights back when an enemy hits it
 ##
+## Colonies: every ant belongs to a colony (its nest, its trails, its upgrades). It only
+## follows its own colony's trails. When it meets an ant of another colony, both fight.
+## Dead ants of other colonies are food: an ant carries one home in a single chunk.
+##
+## Thinking less often: deciding where to go (smelling with 3 sensors, looking for food and
+## enemies) is the expensive part, so an ant only does it every think_interval_ticks ticks
+## (each ant at its own moment) and keeps turning the same way in between. Walking, laying
+## trails and arriving at the nest still happen every tick.
+##
 ## Why trails can be followed "backwards": an ant lays less pheromone the longer it
 ## has been walking, so every trail is strongest near where it started.
 ##
@@ -47,7 +56,9 @@ extends RefCounted
 
 enum Mode { EXPLORING, GATHERING, CUTTING_FOOD, CARRYING_FOOD, RETURNING_HOME, JOINING_FIGHT, FIGHTING }
 
+var colony: Colony
 var position: Vector2
+var previous_position: Vector2  ## where it was one tick ago (to draw it smoothly between ticks)
 var heading: float              ## direction of travel in radians (0 = right, PI/2 = down)
 var mode := Mode.EXPLORING
 var is_scout: bool              ## personality: true = scout, false = collector
@@ -63,7 +74,7 @@ var hp: float
 var max_hp: float
 var carried_food := 0           ## pieces of food the ant is holding
 var fight_will: float           ## personality: 0 = never starts a fight, 1 = loves fighting
-var fight_target: Enemy         ## the enemy this ant is fighting (FIGHTING mode only)
+var fight_target: Object        ## the Enemy or rival Ant this ant is fighting (FIGHTING mode only)
 var _mode_before_fight := Mode.EXPLORING
 var _time_until_attack := 0.0
 
@@ -74,11 +85,17 @@ var _time_without_progress := 0.0  ## seconds since the ant last got noticeably 
 var _detour_time_left := 0.0       ## > 0 while taking a detour (no push)
 
 var _settings: AntSettings
+var _turn := 0.0                ## how it turns between two thinking ticks (-1 left .. +1 right)
+var _ticks_until_thinking: int
 
 
-func _init(start: Vector2, settings: AntSettings, rng: RandomNumberGenerator, starting_age := 0.0) -> void:
-	position = start
+func _init(ant_colony: Colony, rng: RandomNumberGenerator, starting_age := 0.0) -> void:
+	colony = ant_colony
+	position = colony.nest_position
+	previous_position = position
+	var settings := colony.ant_settings
 	_settings = settings
+	_ticks_until_thinking = rng.randi_range(1, settings.think_interval_ticks)  # spread the thinking
 	heading = rng.randf() * TAU
 	age = starting_age
 	lifespan = rng.randf_range(settings.lifespan_min, settings.lifespan_max)
@@ -100,8 +117,8 @@ func is_dead() -> bool:
 	return hp <= 0.0
 
 
-## Called when an enemy hits this ant. An ant that survives always fights back.
-func take_damage(amount: float, attacker: Enemy) -> void:
+## Called when an enemy or a rival ant hits this ant. An ant that survives always fights back.
+func take_damage(amount: float, attacker: Object) -> void:
 	hp -= amount
 	if not is_dead() and mode != Mode.FIGHTING:
 		_start_fight(attacker)
@@ -115,15 +132,23 @@ func touch_enemy(sim: ColonySimulation, enemy: Enemy) -> void:
 		_start_fight(enemy)
 
 
+## Called by the simulation every tick this ant touches an ant of another colony:
+## rival ants always fight when they meet.
+func touch_rival(rival: Ant) -> void:
+	if mode != Mode.FIGHTING and not is_dead() and not rival.is_dead():
+		_start_fight(rival)
+
+
 ## The ant's will to fight for a fight at `spot`: its own will, plus a bonus that grows
 ## from 0 (at nest_defense_radius or further from the nest) to nest_defense_bonus (at the nest).
 func _will_to_fight_at(sim: ColonySimulation, spot: Vector2) -> float:
-	var closeness := 1.0 - clampf(spot.distance_to(sim.nest_position) / _settings.nest_defense_radius, 0.0, 1.0)
+	var closeness := 1.0 - clampf(spot.distance_to(colony.nest_position) / _settings.nest_defense_radius, 0.0, 1.0)
 	return fight_will + _settings.nest_defense_bonus * closeness
 
 
 ## Advances the ant by one tick of `delta` seconds.
 func update(sim: ColonySimulation, delta: float) -> void:
+	previous_position = position
 	time_in_mode += delta
 	time_since_trail_start += delta
 	age += delta
@@ -137,32 +162,39 @@ func update(sim: ColonySimulation, delta: float) -> void:
 	if mode == Mode.CUTTING_FOOD:
 		_cut_food(sim)
 		return  # cutting ants stand still
-	if (mode == Mode.EXPLORING or mode == Mode.GATHERING) and _wants_to_join_fight(sim):
-		_set_mode(Mode.JOINING_FIGHT)
+	_ticks_until_thinking -= 1
+	if _ticks_until_thinking <= 0:
+		_ticks_until_thinking = _settings.think_interval_ticks
+		_turn = _think(sim, delta * _settings.think_interval_ticks)
 
-	# Each mode returns how much to turn: -1 = full left, 0 = straight, +1 = full right.
-	var turn := 0.0
-	match mode:
-		Mode.EXPLORING:
-			turn = _explore(sim)
-		Mode.GATHERING:
-			turn = _gather(sim)
-		Mode.CARRYING_FOOD, Mode.RETURNING_HOME:
-			turn = _go_home(sim, delta)
-		Mode.JOINING_FIGHT:
-			turn = _join_fight(sim)
-
-	heading += clampf(turn, -1.0, 1.0) * _settings.turn_speed * delta
+	heading += clampf(_turn, -1.0, 1.0) * _settings.turn_speed * delta
 	heading += sim.rng.randf_range(-1.0, 1.0) * _settings.wander * delta
 	_move_forward(sim, delta)
 	_lay_trail(sim, delta)
 	_check_arrival_at_nest(sim)
 
 
+## Decides what to do and which way to turn: -1 = full left, 0 = straight, +1 = full right.
+## `delta` = the time since the ant last thought.
+func _think(sim: ColonySimulation, delta: float) -> float:
+	if (mode == Mode.EXPLORING or mode == Mode.GATHERING) and _wants_to_join_fight(sim):
+		_set_mode(Mode.JOINING_FIGHT)
+	match mode:
+		Mode.EXPLORING:
+			return _explore(sim)
+		Mode.GATHERING:
+			return _gather(sim)
+		Mode.CARRYING_FOOD, Mode.RETURNING_HOME:
+			return _go_home(sim, delta)
+		Mode.JOINING_FIGHT:
+			return _join_fight(sim)
+	return 0.0
+
+
 # --- The modes --------------------------------------------------------------
 
 func _explore(sim: ColonySimulation) -> float:
-	var food := sim.grid.find_food_near(position, _settings.food_sight_radius)
+	var food := _food_in_sight(sim)
 	if food != MapGrid.NO_FOOD:
 		_set_mode(Mode.GATHERING)
 		return _turn_towards(food)
@@ -175,10 +207,16 @@ func _explore(sim: ColonySimulation) -> float:
 
 
 func _gather(sim: ColonySimulation) -> float:
+	var corpse_food := sim.take_rival_corpse(position, _settings.food_reach, colony)
+	if corpse_food > 0:  # a dead rival ant: carried home in one chunk
+		carried_food = corpse_food
+		_set_mode(Mode.CARRYING_FOOD)
+		heading += PI
+		return 0.0
 	if _food_within_reach(sim) != MapGrid.NO_FOOD:
 		_set_mode(Mode.CUTTING_FOOD)  # reached food: start cutting a piece off
 		return 0.0
-	var food := sim.grid.find_food_near(position, _settings.food_sight_radius)
+	var food := _food_in_sight(sim)
 	if food != MapGrid.NO_FOOD:
 		return _turn_towards(food)
 
@@ -187,10 +225,18 @@ func _gather(sim: ColonySimulation) -> float:
 	return _steer_by_smell(sim, 0.0, 1.0)
 
 
+## The closest food the ant sees: food on the map or a dead rival ant (NO_FOOD if none).
+func _food_in_sight(sim: ColonySimulation) -> Vector2:
+	var corpse := sim.rival_corpse_near(position, _settings.food_sight_radius, colony)
+	if corpse != MapGrid.NO_FOOD:
+		return corpse
+	return sim.grid.find_food_near(position, _settings.food_sight_radius)
+
+
 func _go_home(sim: ColonySimulation, delta: float) -> float:
-	var distance_to_nest := position.distance_to(sim.nest_position)
+	var distance_to_nest := position.distance_to(colony.nest_position)
 	if distance_to_nest < _settings.nest_sight_radius:
-		return _turn_towards(sim.nest_position)
+		return _turn_towards(colony.nest_position)
 	var smell_turn := _steer_by_smell(sim, 1.0, 0.0)
 
 	if _detour_time_left > 0.0:
@@ -204,7 +250,7 @@ func _go_home(sim: ColonySimulation, delta: float) -> float:
 
 	_push_time += delta
 	var push := minf(_push_time * _settings.push_growth, _settings.push_max)
-	return lerpf(smell_turn, _turn_towards(sim.nest_position), push)
+	return lerpf(smell_turn, _turn_towards(colony.nest_position), push)
 
 
 ## Remembers the closest the ant got to the nest; counts how long since it improved.
@@ -259,7 +305,7 @@ func _join_fight(sim: ColonySimulation) -> float:
 
 
 func _fight(sim: ColonySimulation, delta: float) -> void:
-	if fight_target.is_dead() or not fight_target.ants_in_contact.has(self):
+	if not _still_touching(fight_target):
 		_end_fight()
 		return
 	heading = (fight_target.position - position).angle()
@@ -267,13 +313,25 @@ func _fight(sim: ColonySimulation, delta: float) -> void:
 	_time_until_attack -= delta
 	if _time_until_attack <= 0.0:
 		_time_until_attack = _settings.attack_interval
-		fight_target.take_damage(_settings.attack)
+		if fight_target is Ant:
+			fight_target.take_damage(_settings.attack, self)
+		else:
+			fight_target.take_damage(_settings.attack)
 
 
-func _start_fight(enemy: Enemy) -> void:
+## True while the enemy or rival ant being fought is alive and still touching this ant.
+func _still_touching(target: Object) -> bool:
+	if target.is_dead():
+		return false
+	if target is Ant:
+		return position.distance_to(target.position) <= _settings.rival_contact_distance
+	return target.ants_in_contact.has(self)
+
+
+func _start_fight(target: Object) -> void:
 	# Ants that came looking for a fight go exploring afterwards (and will find the enemy's food).
 	_mode_before_fight = Mode.EXPLORING if mode == Mode.JOINING_FIGHT else mode
-	fight_target = enemy
+	fight_target = target
 	_time_until_attack = _settings.attack_interval
 	mode = Mode.FIGHTING
 	time_in_mode = 0.0
@@ -307,10 +365,10 @@ func _set_mode(new_mode: Mode) -> void:
 
 
 func _check_arrival_at_nest(sim: ColonySimulation) -> void:
-	if position.distance_to(sim.nest_position) > sim.nest_radius:
+	if position.distance_to(colony.nest_position) > colony.nest_radius:
 		return
 	if mode == Mode.CARRYING_FOOD:
-		sim.deliver_food(carried_food)
+		colony.deliver_food(carried_food, sim.elapsed_time)
 		carried_food = 0
 		time_since_trail_start = 0.0
 		if is_scout:
@@ -365,7 +423,7 @@ func _can_smell(sim: ColonySimulation, kind: MapGrid.Kind) -> bool:
 
 ## How strong pheromone `kind` smells to a sensor at `spot`.
 func _smell(sim: ColonySimulation, kind: MapGrid.Kind, spot: Vector2) -> float:
-	return sim.grid.sample_area(kind, spot, _settings.sensor_radius_in_cells)
+	return sim.grid.sample_area(kind, spot, _settings.sensor_radius_in_cells, colony.index)
 
 
 func _sensor_position(angle_offset: float) -> Vector2:
@@ -409,6 +467,6 @@ func _lay_trail(sim: ColonySimulation, delta: float) -> void:
 	var fade := exp(-time_since_trail_start / _settings.trail_fade_time)
 	var lays_going_out := mode == Mode.EXPLORING or (mode == Mode.GATHERING and _settings.gatherers_lay_going_out)
 	if lays_going_out:
-		sim.grid.deposit(MapGrid.Kind.GOING_OUT, position, _settings.going_out_deposit * fade * delta)
+		sim.grid.deposit(MapGrid.Kind.GOING_OUT, position, _settings.going_out_deposit * fade * delta, colony.index)
 	elif mode == Mode.CARRYING_FOOD:
-		sim.grid.deposit(MapGrid.Kind.GOING_HOME, position, _settings.going_home_deposit * fade * delta)
+		sim.grid.deposit(MapGrid.Kind.GOING_HOME, position, _settings.going_home_deposit * fade * delta, colony.index)

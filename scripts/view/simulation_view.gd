@@ -15,13 +15,13 @@ signal stepped        ## emitted after one or more simulation ticks ran this fra
 signal level_loaded   ## emitted after a level was loaded (or restarted)
 signal view_mode_changed  ## emitted when switching between the isometric and debug views
 
-const SELECTED_NEST := "nest"  ## value of `selection` when the nest is selected
 
 var simulation: ColonySimulation
 var level_path := ""          ## file the current level was loaded from
 var is_paused := false
 var play_time := 0.0          ## seconds played on this level; stops while paused
-## What the player clicked on: an Ant, an Enemy, a MapObject, SELECTED_NEST, a Vector2i cell, or null.
+## What the player clicked on: an Ant, an Enemy, a MapObject, a Colony (its nest), a Vector2i
+## cell, or null.
 var selection: Variant = null
 var is_iso_view := false
 var show_pheromones: bool = GameSettings.get_setting("display", "show_pheromones")
@@ -74,6 +74,7 @@ func _ready() -> void:
 func set_pheromones_visible(shown: bool) -> void:
 	show_pheromones = shown
 	_pheromones.visible = shown
+	stepped.emit()  # redraw the trails right away when they are shown again
 
 
 ## Switches between the isometric view (true) and the flat debug view (false).
@@ -116,10 +117,10 @@ func restart_level() -> void:
 	load_level(level_path)
 
 
-## The part of the window where the map is shown (not covered by the tool bar or side panel).
+## The part of the window where the map is shown: above the tool bar, left of the side panel.
 func map_area() -> Rect2:
 	var window_size := get_viewport_rect().size
-	return Rect2(0.0, _toolbar_height, window_size.x - _side_panel_width, window_size.y - _toolbar_height)
+	return Rect2(0.0, 0.0, window_size.x - _side_panel_width, window_size.y - _toolbar_height)
 
 
 ## Zooms so the whole map fits the map area, centered.
@@ -200,7 +201,20 @@ func _pan_with_keys(delta: float) -> void:
 
 # --- Selection ----------------------------------------------------------------
 
-## Selects whatever is at map position `spot`: an enemy, an ant, the nest, an object
+## The colony the upgrade buttons and the Nest tool act on: a rival colony while its nest is
+## selected, otherwise ours.
+func target_colony() -> Colony:
+	return selection if selection is Colony else simulation.player_colony
+
+
+## How far the time is between the last tick and the next one (0..1). Ants and spiders are
+## drawn that far between their previous and current position, so they move smoothly even
+## though the simulation only moves them ticks_per_second times per second.
+func tick_fraction() -> float:
+	return clampf(_time_not_yet_simulated / _tick_length, 0.0, 1.0)
+
+
+## Selects whatever is at map position `spot`: an enemy, an ant, a nest, an object
 ## (food item or obstacle), or else the cell.
 func select_at(spot: Vector2) -> void:
 	for enemy in simulation.enemies:
@@ -216,8 +230,8 @@ func select_at(spot: Vector2) -> void:
 			closest_distance = distance
 	if closest_ant != null:
 		selection = closest_ant
-	elif spot.distance_to(simulation.nest_position) <= simulation.nest_radius:
-		selection = SELECTED_NEST
+	elif simulation.colony_at(spot) != null:
+		selection = simulation.colony_at(spot)
 	elif simulation.object_at(spot) != null:
 		selection = simulation.object_at(spot)
 	elif simulation.grid.cell_index(spot) != -1:

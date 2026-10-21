@@ -1,14 +1,16 @@
 extends PanelContainer
-## The bar at the top of the window, organised like in management games:
+## The tool bar under the map, organised like in management games. Square buttons with a
+## picture and a name:
 ##
-##   main page   Inspect | Food > | Obstacles > | Terrain > | Nest | Erase | brush size |
-##               pause, restart, fit map, view, trails | save, load | settings, menu
+##   main page   Inspect | Food | Obstacles | Terrain | Nest | Erase | brush size
 ##   Food        Back | Blueberry, Strawberry, Seed, Larva, Dead spider...  (click the map to place)
 ##   Obstacles   Back | Rock, Twig, High grass, Pine cone, Dead leaf, Tree trunk...
 ##   Terrain     Back | Dirt, Grass, Water | brush size
 ##
-## Clicking Food, Obstacles or Terrain turns the whole bar into that page; Back (or the
-## Backspace key) returns to the main page. The food and obstacle kinds come from [objects].
+## Food (an apple), Obstacles (a stop sign) and Terrain (mountains) turn the whole bar into
+## that page; Back (or the Backspace key) returns. On those pages each button shows the
+## thing itself (its sprite or tile). The food and obstacle kinds come from [objects].
+## The game buttons (pause, save...) are in the side panel.
 
 enum Page { MAIN, FOOD, OBSTACLES, TERRAIN }
 
@@ -18,25 +20,30 @@ const TERRAIN_CHOICES := {
 	GroundMap.Type.GRASS: "Grass",
 	GroundMap.Type.WATER: "Water",
 }
+## Main page icons, in sprites/icons/ (made by tools/make_art.py).
+const ICON_FOLDER := "icons"
 
 var _view: Node2D
 var _brush: Node2D
-var _main: Node
 var _row: HBoxContainer
 var _page := Page.MAIN
 var _choice_buttons := {}     ## what each button selects -> Button (on the current page)
 var _brush_size_label: Label
-var _pause_button: Button
-var _view_button: Button
-var _trails_button: Button
+
+var _sprite_folder: String = GameSettings.get_setting("iso_view", "sprite_folder")
+var _tile_folder: String = GameSettings.get_setting("ground", "tile_image_folder")
+var _button_size: float = GameSettings.get_setting("ui", "tool_button_size")
+var _icon_size: int = GameSettings.get_setting("ui", "tool_icon_size")
+var _tool_font_size: int = GameSettings.get_setting("ui", "tool_font_size")
+var _small_button_size: float = GameSettings.get_setting("ui", "small_button_size")
 
 
 ## Builds the bar. Called by main.gd once everything exists.
-func setup(view: Node2D, brush: Node2D, main: Node) -> void:
+func setup(view: Node2D, brush: Node2D) -> void:
 	_view = view
 	_brush = brush
-	_main = main
 	_row = HBoxContainer.new()
+	_row.alignment = BoxContainer.ALIGNMENT_BEGIN
 	add_child(_row)
 	_show_page(Page.MAIN)
 
@@ -65,10 +72,6 @@ func _process(_delta: float) -> void:
 		return
 	if _brush_size_label != null:
 		_brush_size_label.text = "%d" % _brush.radius
-	if _page == Page.MAIN:
-		_pause_button.text = "Resume" if _view.is_paused else "Pause"
-		_view_button.text = "%s view (%s)" % ["Debug" if _view.is_iso_view else "Iso", _keys("toggle_view")]
-		_trails_button.text = "%s trails (%s)" % ["Hide" if _view.show_pheromones else "Show", _keys("toggle_pheromones")]
 	var current: Variant = _current_choice()
 	if _choice_buttons.has(current):
 		_choice_buttons[current].button_pressed = true  # follows keyboard shortcuts too
@@ -127,64 +130,61 @@ func _show_page(page: Page) -> void:
 
 func _build_main_page() -> void:
 	var group := ButtonGroup.new()
-	_add_choice("inspect", "%s Inspect" % _keys("tool_inspect"), group, func() -> void: _pick_tool(_brush.Tool.INSPECT))
-	_add_choice("food", "%s Food >" % _keys("menu_food"), group, _open_page.bind(Page.FOOD))
-	_add_choice("obstacles", "%s Obstacles >" % _keys("menu_obstacles"), group, _open_page.bind(Page.OBSTACLES))
-	_add_choice("terrain", "%s Terrain >" % _keys("menu_terrain"), group, _open_page.bind(Page.TERRAIN))
-	_add_choice("nest", "%s Nest" % _keys("tool_nest"), group, func() -> void: _pick_tool(_brush.Tool.NEST))
-	_add_choice("erase", "%s Erase" % _keys("tool_erase"), group, func() -> void: _pick_tool(_brush.Tool.ERASE))
+	_add_choice("inspect", "Inspect", "tool_inspect", _icon("inspect"), group, func() -> void: _pick_tool(_brush.Tool.INSPECT))
+	_add_choice("food", "Food", "menu_food", _icon("food"), group, _open_page.bind(Page.FOOD))
+	_add_choice("obstacles", "Obstacles", "menu_obstacles", _icon("obstacles"), group, _open_page.bind(Page.OBSTACLES))
+	_add_choice("terrain", "Terrain", "menu_terrain", _icon("terrain"), group, _open_page.bind(Page.TERRAIN))
+	_add_choice("nest", "Nest", "tool_nest", _icon("nest"), group, func() -> void: _pick_tool(_brush.Tool.NEST))
+	_add_choice("erase", "Erase", "tool_erase", _icon("erase"), group, func() -> void: _pick_tool(_brush.Tool.ERASE))
 	_add_brush_size()
-
-	_row.add_child(VSeparator.new())
-	_pause_button = _button("Pause", func() -> void: _view.is_paused = not _view.is_paused)
-	_row.add_child(_pause_button)
-	_row.add_child(_button("Restart", _view.restart_level))
-	_row.add_child(_button("Fit map", _view.fit_map_to_area))
-	_view_button = _button("", func() -> void: _view.set_iso_view(not _view.is_iso_view))
-	_row.add_child(_view_button)
-	_trails_button = _button("", func() -> void: _view.set_pheromones_visible(not _view.show_pheromones))
-	_row.add_child(_trails_button)
-
-	_row.add_child(VSeparator.new())
-	_row.add_child(_button("Save level", _main.open_save_dialog))
-	_row.add_child(_button("Load level", _main.open_load_dialog))
-
-	_row.add_child(VSeparator.new())
-	_row.add_child(_button("Settings", _main.open_settings_menu))
-	_row.add_child(_button("Menu (%s)" % _keys("main_menu"), _main.go_to_main_menu))
 
 
 func _build_sub_page(page: Page) -> void:
-	_row.add_child(_button("< Back (%s)" % _keys("toolbar_back"), _show_page.bind(Page.MAIN)))
+	var back := _tool_button("< Back", "toolbar_back", null)
+	back.pressed.connect(_show_page.bind(Page.MAIN))
+	_row.add_child(back)
 	_row.add_child(VSeparator.new())
 	var group := ButtonGroup.new()
 	if page == Page.TERRAIN:
-		_row.add_child(_label("Terrain:"))
 		for type in TERRAIN_CHOICES:
-			_add_choice(type, TERRAIN_CHOICES[type], group, _pick_terrain.bind(type))
+			var tile: Texture2D = load("%s/%s.png" % [_tile_folder, GroundMap.TYPE_NAMES[type]])
+			_add_choice(type, TERRAIN_CHOICES[type], "", tile, group, _pick_terrain.bind(type))
 		_add_brush_size()
-		_row.add_child(_label("   Hold the left mouse button to paint."))
+		_row.add_child(_label("Hold the left mouse button to paint."))
 		return
-	_row.add_child(_label("Food:" if page == Page.FOOD else "Obstacles:"))
+	var kinds: ObjectKinds = _view.simulation.object_kinds
 	for kind in _kinds_of_page(page):
-		_add_choice(kind, _view.simulation.object_kinds.label(kind), group, _pick_object.bind(kind))
-	_row.add_child(_label("   Click on the map to place it. Right click erases."))
+		var picture: Texture2D = load("%s/objects/%s.png" % [_sprite_folder, kind])
+		_add_choice(kind, kinds.label(kind), "", picture, group, _pick_object.bind(kind))
+	_row.add_child(_label("Click on the map to place it.\nRight click erases."))
 
 
 func _add_brush_size() -> void:
 	_row.add_child(VSeparator.new())
-	_row.add_child(_label("Brush:"))
-	_row.add_child(_button("-", func() -> void: _brush.change_size(-1)))
+	var column := VBoxContainer.new()
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_child(_label("Brush size"))
+	var row := HBoxContainer.new()
+	var smaller := _small_button("-")
+	smaller.pressed.connect(func() -> void: _brush.change_size(-1))
+	row.add_child(smaller)
 	_brush_size_label = _label("")
-	_row.add_child(_brush_size_label)
-	_row.add_child(_button("+", func() -> void: _brush.change_size(1)))
+	_brush_size_label.custom_minimum_size.x = _small_button_size
+	_brush_size_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	row.add_child(_brush_size_label)
+	var bigger := _small_button("+")
+	bigger.pressed.connect(func() -> void: _brush.change_size(1))
+	row.add_child(bigger)
+	column.add_child(row)
+	_row.add_child(column)
 
 
 ## A toggle button in `group`; `key` is what it selects (see _current_choice).
-func _add_choice(key: Variant, text: String, group: ButtonGroup, on_pressed: Callable) -> void:
-	var button := _button(text, on_pressed)
+func _add_choice(key: Variant, text: String, action: String, picture: Texture2D, group: ButtonGroup, on_pressed: Callable) -> void:
+	var button := _tool_button(text, action, picture)
 	button.toggle_mode = true
 	button.button_group = group
+	button.pressed.connect(on_pressed)
 	_choice_buttons[key] = button
 	_row.add_child(button)
 
@@ -205,7 +205,43 @@ func _pick_terrain(type: GroundMap.Type) -> void:
 	_brush.ground_type = type
 
 
-# --- Helpers -------------------------------------------------------------------------
+# --- Buttons ---------------------------------------------------------------------------
+
+## A square button: the picture on top, the name (and its key, if any) under it.
+## It never takes keyboard focus (so Space still pauses instead of clicking it).
+func _tool_button(text: String, action: String, picture: Texture2D) -> Button:
+	var button := Button.new()
+	button.text = text if action.is_empty() else "%s (%s)" % [text, _keys(action)]
+	button.icon = _fit_icon(picture) if picture != null else null
+	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+	button.custom_minimum_size = Vector2(_button_size, _button_size)
+	button.add_theme_font_size_override("font_size", _tool_font_size)
+	button.focus_mode = Control.FOCUS_NONE
+	UiTheme.add_click_animation(button)
+	return button
+
+
+func _small_button(text: String) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.custom_minimum_size = Vector2(_small_button_size, _small_button_size)
+	button.focus_mode = Control.FOCUS_NONE
+	UiTheme.add_click_animation(button)
+	return button
+
+
+## The picture scaled (keeping its shape, crisp pixels) to fit in a tool_icon_size square.
+func _fit_icon(picture: Texture2D) -> Texture2D:
+	var image := picture.get_image()
+	var scale := float(_icon_size) / maxf(image.get_width(), image.get_height())
+	image.resize(maxi(int(image.get_width() * scale), 1), maxi(int(image.get_height() * scale), 1), Image.INTERPOLATE_NEAREST)
+	return ImageTexture.create_from_image(image)
+
+
+func _icon(name: String) -> Texture2D:
+	return load("%s/%s/%s.png" % [_sprite_folder, ICON_FOLDER, name])
+
 
 ## The key(s) of a [controls] action, for button texts.
 func _keys(action: String) -> String:
@@ -216,12 +252,3 @@ func _label(text: String) -> Label:
 	var label := Label.new()
 	label.text = text
 	return label
-
-
-## A button that never takes keyboard focus (so Space still pauses instead of clicking it).
-func _button(text: String, on_pressed: Callable) -> Button:
-	var button := Button.new()
-	button.text = text
-	button.focus_mode = Control.FOCUS_NONE
-	button.pressed.connect(on_pressed)
-	return button

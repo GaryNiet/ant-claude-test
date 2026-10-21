@@ -30,6 +30,7 @@ MOSS = ["#3d4a22", "#55662e", "#6c7f38"]
 NEST = ["#6b4c2e", "#7f5c38", "#936d44", "#a98352", "#c29a63"]
 ROCK = ["#2a2620", "#4b4a46", "#66655f", "#82817a", "#a3a199"]
 ANT = ["#2c140a", "#6e3216", "#9a4a22", "#c06a32", "#e8995a"]
+RIVAL_ANT = ["#1e0a0c", "#5a1418", "#8a1c22", "#b8322e", "#e0685a"]   # rival colonies: red ants
 SPIDER = ["#141116", "#2b2630", "#3d3645", "#5a4f66", "#8a7a96", "#a33a2a"]
 CRUMB = ["#7a5220", "#b07a2a", "#d9a441", "#f0cf7a"]
 BLUEBERRY = ["#1b1d3a", "#2c3263", "#3f4a8a", "#6f7fbf", "#b9c3e8"]
@@ -234,6 +235,15 @@ def with_shadow(image, center, radius_x, radius_y):
     return shadow
 
 
+def recolor(image, from_palette, to_palette):
+    """Swaps every pixel of a palette color for the matching color of another palette."""
+    pixels = np.array(image)
+    for old, new in zip(from_palette, to_palette):
+        match = np.all(pixels[:, :, :3] == rgb(old), axis=2) & (pixels[:, :, 3] == 255)
+        pixels[match, :3] = rgb(new)
+    return Image.fromarray(pixels)
+
+
 def ellipse(draw, center, radius_x, radius_y, color):
     x, y = center
     draw.ellipse([x - radius_x, y - radius_y, x + radius_x, y + radius_y], fill=color)
@@ -350,11 +360,14 @@ def spider_sprite(towards_screen, frame):
     return creature((width, height), parts, legs_far, legs_near, extras, ((22, ground), 16, 3))
 
 
-def save_four_directions(maker, name):
-    """name_se_1.png ... name_nw_2.png: se and ne are drawn, sw and nw are their mirror images."""
+def save_four_directions(maker, name, palette=None):
+    """name_se_1.png ... name_nw_2.png: se and ne are drawn, sw and nw are their mirror images.
+    `palette` = (from, to) colors to swap, e.g. to make red rival ants from the orange ones."""
     for frame in range(WALK_FRAMES):
         for direction, towards_screen in [("e", True), ("e", False)]:
             image = maker(towards_screen, frame)
+            if palette:
+                image = recolor(image, *palette)
             vertical = "s" if towards_screen else "n"
             save(image, "sprites", "%s_%se_%d.png" % (name, vertical, frame + 1))
             save(image.transpose(Image.FLIP_LEFT_RIGHT), "sprites", "%s_%sw_%d.png" % (name, vertical, frame + 1))
@@ -389,41 +402,124 @@ def rock_sprite(seed):
 
 
 def nest_sprite(width, height, entrances, seed):
-    """An ant hill: a wide, low heap of soil, steeper in the middle, lit from the left,
-    with dark entrances. The bigger version is the growing nest."""
+    """An ant hill: a wide, low heap of loose soil in the colors of the dirt around it, lit from
+    the left, with dark entrances. No outline: its base breaks up into loose grains, so it
+    sits in the ground instead of on it. Drawn at about the size it's shown (1 image pixel =
+    1 map pixel). The bigger version is the growing nest."""
     local = random.Random(seed)
     image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     pixels = image.load()
     middle = width / 2
     ground = height - GROUND_MARGIN
-    base_depth = height * 0.18                  # the heap's base is an ellipse seen from above
-    peak = ground - base_depth - height * 0.62  # top of the hill
-    bumps = tileable_noise(width, 6, seed)[0] * 3.0
+    base_depth = height * 0.2                   # the heap's base is an ellipse seen from above
+    peak = ground - base_depth - height * 0.5   # top of the hill
+    soil = [DIRT[1], DIRT[2], NEST[1], NEST[2], NEST[3], NEST[4]]
+    grain = np.random.default_rng(seed).random((height, width))
+    texture = tileable_noise(max(width, height), 8, seed)
     tops = {}
     for x in range(width):
         across = abs(x - middle) / (middle - 1)
         if across >= 1:
             continue
         profile = (1 - across ** 1.8) ** 2.2        # rounded top, long gentle slopes
-        top = ground - base_depth * (1 - across ** 2) ** 0.5 - (ground - base_depth - peak) * profile + bumps[x]
+        top = ground - base_depth * (1 - across ** 2) ** 0.5 - (ground - base_depth - peak) * profile
+        top += (texture[0][x] - 0.5) * 3
         tops[x] = top
-        bottom = ground + base_depth * 0.35 * (1 - across ** 2) ** 0.5
+        bottom = ground + base_depth * 0.4 * (1 - across ** 2) ** 0.5
         for y in range(max(int(top), 0), min(int(bottom) + 1, height)):
-            slope = (x - middle) / middle                 # -1 left (lit) .. +1 right (shade)
-            light = 0.62 - slope * 0.35 - (y - top) / (bottom - top + 1) * 0.25 + local.uniform(-0.08, 0.08)
-            index = int(np.clip(light, 0, 0.999) * len(NEST))
-            pixels[x, y] = rgb(NEST[index]) + (255,)
+            near_base = (y - top) / (bottom - top + 1)
+            if near_base > 0.8 and grain[y, x] < (near_base - 0.8) * 4:
+                continue                            # the base breaks up into loose grains
+            slope = (x - middle) / middle           # -1 left (lit) .. +1 right (shade)
+            light = 0.68 - slope * 0.3 - near_base * 0.3 + (texture[y % len(texture)][x] - 0.5) * 0.35
+            pixels[x, y] = rgb(soil[int(np.clip(light, 0, 0.999) * len(soil))]) + (255,)
     draw = ImageDraw.Draw(image)
-    for _ in range(width * 2):  # grains and small pebbles on the slopes
-        x, y = local.uniform(2, width - 2), local.uniform(peak, ground)
-        if pixels[int(x), int(y)][3]:
-            draw.point((x, y), fill=rgb(local.choice([NEST[0], NEST[4], PEBBLE[2], DIRT[1]])))
-    for index in range(entrances):  # on the slope facing the viewer, just below the surface line
+    for _ in range(width * 3):  # grains and small pebbles
+        x, y = local.uniform(2, width - 2), local.uniform(peak, ground + 2)
+        if pixels[int(x), int(min(y, height - 1))][3]:
+            draw.point((x, y), fill=rgb(local.choice([DIRT[0], NEST[4], PEBBLE[1], PEBBLE[2]])))
+    for _ in range(width // 3):  # loose soil scattered around the base
+        angle = local.uniform(0, 2 * np.pi)
+        distance = local.uniform(0.85, 1.1)
+        x = middle + np.cos(angle) * (middle - 2) * distance
+        y = ground + np.sin(angle) * base_depth * 0.45 * distance
+        if 0 <= x < width and 0 <= y < height:
+            draw.point((x, y), fill=rgb(local.choice(soil[1:4])))
+    for index in range(entrances):  # on the slope facing the viewer: a dark hole with a lip of soil
         x = middle + (index - (entrances - 1) / 2) * width * 0.26
-        y = tops[int(x)] + 5 + abs(index - (entrances - 1) / 2) * 2
-        ellipse(draw, (x, y), 4, 3, rgb(NEST[0]))
-        ellipse(draw, (x, y + 0.5), 3, 2, (20, 12, 6))
-    return with_shadow(outline(image, DIRT[0]), (middle, ground), middle, base_depth * 0.5)
+        y = tops[int(x)] + 6 + abs(index - (entrances - 1) / 2) * 3
+        ellipse(draw, (x, y + 1.5), 5, 3, rgb(NEST[4]))
+        ellipse(draw, (x, y), 4, 3, rgb(DIRT[0]))
+        ellipse(draw, (x + 0.5, y + 0.5), 3, 2, (18, 10, 5))
+    return with_shadow(image, (middle, ground), middle * 0.95, base_depth * 0.45)
+
+
+def flag_sprite():
+    """The flag on top of our nest: a twig with a cream leaf-banner and an orange ant stripe."""
+    image, draw, ground = canvas(14, 26)
+    draw.line([(3, 2), (3, ground)], fill=rgb(BARK[2]), width=2)
+    draw.polygon([(5, 3), (13, 6), (5, 11)], fill=rgb(LARVA[2]))
+    draw.line([(6, 6), (10, 6)], fill=rgb(ANT[3]))
+    draw.line([(6, 7), (9, 7)], fill=rgb(ANT[2]))
+    return with_shadow(outline(image, BARK[0]), (4, ground), 3, 1)
+
+
+# --- Tool bar icons (32 x 32) -------------------------------------------------------
+
+def icon_canvas():
+    image = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
+    return image, ImageDraw.Draw(image)
+
+
+def apple_icon():
+    image, draw = icon_canvas()
+    shaded_blob(draw, (16, 19), 11, 10, [rgb(STRAWBERRY[1]), rgb(STRAWBERRY[2]), rgb(STRAWBERRY[4])])
+    draw.line([(16, 10), (17, 4)], fill=rgb(BARK[1]), width=2)
+    draw.polygon([(18, 7), (25, 3), (23, 9)], fill=rgb(GRASS[3]))
+    return outline(image, STRAWBERRY[0])
+
+
+def mountains_icon():
+    image, draw = icon_canvas()
+    draw.polygon([(1, 28), (11, 9), (21, 28)], fill=rgb(ROCK[2]))
+    draw.polygon([(11, 28), (21, 5), (31, 28)], fill=rgb(ROCK[3]))
+    draw.polygon([(17, 14), (21, 5), (25, 14), (21, 12)], fill=rgb(LARVA[3]))   # snow
+    draw.polygon([(8, 15), (11, 9), (14, 15)], fill=rgb(LARVA[2]))
+    draw.line([(0, 28), (31, 28)], fill=rgb(GRASS[2]), width=3)
+    return outline(image, ROCK[0])
+
+
+def stop_icon():
+    image, draw = icon_canvas()
+    corners = [(16 + 13 * np.cos(np.pi / 8 + k * np.pi / 4), 16 + 13 * np.sin(np.pi / 8 + k * np.pi / 4)) for k in range(8)]
+    draw.polygon(corners, fill=rgb("#efe4c0"))
+    draw.polygon([(16 + 11 * np.cos(np.pi / 8 + k * np.pi / 4), 16 + 11 * np.sin(np.pi / 8 + k * np.pi / 4)) for k in range(8)], fill=rgb("#c0322f"))
+    draw.rectangle([8, 14, 24, 18], fill=rgb("#efe4c0"))
+    return outline(image, "#4a0e12")
+
+
+def magnifier_icon():
+    image, draw = icon_canvas()
+    draw.line([(19, 19), (28, 28)], fill=rgb(BARK[2]), width=4)
+    ellipse(draw, (13, 13), 9, 9, rgb(ROCK[2]))
+    ellipse(draw, (13, 13), 6.5, 6.5, rgb(WATER[4]))
+    ellipse(draw, (11, 11), 2, 2, rgb("#efe4c0"))
+    return outline(image, ROCK[0])
+
+
+def eraser_icon():
+    image, draw = icon_canvas()
+    draw.polygon([(4, 20), (16, 8), (28, 16), (16, 28)], fill=rgb("#e8a0a0"))
+    draw.polygon([(4, 20), (10, 14), (22, 22), (16, 28)], fill=rgb(WATER[3]))
+    draw.line([(4, 29), (28, 29)], fill=rgb(PEBBLE[1]), width=1)
+    return outline(image, "#3a2020")
+
+
+def nest_icon():
+    small = nest_sprite(30, 20, 1, 4)
+    image, draw = icon_canvas()
+    image.alpha_composite(small, (1, 9))
+    return image
 
 
 # --- Map objects: food and obstacles ---------------------------------------------
@@ -481,17 +577,24 @@ def larva_sprite():
 
 
 def dead_spider_sprite():
-    """A spider on its back, legs curled up: a food item."""
+    """A spider lying on its back, its legs curled up neatly over its body: a food item."""
     image, draw, ground = canvas(40, 28)
-    for number in range(4):
-        for side in (-1, 1):
-            hip = (20 + side * 3, ground - 8)
-            knee = (20 + side * (6 + number * 3), ground - 15 - number % 2 * 2)
-            foot = (20 + side * (4 + number * 3), ground - 19 - number)
-            leg(draw, hip, knee, foot, rgb(SPIDER[2]), 2)
-    shaded_blob(draw, (16, ground - 6), 8, 5, [rgb(SPIDER[1]), rgb(SPIDER[2]), rgb(SPIDER[3])])
-    shaded_blob(draw, (26, ground - 5), 4.5, 3.5, [rgb(SPIDER[1]), rgb(SPIDER[3]), rgb(SPIDER[4])])
-    return with_shadow(outline(image, SPIDER[0]), (20, ground), 15, 2)
+
+    def curled_legs(side, color):
+        for number in range(4):
+            offset = number - 1.5
+            hip = (21 + offset * 2 + side, ground - 9)
+            knee = (21 + offset * 5 + side, ground - 19 + abs(offset) * 2)
+            tip = (21 + offset * 3.5 + side, ground - 14 + abs(offset))   # curled back inwards
+            draw.line([hip, knee], fill=rgb(color), width=2)
+            draw.line([knee, tip], fill=rgb(color), width=1)
+
+    curled_legs(0, SPIDER[1])                                                  # far legs, darker
+    shaded_blob(draw, (15, ground - 6), 9, 6, [rgb(SPIDER[1]), rgb(SPIDER[2]), rgb(SPIDER[4])])   # abdomen
+    shaded_blob(draw, (27, ground - 5), 5, 4, [rgb(SPIDER[1]), rgb(SPIDER[3]), rgb(SPIDER[4])])   # head
+    draw.line([(11, ground - 6), (18, ground - 6)], fill=rgb(SPIDER[5]))     # marking on the belly
+    curled_legs(1, SPIDER[3])                                                  # near legs
+    return with_shadow(outline(image, SPIDER[0]), (20, ground), 16, 2)
 
 
 def dead_ant_sprite():
@@ -617,14 +720,21 @@ def glow_sprite():
 
 def make_sprites():
     save_four_directions(ant_sprite, "ant")
+    save_four_directions(ant_sprite, "ant_rival", (ANT, RIVAL_ANT))
     save_four_directions(spider_sprite, "spider")
     dead_ant = dead_ant_sprite()
-    save(dead_ant, "sprites", "ant_dead_e.png")
-    save(dead_ant.transpose(Image.FLIP_LEFT_RIGHT), "sprites", "ant_dead_w.png")
+    dead_rival = recolor(dead_ant, ANT, RIVAL_ANT)
+    for name, image in [("ant_dead", dead_ant), ("ant_rival_dead", dead_rival)]:
+        save(image, "sprites", name + "_e.png")
+        save(image.transpose(Image.FLIP_LEFT_RIGHT), "sprites", name + "_w.png")
+    save(flag_sprite(), "sprites", "flag.png")
+    for name, maker in [("food", apple_icon), ("terrain", mountains_icon), ("obstacles", stop_icon),
+                        ("inspect", magnifier_icon), ("erase", eraser_icon), ("nest", nest_icon)]:
+        save(maker(), "sprites", "icons", name + ".png")
     save(crumb_sprite(), "sprites", "food_crumb.png")
     save(glow_sprite(), "sprites", "food_glow.png")
-    save(nest_sprite(52, 30, 1, 1), "sprites", "nest_small.png")
-    save(nest_sprite(88, 46, 3, 2), "sprites", "nest_big.png")
+    save(nest_sprite(84, 44, 1, 1), "sprites", "nest_small.png")
+    save(nest_sprite(144, 70, 3, 2), "sprites", "nest_big.png")
     # Food (objects/<kind>.png); variants would be <kind>_2.png, <kind>_3.png...
     save(blueberry_sprite(), "sprites", "objects", "blueberry.png")
     save(strawberry_sprite(), "sprites", "objects", "strawberry.png")

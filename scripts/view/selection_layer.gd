@@ -25,8 +25,8 @@ func _draw() -> void:
 	elif selected is MapObject and simulation.objects.has(selected):
 		var radius := simulation.object_kinds.footprint_radius(selected.kind)
 		draw_arc(selected.position, radius, 0.0, TAU, 32, _selection_color, line_width)
-	elif selected is String and selected == view.SELECTED_NEST:
-		draw_arc(simulation.nest_position, simulation.nest_radius, 0.0, TAU, 48, _selection_color, line_width)
+	elif selected is Colony:
+		draw_arc(selected.nest_position, selected.nest_radius, 0.0, TAU, 48, _selection_color, line_width)
 	elif selected is Vector2i:
 		var cell_size := simulation.grid.cell_size
 		draw_rect(Rect2(Vector2(selected) * cell_size, Vector2(cell_size, cell_size)), _selection_color, false, line_width)

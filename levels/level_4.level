@@ -1,0 +1,61 @@
+; Ant colony level. Tiles: d dirt, g grass, w water. Objects: kind, column, row of the center cell.
+name = Rival colonies
+cell_size = 8.0
+tile_cells = 4
+starting_ants = 80
+nest = 30, 54
+rival_nest = 162, 54
+tiles:
+ggggggddddddddddddddddddddddggggggggggggggggdddd
+ggggggddddddddddddddddddwddddddddgggggggggggdddd
+ggggggddddddddddddddggwwwwwdddddddddgggggggggddd
+ggggggddddddddddddgggwwwwwwwdddddddddgggggggggdd
+gggggddddddddddddgggggwwwwwdddddddddddggggggggdd
+gggggdddddddddddggggggggwgdddddddddddddggggggggd
+dddddddddddddddggggggggggdddddddddddddddgggggggg
+ddddddddddddddgggggggggggddddddddddddddddggggggg
+dddddddddddddggggggggggggdddddddddddddddddgggggg
+ddddddddddddggggggggggggddddddddddddddddddddgggg
+dddddddddddgggggggggggdddddddddddddddddddddddddd
+dddddddddddddddddddddddddddddddddddddddddddddddd
+ddddddddddddddddddddddddddddgggggggggddddddddddd
+dddddddddddddddddddddddddddgggggggggggdddddddddd
+dddddddddddddddddddddddddddgggggggggggdddddddddd
+dddddddddggddddddddddddddddgggggggggggdddddddddd
+ddddddddggggdddddddddddddddgggggggggggdddddddddd
+ddddddddgggggddddddddddddddgggggggggggdddddddddd
+ddddddddggggggdddddddddddddggggggggggddddddddddd
+ddddddddgggggggdddddddddddddgggggggddddddddddddd
+ddddddddggggggggggdddddddddddddddddddddddddddddg
+ddddddddgggggggggggggdddwdddddddddddddddddddddgg
+dddddddddgggggggggggggwwwwwddddddddddddddddddggg
+ddddddddddgggggggggggwwwwwwwddddddddddddddddgggg
+dddddddddddddgggggggggwwwwwdddddddddddddddgggggg
+dgggdddddddddddgggggggggwdddddddddddddddgggggggd
+gggggddddddddddddgggggggggdddddddddddddgggggggdd
+objects:
+strawberry 96, 54
+blueberry 90, 46
+blueberry 102, 62
+larva 96, 40
+larva 96, 68
+blueberry 60, 30
+blueberry 132, 78
+seed 70, 80
+seed 122, 28
+dead_spider 96, 20
+rock 80, 50
+rock 112, 58
+tree_trunk 96, 90
+twig 72, 64
+twig 120, 44
+high_grass 20, 12
+high_grass 172, 96
+mushroom 30, 92
+mushroom 166, 14
+pine_cone 50, 14
+pine_cone 142, 94
+dead_leaf 140, 20
+dead_leaf 52, 90
+tree_trunk 6, 6
+tree_trunk 186, 102

@@ -2,7 +2,7 @@ class_name Enemy
 extends RefCounted
 ## A big creature that comes in from the edge of the map to steal food.
 ##
-##   SEARCHING  Walks towards the nest (where food is likely to be) until it sees food,
+##   SEARCHING  Walks towards the nearest nest (where food is likely to be) until it sees food,
 ##              then walks to it. Gives up after search_give_up_time and leaves.
 ##   EATING     Standing on food, eating 1 unit every eat_interval seconds until it's full.
 ##   LEAVING    Walks to the nearest map edge and disappears there (with the food it ate).
@@ -14,6 +14,7 @@ extends RefCounted
 enum State { SEARCHING, EATING, LEAVING }
 
 var position: Vector2
+var previous_position: Vector2  ## where it was one tick ago (to draw it smoothly between ticks)
 var heading: float
 var state := State.SEARCHING
 var hp: float
@@ -29,6 +30,7 @@ var _time_in_state := 0.0
 
 func _init(start: Vector2, settings: EnemySettings) -> void:
 	position = start
+	previous_position = start
 	_settings = settings
 	max_hp = settings.hp
 	hp = settings.hp
@@ -45,6 +47,7 @@ func take_damage(amount: float) -> void:
 
 ## Advances the enemy by one tick of `delta` seconds.
 func update(sim: ColonySimulation, delta: float) -> void:
+	previous_position = position
 	_time_in_state += delta
 	if not ants_in_contact.is_empty():
 		_fight(sim, delta)
@@ -67,7 +70,7 @@ func _search(sim: ColonySimulation, delta: float) -> void:
 		_set_state(State.EATING)
 		return
 	var food := sim.grid.find_food_near(position, _settings.food_sight_radius)
-	var target := food if food != MapGrid.NO_FOOD else sim.nest_position
+	var target := food if food != MapGrid.NO_FOOD else sim.nearest_colony(position).nest_position
 	_walk_towards(sim, target, delta)
 
 

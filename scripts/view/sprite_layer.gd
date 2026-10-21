@@ -3,12 +3,15 @@ extends Node2D
 ## projected positions:
 ##   objects     food items (blueberry, larva, dead spider...) with a yellow glow under them,
 ##               losing pixels as ants eat them; obstacles (rock, twig, tree trunk...)
-##   nest        an ant hill; the big one once the colony has grown
+##   nests       ant hills; the big one once the colony has grown; ours has a flag on top
+##               (rival colonies' ants are red)
 ##   dead ants   lying on their back, fading away
 ##   ants        upright, parallel to the screen, in one of 4 directions (towards the screen
 ##               or away from it, to the left or right) matching where they walk on screen,
 ##               with a 2-frame walk; an ant carrying food holds a crumb; scouts are darker
 ##   spiders     the enemies, drawn like the ants, with a health bar above them
+## Ants and spiders are drawn between their previous and current position (see
+## SimulationView.tick_fraction), so they move smoothly between simulation ticks.
 ## Everything is drawn from back to front (sorted by how far down the screen it stands),
 ## so whatever is in front covers what is behind it.
 
@@ -16,6 +19,8 @@ extends Node2D
 ## <creature>_<direction>_<frame>.png, direction = se, sw, ne, nw (s = towards the screen);
 ## objects/<kind>.png, with optional variants objects/<kind>_2.png, _3...
 const ANT_NAME := "ant"
+const RIVAL_ANT_NAME := "ant_rival"
+const FLAG_IMAGE := "flag.png"
 const SPIDER_NAME := "spider"
 const DIRECTIONS := ["se", "sw", "ne", "nw"]
 const WALK_FRAMES := 2
@@ -30,6 +35,7 @@ const CRUMB_IMAGE := "food_crumb.png"
 const NEST_SMALL_IMAGE := "nest_small.png"
 const NEST_BIG_IMAGE := "nest_big.png"
 const DEAD_ANT_IMAGES := {"e": "ant_dead_e.png", "w": "ant_dead_w.png"}
+const DEAD_RIVAL_ANT_IMAGES := {"e": "ant_rival_dead_e.png", "w": "ant_rival_dead_w.png"}
 const GLOW_IMAGE := "food_glow.png"
 const OBJECT_FOLDER := "objects"
 
@@ -38,11 +44,14 @@ enum Kind { OBJECT, NEST, ANT, DEAD_ANT, SPIDER }
 @onready var view: Node2D = get_parent()  ## SimulationView
 
 var _ant_frames := {}      ## direction -> Array of textures (walk frames)
+var _rival_ant_frames := {}
+var _flag_texture: Texture2D
 var _spider_frames := {}
 var _crumb_texture: Texture2D
 var _nest_small_texture: Texture2D
 var _nest_big_texture: Texture2D
 var _dead_ant_textures := {}   ## "e" / "w" -> texture
+var _dead_rival_ant_textures := {}
 var _glow_texture: Texture2D
 var _object_variants := {}     ## kind -> Array of textures
 var _eaten := {}               ## food object id -> {food_left, texture}: its sprite with pixels removed
@@ -57,6 +66,7 @@ var _glow_color: Color = GameSettings.get_color("objects", "food_glow_color")
 var _dead_ant_fade_time: float = GameSettings.get_setting("ant_life", "dead_ant_fade_time")
 var _nest_width_per_radius: float = GameSettings.get_setting("iso_view", "nest_width_per_radius")
 var _nest_big_from_radius: float = GameSettings.get_setting("iso_view", "nest_big_from_radius")
+var _flag_width: float = GameSettings.get_setting("iso_view", "flag_width")
 var _scout_tint: Color = GameSettings.get_color("iso_view", "scout_tint")
 var _walk_frames_per_second: float = GameSettings.get_setting("iso_view", "walk_frames_per_second")
 var _time := 0.0
@@ -69,6 +79,8 @@ func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # crisp pixel art
 	_glow_color.a = GameSettings.get_setting("objects", "food_glow_opacity")
 	_ant_frames = _load_directions(_folder, ANT_NAME)
+	_rival_ant_frames = _load_directions(_folder, RIVAL_ANT_NAME)
+	_flag_texture = load("%s/%s" % [_folder, FLAG_IMAGE])
 	_spider_frames = _load_directions(_folder, SPIDER_NAME)
 	_crumb_texture = load("%s/%s" % [_folder, CRUMB_IMAGE])
 	_nest_small_texture = load("%s/%s" % [_folder, NEST_SMALL_IMAGE])
@@ -76,6 +88,7 @@ func _ready() -> void:
 	_glow_texture = load("%s/%s" % [_folder, GLOW_IMAGE])
 	for side in DEAD_ANT_IMAGES:
 		_dead_ant_textures[side] = load("%s/%s" % [_folder, DEAD_ANT_IMAGES[side]])
+		_dead_rival_ant_textures[side] = load("%s/%s" % [_folder, DEAD_RIVAL_ANT_IMAGES[side]])
 
 
 ## direction -> [frame 1, frame 2] for one creature.
@@ -109,7 +122,7 @@ func _draw() -> void:
 			Kind.DEAD_ANT:
 				_draw_dead_ant(item.thing, item.spot, to_screen)
 			Kind.NEST:
-				_draw_nest(simulation, item.spot)
+				_draw_nest(item.thing, item.spot)
 			Kind.ANT:
 				_draw_ant(item.thing, item.spot, to_screen)
 			Kind.SPIDER:
@@ -123,11 +136,15 @@ func _things_back_to_front(simulation: ColonySimulation, to_screen: Transform2D)
 		things.append({kind = Kind.OBJECT, spot = to_screen * object.position, thing = object})
 	for dead in simulation.dead_ants:
 		things.append({kind = Kind.DEAD_ANT, spot = to_screen * dead.position, thing = dead})
-	things.append({kind = Kind.NEST, spot = to_screen * simulation.nest_position})
+	for colony in simulation.colonies:
+		things.append({kind = Kind.NEST, spot = to_screen * colony.nest_position, thing = colony})
+	var between_ticks: float = view.tick_fraction()
 	for ant in simulation.ants:
-		things.append({kind = Kind.ANT, spot = to_screen * ant.position, thing = ant})
+		var spot := ant.previous_position.lerp(ant.position, between_ticks)
+		things.append({kind = Kind.ANT, spot = to_screen * spot, thing = ant})
 	for enemy in simulation.enemies:
-		things.append({kind = Kind.SPIDER, spot = to_screen * enemy.position, thing = enemy})
+		var spot := enemy.previous_position.lerp(enemy.position, between_ticks)
+		things.append({kind = Kind.SPIDER, spot = to_screen * spot, thing = enemy})
 	things.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.spot.y < b.spot.y)
 	return things
 
@@ -192,7 +209,8 @@ func _eaten_texture(object: MapObject, full: Texture2D) -> Texture2D:
 
 func _draw_dead_ant(dead: Dictionary, spot: Vector2, to_screen: Transform2D) -> void:
 	var side := "e" if to_screen.basis_xform(Vector2.from_angle(dead.heading)).x >= 0.0 else "w"
-	var texture: Texture2D = _dead_ant_textures[side]
+	var textures: Dictionary = _dead_ant_textures if dead.colony.is_player else _dead_rival_ant_textures
+	var texture: Texture2D = textures[side]
 	var fade := Color(1.0, 1.0, 1.0, 1.0 - dead.time_dead / _dead_ant_fade_time)
 	_draw_upright(texture, spot, _ant_size, _foot_height(texture), fade)
 
@@ -206,11 +224,15 @@ func _draw_upright(texture: Texture2D, foot: Vector2, width: float, foot_height:
 	return area
 
 
-## The mound grows with the nest, and turns into the big mound past nest_big_from_radius.
-func _draw_nest(simulation: ColonySimulation, spot: Vector2) -> void:
-	var is_big := simulation.nest_radius >= _nest_big_from_radius
+## The hill grows with the nest, and turns into the big hill past nest_big_from_radius.
+## Our colony's hill has a flag on top, so it's easy to tell apart from rival nests.
+func _draw_nest(colony: Colony, spot: Vector2) -> void:
+	var is_big := colony.nest_radius >= _nest_big_from_radius
 	var texture := _nest_big_texture if is_big else _nest_small_texture
-	_draw_upright(texture, spot, simulation.nest_radius * _nest_width_per_radius, _foot_height(texture))
+	var area := _draw_upright(texture, spot, colony.nest_radius * _nest_width_per_radius, _foot_height(texture))
+	if colony.is_player:
+		var hill_top := Vector2(area.get_center().x, area.position.y + area.size.y * 0.3)
+		_draw_upright(_flag_texture, hill_top, _flag_width, _foot_height(_flag_texture))
 
 
 ## Which of the 4 directions a creature walking along `heading` (on the map) looks like on
@@ -237,7 +259,8 @@ func _foot_height(texture: Texture2D) -> float:
 func _draw_ant(ant: Ant, spot: Vector2, to_screen: Transform2D) -> void:
 	var direction := _screen_direction(ant.heading, to_screen)
 	var is_walking := ant.mode != Ant.Mode.FIGHTING and ant.mode != Ant.Mode.CUTTING_FOOD
-	var texture := _frame(ant, _ant_frames[direction], is_walking)
+	var frames: Dictionary = _ant_frames if ant.colony.is_player else _rival_ant_frames
+	var texture := _frame(ant, frames[direction], is_walking)
 	var tint := _scout_tint if ant.is_scout else Color.WHITE
 	var towards_screen := direction.begins_with("s")
 	if ant.is_carrying_food() and not towards_screen:

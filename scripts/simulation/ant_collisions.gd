@@ -12,6 +12,9 @@ var enabled: bool = GameSettings.get_setting("collisions", "enabled")
 var ant_radius: float = GameSettings.get_setting("collisions", "ant_radius")
 var square_size: float = GameSettings.get_setting("collisions", "grid_square_size")
 var contacts_last_tick := 0  ## number of overlapping pairs found in the last tick (for stats)
+## Pairs [ant, ant] of different colonies touching in the last tick (they will fight).
+var rival_contacts: Array[Array] = []
+var _rival_contact_distance_squared: float
 var _grid: MapGrid           ## the map, to avoid pushing ants into obstacles
 
 var _columns: int
@@ -30,11 +33,15 @@ func _init(map_size: Vector2) -> void:
 	_rows = int(ceil(map_size.y / square_size)) + 1
 	_ants_in_square.resize(_columns * _rows)
 	_first_in_square.resize(_columns * _rows)
+	var contact_distance := ant_radius * 2.0 + float(GameSettings.get_setting("enemies", "contact_margin"))
+	_rival_contact_distance_squared = contact_distance * contact_distance
 
 
-## Pushes apart every pair of overlapping ants (never into an obstacle or off the map).
+## Pushes apart every pair of overlapping ants (never into an obstacle or off the map), and
+## lists the touching ants of different colonies in rival_contacts.
 func resolve(ants: Array[Ant], grid: MapGrid) -> void:
 	contacts_last_tick = 0
+	rival_contacts.clear()
 	if not enabled:
 		return
 	_grid = grid
@@ -85,6 +92,8 @@ func _push_apart(a: Ant, b: Ant) -> void:
 	var offset := b.position - a.position
 	var touching_distance := ant_radius * 2.0
 	var distance_squared := offset.length_squared()
+	if a.colony != b.colony and distance_squared <= _rival_contact_distance_squared:
+		rival_contacts.append([a, b])
 	if distance_squared >= touching_distance * touching_distance:
 		return
 	contacts_last_tick += 1
