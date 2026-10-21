@@ -5,7 +5,7 @@ extends Node2D
 
 
 @onready var _view: Node2D = $SimulationView
-@onready var _toolbar: PanelContainer = $UI/Toolbar
+@onready var _gameplay_bar: PanelContainer = $UI/GameplayBar
 @onready var _side_panel: PanelContainer = $UI/SidePanel
 @onready var _settings_menu: PopupPanel = $UI/SettingsMenu
 
@@ -15,14 +15,14 @@ var _was_paused_before_dialog := false
 
 func _ready() -> void:
 	_layout_ui()
-	_toolbar.setup(_view, $SimulationView/MapSpace/Brush)
-	_side_panel.setup(_view, self)
+	_gameplay_bar.setup(_view, self)
+	_side_panel.setup(_view, $SimulationView/MapSpace/Brush)
 	_settings_menu.setup()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("main_menu"):
-		go_to_main_menu()
+		_gameplay_bar.open_menu()
 
 
 func open_settings_menu() -> void:
@@ -33,16 +33,16 @@ func go_to_main_menu() -> void:
 	GameSession.back_to_main_menu(get_tree())
 
 
-## The map in the top left, the tool bar under it, the side panel on the right (full
-## height), all with the same look.
+## The map in the top left, the gameplay bar under it, the side panel (building tools and
+## data) on the right (full height), all with the same look.
 func _layout_ui() -> void:
 	var toolbar_height: float = GameSettings.get_setting("ui", "toolbar_height")
 	var side_panel_width: float = GameSettings.get_setting("ui", "side_panel_width")
 	var theme := UiTheme.make()
-	_toolbar.theme = theme
-	_toolbar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	_toolbar.offset_top = -toolbar_height
-	_toolbar.offset_right = -side_panel_width
+	_gameplay_bar.theme = theme
+	_gameplay_bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_gameplay_bar.offset_top = -toolbar_height
+	_gameplay_bar.offset_right = -side_panel_width
 	_side_panel.theme = theme
 	_side_panel.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE)
 	_side_panel.offset_left = -side_panel_width

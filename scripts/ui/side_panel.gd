@@ -1,30 +1,33 @@
 extends PanelContainer
-## The panel on the right: the game buttons (pause, restart, fit map, views, trails, save,
-## load, settings, main menu), level and timer, upgrade buttons, information about whatever
-## the player clicked on with the Inspect tool, and colony statistics.
-## Upgrades and statistics are for our colony, or for a rival colony while its nest is
-## selected (see SimulationView.target_colony).
+## The panel on the right: the building / testing tools and all the data.
+##   - building tools: inspect, place food and obstacles, paint terrain, move the nest, erase
+##     (see paint_tools.gd)
+##   - debug buttons: fit map, isometric / debug view, show / hide trails
+##   - level and timer, information about whatever the player clicked on with the Inspect
+##     tool, and colony statistics (our colony, or a rival colony while its nest is selected)
+## (The gameplay buttons, upgrades, pause and the menu, are in the bar under the map.)
+
+const PaintTools := preload("res://scripts/ui/paint_tools.gd")
 
 var _view: Node2D
-var _main: Node
-var _pause_button: Button
 var _view_button: Button
 var _trails_button: Button
-var _upgrades_title: Label
 var _stats_title: Label
 var _header: Label
 var _stats: Label
-var _upgrade_buttons := {}    ## ColonyUpgrades.Kind -> Button
 var _selection_info: Label
 
 
 ## Builds the panel. Called by main.gd once everything exists.
-func setup(view: Node2D, main: Node) -> void:
+func setup(view: Node2D, brush: Node2D) -> void:
 	_view = view
-	_main = main
 	var outer := VBoxContainer.new()
 	add_child(outer)
-	outer.add_child(_game_buttons())
+	outer.add_child(_title("Building tools"))
+	var tools := PaintTools.new()
+	outer.add_child(tools)
+	tools.setup(view, brush)
+	outer.add_child(_debug_buttons())
 	outer.add_child(HSeparator.new())
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -38,15 +41,6 @@ func setup(view: Node2D, main: Node) -> void:
 	column.add_child(_header)
 
 	column.add_child(HSeparator.new())
-	_upgrades_title = _title("")
-	column.add_child(_upgrades_title)
-	for kind in ColonyUpgrades.Kind.values():
-		var button := _button("", func() -> void: _view.simulation.buy_upgrade(_view.target_colony(), kind))
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		_upgrade_buttons[kind] = button
-		column.add_child(button)
-
-	column.add_child(HSeparator.new())
 	column.add_child(_title("Selected (Inspect tool: click on anything)"))
 	_selection_info = _label()
 	column.add_child(_selection_info)
@@ -58,20 +52,15 @@ func setup(view: Node2D, main: Node) -> void:
 	column.add_child(_stats)
 
 
-## Pause, restart, fit map, view, trails / save, load / settings, main menu.
-func _game_buttons() -> GridContainer:
-	var grid := GridContainer.new()
-	grid.columns = 3
-	_pause_button = _button("", func() -> void: _view.is_paused = not _view.is_paused)
+## Fit map, isometric / debug view, show / hide trails.
+func _debug_buttons() -> HBoxContainer:
+	var row := HBoxContainer.new()
 	_view_button = _button("", func() -> void: _view.set_iso_view(not _view.is_iso_view))
 	_trails_button = _button("", func() -> void: _view.set_pheromones_visible(not _view.show_pheromones))
-	for button in [_pause_button, _button("Restart (%s)" % _keys("restart"), _view.restart_level),
-			_button("Fit map", _view.fit_map_to_area), _view_button, _trails_button,
-			_button("Save level", _main.open_save_dialog), _button("Load level", _main.open_load_dialog),
-			_button("Settings", _main.open_settings_menu), _button("Menu (%s)" % _keys("main_menu"), _main.go_to_main_menu)]:
+	for button in [_button("Fit map", _view.fit_map_to_area), _view_button, _trails_button]:
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		grid.add_child(button)
-	return grid
+		row.add_child(button)
+	return row
 
 
 func _process(_delta: float) -> void:
@@ -79,14 +68,11 @@ func _process(_delta: float) -> void:
 		return
 	var sim: ColonySimulation = _view.simulation
 	var colony: Colony = _view.target_colony()
-	_pause_button.text = "%s (%s)" % ["Resume" if _view.is_paused else "Pause", _keys("pause")]
 	_view_button.text = "%s view (%s)" % ["Debug" if _view.is_iso_view else "Iso", _keys("toggle_view")]
 	_trails_button.text = "%s trails (%s)" % ["Hide" if _view.show_pheromones else "Show", _keys("toggle_pheromones")]
 	_header.text = "Level: %s\nTime: %s%s" % [sim.level.name, _format_time(_view.play_time), "   (PAUSED)" if _view.is_paused else ""]
-	_upgrades_title.text = "Upgrades for %s (paid with food stored in its nest)" % colony.name
 	_stats_title.text = colony.name
 	_stats.text = _colony_stats(sim, colony)
-	_update_upgrade_buttons(colony)
 	_selection_info.text = _describe_selection(sim)
 
 
@@ -105,19 +91,6 @@ func _colony_stats(sim: ColonySimulation, colony: Colony) -> String:
 	lines.append("")
 	lines.append("Spiders: %d here, %d killed, %d escaped (ate %d food)" % [sim.enemies.size(), sim.enemies_killed, sim.enemies_escaped, sim.food_eaten_by_enemies])
 	return "\n".join(lines)
-
-
-func _update_upgrade_buttons(colony: Colony) -> void:
-	var upgrades := colony.upgrades
-	for kind in _upgrade_buttons:
-		var button: Button = _upgrade_buttons[kind]
-		var level_text := "lv %d/%d" % [upgrades.level_of(kind), upgrades.max_level()]
-		if upgrades.is_maxed(kind):
-			button.text = "%s  (%s)  maxed" % [ColonyUpgrades.LABELS[kind], level_text]
-			button.disabled = true
-		else:
-			button.text = "%s  (%s)  %s  -  %d food" % [ColonyUpgrades.LABELS[kind], level_text, upgrades.describe_bonus(kind), upgrades.cost(kind)]
-			button.disabled = colony.food_stored < upgrades.cost(kind)
 
 
 # --- Information about the selection -----------------------------------------
@@ -195,7 +168,7 @@ func _describe_object(sim: ColonySimulation, object: MapObject) -> String:
 
 func _describe_nest(sim: ColonySimulation, colony: Colony) -> String:
 	return "\n".join(PackedStringArray([
-		"NEST of %s%s" % [colony.name, "" if colony.is_player else "  (upgrades now apply to this colony)"],
+		"NEST of %s%s" % [colony.name, "" if colony.is_player else "  (the upgrade buttons below the map now apply to this colony)"],
 		"Food stored: %d" % colony.food_stored,
 		"Next birth in %.1f s (needs %d food)" % [maxf(colony.time_until_birth, 0.0), sim.food_per_new_ant],
 		"Ants: %d" % colony.ant_count,

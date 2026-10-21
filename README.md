@@ -8,14 +8,15 @@ A video game prototype made with **Godot 4.3+** (standard version, not .NET).
 2. Open Godot → **Import** → select `project.godot` in this folder.
 3. Press **F5** (Run). The game opens on the main menu: pick Level 1 to 4, or open Settings.
 
-Screen: the map in the top left, the **tool bar** under it, everything else on the right
-(game buttons: pause, restart, fit map, views, trails, save, load, settings, menu; then the level,
-upgrades, the selected thing and colony statistics).
+Screen: the map in the top left. Under it the **gameplay bar**: play/pause, the upgrade buttons
+(level and cost in food) and **Menu** (restart, save level, load level, settings, main menu).
+On the right the **building / testing tools** (inspect, food, obstacles, terrain, nest, erase),
+debug buttons (fit map, debug view, trails) and all the data (level, selection, colony statistics).
 
 | Control | Action |
 |---|---|
-| Tool bar (bottom) or keys **1**-**6** | Inspect / **Food** (apple) / **Obstacles** (stop sign) / **Terrain** (mountains) / Nest / Erase |
-| Food, Obstacles, Terrain | The whole bar turns into that page, one button per item showing the item itself (blueberry, strawberry, larva...; rock, twig, tree trunk...; dirt, grass, water). **Backspace** or Back returns |
+| Building tools (right) or keys **1**-**6** | Inspect / **Food** (apple) / **Obstacles** (stop sign) / **Terrain** (mountains) / Nest / Erase |
+| Food, Obstacles, Terrain | The tools turn into that page, one button per item showing the item itself (blueberry, strawberry, larva...; rock, twig, tree trunk...; dirt, grass, water). **Backspace** or Back returns |
 | Left mouse | Use the tool: inspect anything, place one object per click, paint terrain, erase, move the nest |
 | Right mouse | Erase objects under the brush (any tool) |
 | **[** / **]** or **-** / **=** | Brush size |
@@ -23,10 +24,10 @@ upgrades, the selected thing and colony statistics).
 | Middle mouse drag, arrows or **WASD** | Move the map |
 | **Space** | Pause (you can still paint while paused) |
 | **R** | Restart the level |
-| Side panel buttons | Upgrades, paid with food stored in the nest |
+| Gameplay bar | Upgrades, paid with food stored in the nest |
 | Save level / Load level | Save the current map as a level / start another level |
 | Settings (main menu or tool bar) | Window resolution: 720p, 1080p, 1440p or 4K (16:9, remembered) |
-| **Escape** or Menu (tool bar) | Back to the main menu |
+| **Escape** or Menu (gameplay bar) | Game menu: restart, save level, load level, settings, main menu |
 | **Tab** or the view button (tool bar) | Switch between the isometric view and the flat debug view |
 | **T** or the trails button (tool bar) | Show / hide the pheromone trails |
 

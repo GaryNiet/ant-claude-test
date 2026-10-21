@@ -1,6 +1,6 @@
-extends PanelContainer
-## The tool bar under the map, organised like in management games. Square buttons with a
-## picture and a name:
+extends VBoxContainer
+## The building / testing tools, in the side panel, organised like in management games.
+## Square buttons with a picture and a name (they wrap onto several lines):
 ##
 ##   main page   Inspect | Food | Obstacles | Terrain | Nest | Erase | brush size
 ##   Food        Back | Blueberry, Strawberry, Seed, Larva, Dead spider...  (click the map to place)
@@ -10,7 +10,7 @@ extends PanelContainer
 ## Food (an apple), Obstacles (a stop sign) and Terrain (mountains) turn the whole bar into
 ## that page; Back (or the Backspace key) returns. On those pages each button shows the
 ## thing itself (its sprite or tile). The food and obstacle kinds come from [objects].
-## The game buttons (pause, save...) are in the side panel.
+## (The gameplay buttons, upgrades, pause and the menu, are in the bar under the map.)
 
 enum Page { MAIN, FOOD, OBSTACLES, TERRAIN }
 
@@ -25,7 +25,7 @@ const ICON_FOLDER := "icons"
 
 var _view: Node2D
 var _brush: Node2D
-var _row: HBoxContainer
+var _row: HFlowContainer
 var _page := Page.MAIN
 var _choice_buttons := {}     ## what each button selects -> Button (on the current page)
 var _brush_size_label: Label
@@ -38,12 +38,11 @@ var _tool_font_size: int = GameSettings.get_setting("ui", "tool_font_size")
 var _small_button_size: float = GameSettings.get_setting("ui", "small_button_size")
 
 
-## Builds the bar. Called by main.gd once everything exists.
+## Builds the tools. Called by the side panel once everything exists.
 func setup(view: Node2D, brush: Node2D) -> void:
 	_view = view
 	_brush = brush
-	_row = HBoxContainer.new()
-	_row.alignment = BoxContainer.ALIGNMENT_BEGIN
+	_row = HFlowContainer.new()
 	add_child(_row)
 	_show_page(Page.MAIN)
 
