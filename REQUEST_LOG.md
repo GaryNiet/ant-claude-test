@@ -4,6 +4,20 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #16 — 2026-10-21
+
+**Request:**
+> Can you read my outlook mailbox for prompts I send?
+
+**Done:**
+- Question only, answered in chat: no Outlook/email connector is connected to this session,
+  so not right now. It can be connected at claude.ai/customize/connectors, then a new session
+  is needed. No code change.
+
+**Commits:** _(filled in below once committed)_
+
+---
+
 ## #15 — 2026-10-21
 
 **Request:**
