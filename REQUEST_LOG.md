@@ -4,6 +4,41 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #20 — 2026-10-21
+
+**Request** (sent by email, subject "[clod]"):
+> Remake de ant and spider sprites to no look flat. Make them have 4 different sprites for each direction they are moving in. In typicall isometric fashion, the map is at an angle, but the spites should be parallel to the screen and drawn in a way that still makes them look okay in the background.. look at age of empires 2, classic tactics games like Final Fantasy Tactics or HD2D stuff.
+>
+> Make pheromone trails togglable. It is going to be replaced by more gameplay centric visuals.
+>
+> Add a new layer to the grid: unobstructed area. When ants pass a lot by a cell, it becomes unobstructed. It looks smoother than the normal dirt. Ants can walk faster in unobstructed areas. Unobstructed area decay back into their regular form after a while, but much slower than pheromones. This is not a tile type, it's a attribute of the grid. A dirt tile may have unobstructed parts. The idea is that this should create paths where ants walk faster.
+>
+> These paths should be visible. Make new dirt tiles that have paths apart of them. Unobstructed areas will have less gravel or mossy areas and will looks smoother and lighter in color.
+
+**Done:**
+- Sprites: ants and spiders now stand upright, parallel to the screen, seen from the side and
+  a bit above. 4 directions (towards the screen / away from it, to the left / right), picked
+  from where the creature walks on screen, each with a 2-frame walk (legs alternate, every
+  creature in its own rhythm; standing still while cutting, eating or fighting). Ants hold their
+  crumb in their mouth (behind the head when walking away). Made by `tools/make_art.py`.
+- Pheromone trails can be shown/hidden with T or the tool bar button (both views).
+- Unobstructed areas ("paths"): a new value on every map cell, `path wear`. Every walking ant
+  wears the cell under it; from `unobstructed_wear` (about 30 ant crossings) the cell is a path
+  and ants walk 40% faster on it. Wear fades with a 120 s half-life (pheromones: 20 s), so
+  unused paths disappear after a few minutes. Not a tile type: any walkable ground can have
+  path on part of it. Settings in `[paths]`; the inspector shows a cell's wear.
+- Paths are drawn with a new smooth, light, almost gravel-free dirt image (`tiles/path.png`)
+  laid over the ground with soft rounded edges (a shader), so dirt and grass tiles get path
+  running through them. Flat color in the debug view.
+- Tested: after 6 minutes about 2-3% of the ground is path, along the busy trails only, and
+  colonies collect about 20% more food (level 1: 841 food in 5 minutes vs ~700 before).
+  Screenshots of both views checked.
+
+**Commits:**
+- `75e9dd7` — Upright 4-direction ant and spider sprites, toggleable pheromone trails, worn paths where ants walk faster
+
+---
+
 ## #19 — 2026-10-21
 
 **Request** (sent by email, subject "[clod] d", with two inspiration images; the images were
