@@ -90,6 +90,8 @@ func _describe_selection(sim: ColonySimulation) -> String:
 		return _describe_ant(selected)
 	if selected is Enemy:
 		return _describe_enemy(selected)
+	if selected is MapObject:
+		return _describe_object(sim, selected)
 	if selected is String and selected == _view.SELECTED_NEST:
 		return _describe_nest(sim)
 	if selected is Vector2i:
@@ -137,6 +139,19 @@ func _describe_enemy(enemy: Enemy) -> String:
 		"Food eaten: %d" % enemy.food_eaten,
 		"Position: %.0f, %.0f" % [enemy.position.x, enemy.position.y],
 	]))
+
+
+func _describe_object(sim: ColonySimulation, object: MapObject) -> String:
+	if not sim.objects.has(object):
+		return "This %s is gone%s." % [sim.object_kinds.label(object.kind).to_lower(), " (eaten)" if object.is_food() else ""]
+	var lines := PackedStringArray([
+		"%s (%s)" % [sim.object_kinds.label(object.kind).to_upper(), "food" if object.is_food() else "obstacle"],
+		"Covers %d cells" % object.cells.size(),
+		"Position: %.0f, %.0f" % [object.position.x, object.position.y],
+	])
+	if object.is_food():
+		lines.insert(1, "Food left: %d of %d" % [object.food_left, object.total_food])
+	return "\n".join(lines)
 
 
 func _describe_nest(sim: ColonySimulation) -> String:

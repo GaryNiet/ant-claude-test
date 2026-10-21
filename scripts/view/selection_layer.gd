@@ -1,5 +1,5 @@
 extends Node2D
-## Draws a ring on the ground around whatever the player selected (ant, spider or nest),
+## Draws a ring on the ground around whatever the player selected (ant, spider, object or nest),
 ## or a square around the selected cell. In both views: in the isometric view the ring is
 ## squashed like the ground. Lines are kept about 1 screen pixel thick whatever the zoom.
 
@@ -22,6 +22,9 @@ func _draw() -> void:
 		draw_arc(selected.position, _ant_length, 0.0, TAU, 24, _selection_color, line_width)
 	elif selected is Enemy and not selected.is_dead() and not selected.has_left_the_map:
 		draw_arc(selected.position, _enemy_radius * 1.5, 0.0, TAU, 32, _selection_color, line_width)
+	elif selected is MapObject and simulation.objects.has(selected):
+		var radius := simulation.object_kinds.footprint_radius(selected.kind)
+		draw_arc(selected.position, radius, 0.0, TAU, 32, _selection_color, line_width)
 	elif selected is String and selected == view.SELECTED_NEST:
 		draw_arc(simulation.nest_position, simulation.nest_radius, 0.0, TAU, 48, _selection_color, line_width)
 	elif selected is Vector2i:

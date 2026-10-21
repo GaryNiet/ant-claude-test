@@ -10,9 +10,10 @@ A video game prototype made with **Godot 4.3+** (standard version, not .NET).
 
 | Control | Action |
 |---|---|
-| Tool bar (top) or keys **1**-**8** | Tool: Inspect / Food / Obstacle / Erase / Nest / Dirt / Grass / Water |
-| Left mouse | Use the tool (Inspect: click anything to see its info in the side panel) |
-| Right mouse | Erase food (any tool) |
+| Tool bar (top) or keys **1**-**6** | Inspect / **Food >** / **Obstacles >** / **Terrain >** / Nest / Erase |
+| Food >, Obstacles >, Terrain > | The whole bar turns into that page (blueberry, strawberry, larva...; rock, twig, tree trunk...; dirt, grass, water). **Backspace** or Back returns |
+| Left mouse | Use the tool: inspect anything, place one object per click, paint terrain, erase, move the nest |
+| Right mouse | Erase objects under the brush (any tool) |
 | **[** / **]** or **-** / **=** | Brush size |
 | Mouse wheel | Zoom (towards the mouse) |
 | Middle mouse drag, arrows or **WASD** | Move the map |
@@ -30,9 +31,15 @@ All controls can be changed in `game_settings.cfg` under `[controls]`.
 ## What you see
 An ant colony simulation, seen at an angle (isometric) with pixel-art tiles and sprites:
 orange ants (darker ones are scouts) and spiders (the enemies, with a health bar) stand upright
-facing the screen, in 4 directions with a walking animation; rocks; and a dirt nest mound that
-grows with the colony (a bigger mound with 3 entrances past ~160 ants).
-Ants carrying food hold a crumb. Food on the ground is ochre.
+facing the screen, in 4 directions with a walking animation; an ant hill that grows with the
+colony (a bigger hill with 3 entrances past ~160 ants); mossy patches on the dirt (decoration).
+Ants carrying food hold a crumb. Dead ants lie on their back and fade away.
+
+**Objects:** food and obstacles are objects with a fixed shape and sprite, placed from the tool bar.
+Food (blueberry, strawberry, seed, larva, dead spider) glows yellow and loses pixels as ants eat it;
+a killed spider becomes a dead spider food item. Obstacles (rock, twig, high grass, pine cone,
+dead leaf, tree trunk, mushroom) block ants and spiders; tree trunks are taller than the screen.
+Each kind's size and food are in `[object_<kind>]` in `game_settings.cfg`.
 
 **Paths:** where ants walk a lot, the ground wears into a smooth, lighter path (an "unobstructed
 area") where ants walk 40% faster. Paths fade back slowly when ants stop using them (much slower
@@ -44,8 +51,9 @@ The angle and all sprite sizes are in `[iso_view]` in `game_settings.cfg`.
 
 ### Debug view
 The flat top-down map. The ground is made of 32 px tiles: brown = dirt, dark green = grass,
-dark blue = water and grey = obstacles (ants can't cross water or obstacles), purple = the nest. The nest grows with the colony:
-the more ants, the more tiles it covers. Food (bright green, brighter = more) lies on top of the ground in smaller 8 px cells.
+dark blue = water, purple = the nest (it grows with the colony: the more ants, the more tiles it covers).
+Objects show as the 8 px cells they cover: food in bright green (brighter = more), obstacles in grey.
+Ants can't cross water or obstacles. Worn paths are light brown.
 
 Ants and enemies are arrows pointing where they are going: white = collector ants, light blue = scout ants, orange = ants
 carrying food (you see the green food block they carry in front of them), yellow = fighting, light green = cutting food.
@@ -59,9 +67,9 @@ tile with grass on one side): see `tiles/README.md`.
 ## Where things are
 | File | What it is |
 |------|------------|
-| `levels/` | Level files (`*.level`): map size, nest, starting ants, ground tiles and food, as editable text. Levels 1-3 are listed in `[menu] levels`. |
+| `levels/` | Level files (`*.level`): map size, nest, starting ants, ground tiles and objects (food and obstacles), as editable text. Levels 1-3 are listed in `[menu] levels`. |
 | `tiles/` | Ground tile images (with variants and transitions). `tiles/README.md` explains the file names. |
-| `sprites/` | Ant and spider sprites (4 directions x 2 walk frames), food crumb, rocks and nest mounds. |
+| `sprites/` | Ant and spider sprites (4 directions x 2 walk frames), dead ant, food crumb and glow, ant hills; `sprites/objects/` food and obstacle sprites. |
 | `tools/make_art.py` | Generates all tiles and sprites (Python + Pillow + numpy). Edit colors/shapes and re-run. |
 | `art/inspiration/` | The inspiration images the art is based on. |
 | `game_settings.cfg` | **All tunable values** (speeds, sizes, colors, keys, window). Edit this to tweak the game. |

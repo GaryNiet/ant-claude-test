@@ -1,21 +1,21 @@
 class_name GroundMap
 extends RefCounted
-## The ground of the map, in tiles: what the ground IS (dirt, grass, water, obstacle, nest).
-## What lies ON the ground (food, pheromones) is stored per cell in MapGrid, which is finer:
-## one tile covers tile_cells x tile_cells cells.
+## The ground of the map, in tiles: what the ground IS (dirt, grass, water, nest).
+## What lies ON the ground (food, pheromones, path wear) is stored per cell in MapGrid, which
+## is finer: one tile covers tile_cells x tile_cells cells. Obstacles (rocks, twigs...) are
+## objects placed on the ground, not tiles (see MapObject).
 ##
 ## The nest is not stored in `tiles`: it is an overlay that grows with the colony and
 ## covers the ground below it. When it shrinks, the original ground shows again.
 ## Whether a tile can be walked on comes from [ground] walkable in game_settings.cfg.
 
-enum Type { DIRT, GRASS, WATER, OBSTACLE, NEST }
+enum Type { DIRT, GRASS, WATER, NEST }
 
 ## Names used in game_settings.cfg ([colors], [ground] walkable) and for tile image files.
 const TYPE_NAMES := {
 	Type.DIRT: "dirt",
 	Type.GRASS: "grass",
 	Type.WATER: "water",
-	Type.OBSTACLE: "obstacle",
 	Type.NEST: "nest",
 }
 

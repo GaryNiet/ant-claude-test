@@ -4,7 +4,7 @@ extends Node2D
 ## the ground; in the debug view a flat color. Any ground can have path on part of it.
 ##
 ## A mask texture holds one pixel per map cell: how worn it is, up to the unobstructed
-## level (white). The shader (path_layer.gdshader) smooths the mask between cells, so paths
+## level (white). The shader (ground_overlay.gdshader) smooths the mask between cells, so paths
 ## get soft edges. Paths change slowly, so the mask is only updated every redraw_interval.
 
 @onready var view: Node2D = get_parent().get_parent()  ## SimulationView (the parent is its MapSpace)
@@ -21,8 +21,8 @@ var _tile_folder: String = GameSettings.get_setting("ground", "tile_image_folder
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR  # smooths the mask between cells
 	var shader_material := ShaderMaterial.new()
-	shader_material.shader = load("res://scripts/view/path_layer.gdshader")
-	shader_material.set_shader_parameter("path_texture", load(_tile_folder + "/path.png"))
+	shader_material.shader = load("res://scripts/view/ground_overlay.gdshader")
+	shader_material.set_shader_parameter("overlay_texture", load(_tile_folder + "/path.png"))
 	shader_material.set_shader_parameter("flat_color", GameSettings.get_color("colors", "path"))
 	shader_material.set_shader_parameter("edge_softness", GameSettings.get_setting("paths", "edge_softness"))
 	material = shader_material

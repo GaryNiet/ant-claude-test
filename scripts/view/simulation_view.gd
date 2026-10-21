@@ -21,13 +21,15 @@ var simulation: ColonySimulation
 var level_path := ""          ## file the current level was loaded from
 var is_paused := false
 var play_time := 0.0          ## seconds played on this level; stops while paused
-## What the player clicked on: an Ant, an Enemy, SELECTED_NEST, a Vector2i cell, or null.
+## What the player clicked on: an Ant, an Enemy, a MapObject, SELECTED_NEST, a Vector2i cell, or null.
 var selection: Variant = null
 var is_iso_view := false
 var show_pheromones: bool = GameSettings.get_setting("display", "show_pheromones")
 
 @onready var map_space: Node2D = $MapSpace
 @onready var _debug_shapes: Node2D = $MapSpace/AntLayer
+@onready var _debug_food: Node2D = $MapSpace/FoodLayer
+@onready var _moss: Node2D = $MapSpace/MossLayer
 @onready var _sprites: Node2D = $SpriteLayer
 @onready var _pheromones: Node2D = $MapSpace/PheromoneLayer
 
@@ -79,6 +81,8 @@ func set_iso_view(iso: bool) -> void:
 	is_iso_view = iso
 	map_space.transform = projection()
 	_debug_shapes.visible = not iso
+	_debug_food.visible = not iso
+	_moss.visible = iso
 	_sprites.visible = iso
 	_needs_fit = true
 	view_mode_changed.emit()
@@ -196,7 +200,8 @@ func _pan_with_keys(delta: float) -> void:
 
 # --- Selection ----------------------------------------------------------------
 
-## Selects whatever is at map position `spot`: an enemy, an ant, the nest, or else the cell.
+## Selects whatever is at map position `spot`: an enemy, an ant, the nest, an object
+## (food item or obstacle), or else the cell.
 func select_at(spot: Vector2) -> void:
 	for enemy in simulation.enemies:
 		if enemy.position.distance_to(spot) <= simulation.enemy_settings.radius:
@@ -213,6 +218,8 @@ func select_at(spot: Vector2) -> void:
 		selection = closest_ant
 	elif spot.distance_to(simulation.nest_position) <= simulation.nest_radius:
 		selection = SELECTED_NEST
+	elif simulation.object_at(spot) != null:
+		selection = simulation.object_at(spot)
 	elif simulation.grid.cell_index(spot) != -1:
 		selection = simulation.grid.cell_coords(spot)
 	else:

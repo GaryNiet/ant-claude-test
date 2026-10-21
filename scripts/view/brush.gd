@@ -1,51 +1,20 @@
 extends Node2D
-## The player's mouse tools on the map:
+## The player's mouse tools on the map (picked in the tool bar):
 ##   Inspect   click on anything to see information about it (in the side panel)
-##   Food      hold to paint food (on ground that can be walked on)
-##   Obstacle  hold to paint obstacle tiles
-##   Erase     hold to remove food (right click erases food with any tool)
+##   Place     click to place one object (a food item or an obstacle) of the chosen kind
+##   Terrain   hold to paint dirt, grass or water, in whole tiles: every tile whose center
+##             is in the brush circle, at least the tile under the mouse
+##   Erase     hold to remove the objects under the brush (right click erases with any tool)
 ##   Nest      click to move the nest
-##   Dirt, Grass, Water   hold to paint ground tiles
-## Shows the brush as a circle under the mouse for the painting tools.
-## Ground tools paint whole tiles: every tile whose center is in the circle, at least the
-## tile under the mouse.
+## Shows the brush circle (terrain, erase) or the object's footprint (place) under the mouse.
 
-enum Tool { INSPECT, FOOD, OBSTACLE, ERASE, NEST, DIRT, GRASS, WATER }
-
-const TOOL_NAMES := {
-	Tool.INSPECT: "Inspect",
-	Tool.FOOD: "Food",
-	Tool.OBSTACLE: "Obstacle",
-	Tool.ERASE: "Erase",
-	Tool.NEST: "Nest",
-	Tool.DIRT: "Dirt",
-	Tool.GRASS: "Grass",
-	Tool.WATER: "Water",
-}
-
-## The ground each ground tool paints.
-const TOOL_GROUND := {
-	Tool.OBSTACLE: GroundMap.Type.OBSTACLE,
-	Tool.DIRT: GroundMap.Type.DIRT,
-	Tool.GRASS: GroundMap.Type.GRASS,
-	Tool.WATER: GroundMap.Type.WATER,
-}
-
-## Keyboard action for each tool (see [controls]).
-const TOOL_ACTIONS := {
-	Tool.INSPECT: "tool_inspect",
-	Tool.FOOD: "tool_food",
-	Tool.OBSTACLE: "tool_obstacle",
-	Tool.ERASE: "tool_erase",
-	Tool.NEST: "tool_nest",
-	Tool.DIRT: "tool_dirt",
-	Tool.GRASS: "tool_grass",
-	Tool.WATER: "tool_water",
-}
+enum Tool { INSPECT, PLACE, TERRAIN, ERASE, NEST }
 
 @onready var view: Node2D = get_parent().get_parent()  ## SimulationView (the parent is its MapSpace)
 
 var selected_tool := Tool.INSPECT
+var object_kind := ""                     ## what the Place tool places
+var ground_type := GroundMap.Type.DIRT    ## what the Terrain tool paints
 var radius: float = GameSettings.get_setting("painting", "brush_radius")
 
 var _min_radius: float = GameSettings.get_setting("painting", "brush_min_radius")
@@ -62,9 +31,6 @@ func change_size(steps: int) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	for tool in TOOL_ACTIONS:
-		if event.is_action_pressed(TOOL_ACTIONS[tool]):
-			selected_tool = tool
 	if event.is_action_pressed("brush_bigger"):
 		change_size(1)
 	elif event.is_action_pressed("brush_smaller"):
@@ -78,15 +44,17 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _use_tool() -> void:
-	var spot := get_local_mouse_position()  # already in map pixels (this node is scaled with the map)
+	var spot := get_local_mouse_position()  # already in map pixels (this node is in the map space)
 	match selected_tool:
 		Tool.INSPECT:
 			view.select_at(spot)
 		Tool.NEST:
 			view.simulation.move_nest(spot)
+		Tool.PLACE:
+			view.simulation.place_object(object_kind, spot)
 		Tool.ERASE:
 			_start_stroke(true)
-		_:
+		Tool.TERRAIN:
 			_start_stroke(false)
 
 
@@ -116,13 +84,16 @@ func _paint_line(from: Vector2, to: Vector2) -> void:
 func _paint_dab(center: Vector2) -> void:
 	var simulation: ColonySimulation = view.simulation
 	if _is_erasing:
-		simulation.erase_food(center, radius)
-	elif selected_tool == Tool.FOOD:
-		simulation.paint_food(center, radius)
-	elif TOOL_GROUND.has(selected_tool):
-		simulation.paint_ground(center, radius, TOOL_GROUND[selected_tool])
+		simulation.erase_objects(center, radius)
+	else:
+		simulation.paint_ground(center, radius, ground_type)
 
 
 func _draw() -> void:
-	if selected_tool not in [Tool.INSPECT, Tool.NEST]:
-		draw_arc(get_local_mouse_position(), radius, 0.0, TAU, 48, _outline_color, 1.0 / view.scale.x)
+	var line_width := 1.0 / view.scale.x
+	if selected_tool == Tool.TERRAIN or selected_tool == Tool.ERASE:
+		draw_arc(get_local_mouse_position(), radius, 0.0, TAU, 48, _outline_color, line_width)
+	elif selected_tool == Tool.PLACE:
+		var footprint: float = view.simulation.object_kinds.footprint_radius(object_kind)
+		var center: Vector2 = view.simulation.grid.cell_center(get_local_mouse_position())
+		draw_arc(center, footprint, 0.0, TAU, 32, _outline_color, line_width)

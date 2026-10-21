@@ -8,8 +8,8 @@ extends RefCounted
 ##   LEAVING    Walks to the nearest map edge and disappears there (with the food it ate).
 ##
 ## Whatever it's doing, while ants touch it, it stops and fights: every attack_interval
-## seconds it hits one of the touching ants. When its HP reaches 0 it dies and turns into
-## a pile of food (its own food value plus everything it ate).
+## seconds it hits one of the touching ants. When its HP reaches 0 it dies and its body
+## becomes a food item (its own food value plus everything it ate).
 
 enum State { SEARCHING, EATING, LEAVING }
 
@@ -76,7 +76,7 @@ func _eat(sim: ColonySimulation) -> void:
 		return
 	_time_in_state = 0.0
 	var food := _food_under_body(sim)
-	if food == MapGrid.NO_FOOD or not sim.grid.take_food(food):
+	if food == MapGrid.NO_FOOD or not sim.take_food(food):
 		_set_state(State.SEARCHING)  # this spot is empty, look for more
 		return
 	food_eaten += 1

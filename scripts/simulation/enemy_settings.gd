@@ -14,7 +14,6 @@ var search_give_up_time: float = GameSettings.get_setting("enemies", "search_giv
 var eat_interval: float = GameSettings.get_setting("enemies", "eat_interval")
 var appetite: int = GameSettings.get_setting("enemies", "appetite")
 var food_when_killed: int = GameSettings.get_setting("enemies", "food_when_killed")
-var food_pile_radius: float = GameSettings.get_setting("enemies", "food_pile_radius")
 var first_arrival: float = GameSettings.get_setting("enemies", "first_arrival")
 var arrival_interval: float = GameSettings.get_setting("enemies", "arrival_interval")
 var max_alive: int = GameSettings.get_setting("enemies", "max_alive")

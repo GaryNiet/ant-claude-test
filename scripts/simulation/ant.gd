@@ -233,7 +233,7 @@ func _cut_food(sim: ColonySimulation) -> void:
 		return
 	time_in_mode = 0.0  # start cutting the next piece
 	var food := _food_within_reach(sim)
-	if food != MapGrid.NO_FOOD and sim.grid.take_food(food):
+	if food != MapGrid.NO_FOOD and sim.take_food(food):
 		carried_food += 1
 		if carried_food < _settings.carry_capacity:
 			return  # room for more: keep cutting

@@ -24,8 +24,9 @@ For each tile the game uses the most specific image that exists:
 Any image can have **variants**: `dirt.png`, `dirt_2.png`, `dirt_3.png`... Each tile always
 uses the same variant (picked from its position), so the ground doesn't look repetitive.
 
-`path.png` is special: it is laid over any ground where ants have worn a path (an unobstructed
-area), with soft edges, so a dirt or grass tile can have a path through part of it.
+`path.png` and `moss.png` are special: they are laid over parts of the ground with soft edges
+(`path.png` where ants have worn a path, `moss.png` in decorative patches on dirt), so a tile can
+have a path or moss on part of it.
 
 So you can add images little by little: start with `dirt.png`, `grass.png` and so on, then
 add transitions where they matter. The folder is set by `[ground] tile_image_folder`.
