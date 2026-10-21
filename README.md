@@ -20,6 +20,7 @@ A video game prototype made with **Godot 4.3+** (standard version, not .NET).
 | **R** | Restart the level |
 | Side panel buttons | Upgrades, paid with food stored in the nest |
 | Save level / Load level | Save the current map as a level / start another level |
+| Settings (tool bar) | Window resolution: 720p, 1080p, 1440p or 4K (16:9, remembered) |
 
 All controls can be changed in `game_settings.cfg` under `[controls]`.
 

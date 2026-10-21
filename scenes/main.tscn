@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/view/simulation_view.gd" id="2_view"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/view/brush.gd" id="6_brush"]
 [ext_resource type="Script" path="res://scripts/ui/toolbar.gd" id="7_toolbar"]
 [ext_resource type="Script" path="res://scripts/ui/side_panel.gd" id="8_side_panel"]
+[ext_resource type="Script" path="res://scripts/ui/settings_menu.gd" id="9_settings"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -34,3 +35,6 @@ script = ExtResource("7_toolbar")
 
 [node name="SidePanel" type="PanelContainer" parent="UI"]
 script = ExtResource("8_side_panel")
+
+[node name="SettingsMenu" type="PopupPanel" parent="UI"]
+script = ExtResource("9_settings")

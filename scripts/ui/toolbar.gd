@@ -1,6 +1,6 @@
 extends PanelContainer
 ## The bar at the top of the window: painting tools, brush size, pause/restart,
-## save/load level, and "fit map" to reset the zoom.
+## save/load level, "fit map" to reset the zoom, and the settings menu.
 
 var _view: Node2D
 var _brush: Node2D
@@ -44,6 +44,9 @@ func setup(view: Node2D, brush: Node2D, main: Node) -> void:
 	row.add_child(VSeparator.new())
 	row.add_child(_button("Save level", _main.open_save_dialog))
 	row.add_child(_button("Load level", _main.open_load_dialog))
+
+	row.add_child(VSeparator.new())
+	row.add_child(_button("Settings", _main.open_settings_menu))
 
 
 func _process(_delta: float) -> void:

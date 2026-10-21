@@ -4,6 +4,25 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #15 — 2026-10-21
+
+**Request:**
+> Make the window 16:9, different resolutions accepted. This goes in a simple settings menu. 720p, 1080p, 1440p and 4K for now
+
+**Done:**
+- "Settings" button in the tool bar opens a small menu with a resolution choice:
+  1280x720, 1920x1080, 2560x1440, 3840x2160 (list in `[window] resolutions`).
+- The choice is remembered between games in `user://player_settings.cfg` (`player_settings.gd`);
+  default 1920x1080. If the screen is too small, the window is shrunk (still 16:9) to fit.
+- The screen is laid out once at 1600x900 (`layout_width/height`) and scaled to the window,
+  so every resolution shows the same layout, just sharper.
+- Tested on a virtual 4K screen: all 4 resolutions give the right window size, the same layout,
+  and the choice is saved.
+
+**Commits:** _(filled in below once committed)_
+
+---
+
 ## #14 — 2026-10-20
 
 **Request:**
