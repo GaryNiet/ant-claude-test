@@ -1,8 +1,9 @@
 extends PopupPanel
 ## A small Settings window, opened from the main menu or the tool bar.
-## For now: the window resolution.
+## For now: the window resolution and fullscreen (also F11).
 
 var _resolution_choice: OptionButton
+var _fullscreen: CheckBox
 var _note: Label
 
 
@@ -27,6 +28,14 @@ func setup() -> void:
 	_resolution_choice.item_selected.connect(_on_resolution_selected)
 	row.add_child(_resolution_choice)
 
+	_fullscreen = CheckBox.new()
+	_fullscreen.text = "Fullscreen (%s)" % ", ".join(GameSettings.get_list("controls", "toggle_fullscreen"))
+	_fullscreen.toggled.connect(func(on: bool) -> void:
+		PlayerSettings.save_fullscreen(on)
+		Startup.apply_resolution()
+		_update_note())
+	column.add_child(_fullscreen)
+
 	_note = Label.new()
 	column.add_child(_note)
 
@@ -41,6 +50,7 @@ func open() -> void:
 	for index in _resolution_choice.item_count:
 		if _resolution_choice.get_item_text(index) == current:
 			_resolution_choice.select(index)
+	_fullscreen.set_pressed_no_signal(PlayerSettings.fullscreen())
 	_update_note()
 	popup_centered()
 
@@ -56,4 +66,5 @@ func _on_resolution_selected(index: int) -> void:
 func _update_note() -> void:
 	var wanted := PlayerSettings.parse_resolution(PlayerSettings.resolution())
 	var actual := get_tree().root.size
-	_note.text = "" if actual == wanted else "Shrunk to %dx%d to fit your screen." % [actual.x, actual.y]
+	var shrunk := not PlayerSettings.fullscreen() and actual != wanted
+	_note.text = "Shrunk to %dx%d to fit your screen." % [actual.x, actual.y] if shrunk else ""

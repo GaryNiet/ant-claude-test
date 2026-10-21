@@ -18,6 +18,13 @@ func _ready() -> void:
 	_register_controls()
 
 
+## F11 (see [controls] toggle_fullscreen) switches between fullscreen and a window, anywhere.
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_fullscreen"):
+		PlayerSettings.save_fullscreen(not PlayerSettings.fullscreen())
+		apply_resolution()
+
+
 ## The screen is always laid out at [window] layout_width x layout_height and scaled
 ## to the window, so every 16:9 resolution shows exactly the same picture, just sharper.
 func _apply_window_settings() -> void:
@@ -32,10 +39,16 @@ func _apply_window_settings() -> void:
 	apply_resolution()
 
 
-## Sizes the window to the chosen resolution. If the screen is too small for it, the window
-## is shrunk (still 16:9) to fit the usable screen area.
+## Fullscreen if the player chose it; otherwise sizes the window to the chosen resolution.
+## If the screen is too small for it, the window is shrunk (still 16:9) to fit the usable
+## screen area. (When the Godot editor runs the game embedded in its Game tab, the editor
+## decides the size and this has no effect.)
 func apply_resolution() -> void:
 	var window := get_window()
+	if PlayerSettings.fullscreen():
+		window.mode = Window.MODE_FULLSCREEN
+		return
+	window.mode = Window.MODE_WINDOWED
 	var wanted := Vector2(PlayerSettings.parse_resolution(PlayerSettings.resolution()))
 	var screen := Vector2(DisplayServer.screen_get_usable_rect(window.current_screen).size)
 	var shrink := minf(1.0, minf(screen.x / wanted.x, screen.y / wanted.y))

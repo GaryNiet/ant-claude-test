@@ -21,6 +21,20 @@ static func save_resolution(choice: String) -> void:
 	file.save(FILE_PATH)
 
 
+## True if the player chose fullscreen (default from game_settings.cfg).
+static func fullscreen() -> bool:
+	var file := ConfigFile.new()
+	file.load(FILE_PATH)
+	return file.get_value("window", "fullscreen", GameSettings.get_setting("window", "default_fullscreen"))
+
+
+static func save_fullscreen(on: bool) -> void:
+	var file := ConfigFile.new()
+	file.load(FILE_PATH)
+	file.set_value("window", "fullscreen", on)
+	file.save(FILE_PATH)
+
+
 ## "1920x1080" -> Vector2i(1920, 1080)
 static func parse_resolution(choice: String) -> Vector2i:
 	var parts := choice.split("x")

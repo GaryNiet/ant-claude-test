@@ -6,6 +6,8 @@ A video game prototype made with **Godot 4.3+** (standard version, not .NET).
 1. Get the code (first time): `git clone https://github.com/GaryNiet/ant-claude-test.git`
    Later updates: `git pull`
 2. Open Godot → **Import** → select `project.godot` in this folder.
+   With Godot 4.4 or newer, F5 runs the game embedded in the editor's **Game** tab (small).
+   To get a real window, untick **Embed Game on Next Play** in the Game tab, or press F11 in the game.
 3. Press **F5** (Run). The game opens on the main menu: pick Level 1 to 4, or open Settings.
 
 Screen: the map in the top left. Under it the **gameplay bar**: play/pause, **Hatch 1**, **Hatch 5**,
@@ -28,6 +30,7 @@ debug buttons (fit map, debug view, trails) and all the data (level, selection, 
 | Gameplay bar | Hatch larvae, Behaviour sliders, Tech tree upgrades (paid with food stored in the nest) |
 | Save level / Load level (in Menu) | Save the current map as a level / start another level |
 | Settings (main menu or Menu) | Window resolution: 720p, 1080p, 1440p or 4K (16:9, remembered) |
+| **F11** or Settings | Fullscreen on / off (remembered) |
 | **Escape** or Menu (gameplay bar) | Game menu: restart, save level, load level, settings, main menu |
 | **Tab** or the view button (tool bar) | Switch between the isometric view and the flat debug view |
 | **T** or the trails button (tool bar) | Show / hide the pheromone trails |
