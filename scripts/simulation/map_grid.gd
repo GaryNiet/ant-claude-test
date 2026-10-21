@@ -146,6 +146,16 @@ func deposit_zone(kind: Kind, center: Vector2, radius: float, amount: float) -> 
 		deposit(kind, cell_middle, amount)
 
 
+## Raises pheromone `kind` of `colony` to at least `strength` in every cell within `radius`
+## of `center` (the player drawing a trail; never lowers a stronger smell).
+func raise_zone(kind: Kind, center: Vector2, radius: float, strength: float, colony := 0) -> void:
+	var trail := going_out if kind == Kind.GOING_OUT else going_home
+	for index in cells_in_circle(center, radius):
+		if obstacle[index] == 0:
+			var slot := index + colony * cell_count
+			trail[slot] = maxf(trail[slot], minf(strength, max_strength))
+
+
 ## Returns the strength of pheromone `kind` of `colony` at `world_position` (0 outside the map).
 func sample(kind: Kind, world_position: Vector2, colony := 0) -> float:
 	var index := cell_index(world_position)

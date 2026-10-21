@@ -629,6 +629,18 @@ def tech_tree_icon():
     return outline(image, DIRT[0])
 
 
+def trail_icon():
+    """A pink pheromone trail winding up to a crumb, with a little ant on it."""
+    image, draw = icon_canvas()
+    points = [(3, 28), (9, 22), (8, 15), (15, 12), (21, 14), (26, 7)]
+    draw.line(points, fill=rgb("#c85a7a"), width=4)
+    draw.line(points, fill=rgb("#f0a0b8"), width=2)
+    ellipse(draw, (27, 6), 3, 2.5, rgb(CRUMB[2]))
+    for x, radius in [(12, 1.8), (15, 1.2), (18, 1.6)]:   # a tiny ant walking the trail
+        ellipse(draw, (x, 19), radius, radius, rgb(ANT[2]))
+    return outline(image, DIRT[0])
+
+
 def nest_icon():
     small = nest_sprite(30, 20, 1, 4)
     image, draw = icon_canvas()
@@ -848,7 +860,8 @@ def make_sprites():
     save(flag_sprite(), "sprites", "flag.png")
     for name, maker in [("food", apple_icon), ("terrain", mountains_icon), ("obstacles", stop_icon),
                         ("inspect", magnifier_icon), ("erase", eraser_icon), ("nest", nest_icon),
-                        ("larva", larva_icon), ("behaviour", behaviour_icon), ("tech_tree", tech_tree_icon)]:
+                        ("larva", larva_icon), ("behaviour", behaviour_icon), ("tech_tree", tech_tree_icon),
+                        ("trail", trail_icon)]:
         save(maker(), "sprites", "icons", name + ".png")
     save(crumb_sprite(), "sprites", "food_crumb.png")
     save(glow_sprite(), "sprites", "food_glow.png")

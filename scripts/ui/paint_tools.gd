@@ -2,7 +2,7 @@ extends VBoxContainer
 ## The building / testing tools, in the side panel, organised like in management games.
 ## Square buttons with a picture and a name (they wrap onto several lines):
 ##
-##   main page   Inspect | Food | Obstacles | Terrain | Nest | Erase | brush size
+##   main page   Inspect | Food | Obstacles | Terrain | Nest | Erase | Trail | brush size
 ##   Food        Back | Blueberry, Strawberry, Seed, Larva, Dead spider...  (click the map to place)
 ##   Obstacles   Back | Rock, Twig, High grass, Pine cone, Dead leaf, Tree trunk...
 ##   Terrain     Back | Dirt, Grass, Water | brush size
@@ -56,6 +56,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_pick_tool(_brush.Tool.NEST)
 	elif event.is_action_pressed("tool_erase"):
 		_pick_tool(_brush.Tool.ERASE)
+	elif event.is_action_pressed("tool_trail"):
+		_pick_trail()
 	elif event.is_action_pressed("menu_food"):
 		_open_page(Page.FOOD)
 	elif event.is_action_pressed("menu_obstacles"):
@@ -91,6 +93,8 @@ func _current_choice() -> Variant:
 			return "nest"
 		_brush.Tool.ERASE:
 			return "erase"
+		_brush.Tool.TRAIL:
+			return "trail"
 	return "inspect"
 
 
@@ -135,6 +139,7 @@ func _build_main_page() -> void:
 	_add_choice("terrain", "Terrain", "menu_terrain", _icon("terrain"), group, _open_page.bind(Page.TERRAIN))
 	_add_choice("nest", "Nest", "tool_nest", _icon("nest"), group, func() -> void: _pick_tool(_brush.Tool.NEST))
 	_add_choice("erase", "Erase", "tool_erase", _icon("erase"), group, func() -> void: _pick_tool(_brush.Tool.ERASE))
+	_add_choice("trail", "Trail", "tool_trail", _icon("trail"), group, _pick_trail)
 	_add_brush_size()
 
 
@@ -192,6 +197,12 @@ func _add_choice(key: Variant, text: String, action: String, picture: Texture2D,
 
 func _pick_tool(tool: int) -> void:
 	_brush.selected_tool = tool
+
+
+## The Trail tool also shows the trails, so the player sees what they draw.
+func _pick_trail() -> void:
+	_brush.selected_tool = _brush.Tool.TRAIL
+	_view.set_pheromones_visible(true)
 
 
 func _pick_object(kind: String) -> void:

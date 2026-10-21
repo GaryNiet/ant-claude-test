@@ -139,6 +139,12 @@ func paint_ground(center: Vector2, radius: float, type: GroundMap.Type) -> void:
 			_update_cells_of_tile(tile)
 
 
+## The player draws a trail for `colony`: its food trail ("going home" pheromone, which
+## collectors follow towards the stronger smell) raised to `strength` around `center`.
+func paint_trail(colony: Colony, center: Vector2, width: float, strength: float) -> void:
+	grid.raise_zone(MapGrid.Kind.GOING_HOME, center, width, strength, colony.index)
+
+
 ## Makes the cells of a tile blocked or free: blocked if the tile can't be walked on
 ## (water) or an obstacle object covers the cell. Blocking a cell removes its pheromones.
 func _update_cells_of_tile(tile: Vector2i) -> void:

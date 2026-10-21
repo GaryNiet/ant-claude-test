@@ -18,10 +18,11 @@ debug buttons (fit map, debug view, trails) and all the data (level, selection, 
 
 | Control | Action |
 |---|---|
-| Building tools (right) or keys **1**-**6** | Inspect / **Food** (apple) / **Obstacles** (stop sign) / **Terrain** (mountains) / Nest / Erase |
+| Building tools (right) or keys **1**-**7** | Inspect / **Food** (apple) / **Obstacles** (stop sign) / **Terrain** (mountains) / Nest / Erase / Trail |
 | Food, Obstacles, Terrain | The tools turn into that page, one button per item showing the item itself (blueberry, strawberry, larva...; rock, twig, tree trunk...; dirt, grass, water). **Backspace** or Back returns |
 | Left mouse | Use the tool: inspect anything, place one object per click, paint terrain, erase, move the nest |
 | Right mouse | Erase objects under the brush (any tool) |
+| **7** or Trail (building tools) | Hold to draw a food trail our ants follow: draw from the nest towards where they should go (it gets stronger along the stroke and fades like any trail) |
 | **[** / **]** or **-** / **=** | Brush size |
 | Mouse wheel | Zoom (towards the mouse) |
 | Middle mouse drag, arrows or **WASD** | Move the map |
