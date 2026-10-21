@@ -19,7 +19,8 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 - Tested on a virtual 4K screen: all 4 resolutions give the right window size, the same layout,
   and the choice is saved.
 
-**Commits:** _(filled in below once committed)_
+**Commits:**
+- `205763f` — Add settings menu with 16:9 resolutions (720p to 4K), layout scaled to the window
 
 ---
 
