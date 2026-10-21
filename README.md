@@ -25,8 +25,8 @@ debug buttons (fit map, debug view, trails) and all the data (level, selection, 
 | **Space** | Pause (you can still paint while paused) |
 | **R** | Restart the level |
 | Gameplay bar | Upgrades, paid with food stored in the nest |
-| Save level / Load level | Save the current map as a level / start another level |
-| Settings (main menu or tool bar) | Window resolution: 720p, 1080p, 1440p or 4K (16:9, remembered) |
+| Save level / Load level (in Menu) | Save the current map as a level / start another level |
+| Settings (main menu or Menu) | Window resolution: 720p, 1080p, 1440p or 4K (16:9, remembered) |
 | **Escape** or Menu (gameplay bar) | Game menu: restart, save level, load level, settings, main menu |
 | **Tab** or the view button (tool bar) | Switch between the isometric view and the flat debug view |
 | **T** or the trails button (tool bar) | Show / hide the pheromone trails |

@@ -4,6 +4,34 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #23 — 2026-10-21
+
+**Request** (sent by email, subject "[clod]"):
+> I was completely wrong about the toolbar. Let's keep it where it is what the visuals it has, but where tools god will change a lot.
+>
+> The idea is that the toolbar under the visualization is the "gameplay" UI and the tool on the right are debug/testing/building tools.
+>
+> So for the toolbar below the viz, we have the upgrade buttons. I'm currently thinking about how to structure this better, don't spend too much time on it. Play/pause and menu can also go here. Save / load, restart and settings can go into the menu button.
+>
+> on the right, I want all the data and the painting toolbar.
+
+**Done:**
+- The bar under the map is now the gameplay bar (`gameplay_bar.gd`), same look: Play/Pause,
+  the 6 upgrade buttons (name, level, cost in food; for our colony, or for a selected rival
+  nest, the title says which) and a Menu button. Menu (or Escape) opens: Restart level,
+  Save level, Load level, Settings, Main menu.
+- The side panel now has the building / testing tools at the top (inspect, food, obstacles,
+  terrain, nest, erase and their pages, same buttons, wrapping onto two lines;
+  `paint_tools.gd`, was `toolbar.gd`), then Fit map / Debug view / Trails, then all the data
+  (level and time, selection, colony statistics).
+- Kept simple as asked (the upgrades will be restructured later).
+- Tested in Godot 4.3: screenshots of the new layout and the open menu checked.
+
+**Commits:**
+- `68cb2e9` — Gameplay bar under the map (pause, upgrades, menu); building tools and data on the right
+
+---
+
 ## #22 — 2026-10-21
 
 **Request** (sent by email, subject "[clod]"):
