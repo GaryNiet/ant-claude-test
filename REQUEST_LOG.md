@@ -4,6 +4,28 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #27 — 2026-10-21
+
+**Request:**
+> give the player another button in the toolbox. it draw pheromone lines to direct ants
+
+**Done:**
+- New building tool **Trail** (key 7, pink trail icon): hold the left mouse button to draw a
+  pheromone line for our colony (or the selected rival). It is a food trail ("going home"
+  pheromone), the one collectors follow towards the stronger smell, so the line gets stronger
+  along the stroke: draw it from the nest towards where the ants should go. It never weakens a
+  stronger smell already there, and fades like any trail (20 s half-life).
+- Picking the tool turns the trails display on, so the drawn line is visible.
+- Settings in `[painting]`: trail_width (10 px), trail_start_strength (3), trail_strength_per_pixel (0.02).
+- Tested: same random seed with and without a trail drawn towards an empty area, 6 games:
+  1.8x more different ants reached the far end of the line in 30 s (24 vs 13 on average,
+  more in every game). Screenshot of the tool and a drawn trail checked.
+
+**Commits:**
+- `d9a12cb` — Trail tool: draw pheromone trails that direct our ants
+
+---
+
 ## #26 — 2026-10-21
 
 **Request:**
