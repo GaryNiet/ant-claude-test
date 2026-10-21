@@ -4,6 +4,75 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #21 — 2026-10-21
+
+**Request** (sent by email, subject "[clod]"):
+> Make sprites for the food too. When ants take away from it, just remove some pixels from the sprite, we'll worry about the actual effect later. Now food spawns are all a sprite of a specific shape. Say a circle of food is a blueberry for example. Food will have a yellow glow around it.
+>
+> Add dead state sprites for ants and enemies. Dead ants will gradually disappear, for enemies the corpse is a food item.
+>
+> Rework nest art to look more like a hill and less like a ball.
+>
+> Edges between grass and first don't look right, they have a weird double edge.
+>
+> Add mossy areas to dirt, this does nothing it is purely esthetic.
+>
+> Like food, obstacles now also only come in predetermined sprites. Add twigs, rocks, high grass, pine cones, dead leaves, full on tree trunks (sprites should be able to clip out of the screen), add more you can think of.
+>
+> Make the toolbar closer to management games. If I click food, the whole bar will change to display the food menu.
+>
+> Hierarchy of the toolbar should be:
+>
+>   * Food
+>      * Blueberry
+>      * Dead spider
+>      * Larva
+>      * ...
+>   * Obstacle
+>      * Twig
+>      * Rock
+>      * High grass
+>      * Pine cone
+>      * Dead leave
+>      * Tree trunk
+>      * ...
+>   * Terrain
+>      * dirt
+>      * grass
+>      * water
+
+**Done:**
+- Objects: food and obstacles are now objects with a fixed shape (a footprint of map cells)
+  and a sprite, placed one per click (`map_object.gd`, `object_kinds.gd`; each kind has an
+  `[object_<kind>]` section: name, footprint, sprite size, food).
+  - Food: blueberry, strawberry, seed, larva, dead spider. A yellow glow lies under each one.
+    Its food is shared over its cells; as ants (or spiders) eat it, the same share of the
+    sprite's pixels disappears (in a random-looking order); empty items vanish.
+  - Obstacles: rock, twig, high grass, pine cone, dead leaf, tree trunk (much taller than the
+    screen when zoomed in), mushroom. They block the cells they cover. The obstacle tile type
+    is gone; terrain is now dirt, grass and water.
+- Dead state: a killed spider becomes a dead spider food item (80 food plus what it ate, as
+  before); dead ants lie on their back and fade away over 12 s.
+- Nest: redrawn as an ant hill (wide, low heap with gentle slopes, entrances on the slope).
+- Grass/dirt edge: there were two transitions (grass creeping into the dirt tile and dirt
+  creeping into the grass tile), with a different grass texture: removed the second one and
+  used the same grass, so there's a single ragged edge.
+- Moss: soft mossy patches on dirt, from smooth noise, purely decorative (`[moss]`).
+- Tool bar: main page Inspect, Food >, Obstacles >, Terrain >, Nest, Erase (keys 1-6) plus
+  the game buttons. Food / Obstacles / Terrain turn the whole bar into that page with its
+  choices; Back (Backspace) returns. Right click erases objects with any tool.
+- Levels: store objects (`objects:` with kind and cell) instead of food cells and obstacle
+  tiles. The 3 levels were converted: walls became rocks (with some tree trunks), food piles
+  became strawberries/blueberries/seeds, and decorations were added (twigs, leaves, grass,
+  mushrooms, pine cones, trunks).
+- Tested in Godot 4.3: all levels run, the food in items always matches the map, dead spiders
+  become food that gets eaten, save/load keeps the objects, screenshots checked.
+
+**Commits:**
+- `76d95db` — Food and obstacle objects with sprites, management-style tool bar, ant hill, moss, dead ants
+
+---
+
 ## #20 — 2026-10-21
 
 **Request** (sent by email, subject "[clod]"):
