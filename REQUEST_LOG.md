@@ -4,6 +4,97 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #24 — 2026-10-21
+
+**Request** (sent by email, subject "[clod]"):
+> You can remove the toolbar upgrade buttons, it will now have 3 new buttons and 2 buttons that open a menu. The 3 buttons are hatch 1 larva, hatch 5 larva and infinite hatch. On button is balance, it opens the behaviour submenu. The last button is tech tree, it opens the upgrade menu.
+>
+> Make an ant larva icon, and put the icon with the number on the buttons.infinite hatch is togglable.
+>
+> the toolbar will show total food, number of ants in your colony, maturity (more on this below), number of larva (more on this below)
+>
+> Maturity is like and age of empires age up. It is done through getting a certain number of ants. You can mature up, but you cannot mature down. Maturity gives access to buyable upgrades.
+> For now let's set something like start at age 1, age 2 at 200 ants, age 3 at 300 ants.
+>
+> Now players decide when ants hatch. Instead of getting an ant, you get a larva that gets stored. You can hatch them with the hatch buttons. Larva don't hatch instantly.
+>
+> Behavior button opens a submenu that lets the player modify the behavior of the colony. Right now it'll have sliders letting you decide:
+> Balance between aggressivity: this is how much ants are willing to fight. We already have this variable.
+> Distance from nest: how far ants explore out of the nest
+>
+> Behavior settings only affect ants hatched after the change.
+>
+> The upgrade menu shows 3 columns, which are vocations, of upgrades. Horizontally, upgrades are divided into ages. Each vocation-age combination has a small upgrade tree. You need the previous nod in a tree in order to get the advanced node.
+>
+> 3 vocations: fighting, hatching, harvesting
+>
+> Only 2 maturity levels for now.
+>
+> Fighting- maturity 1:
+>   * Chitinous armor: Ants take 1 less damage from sources
+>      * Restraining bite: Ants hold down opponents when fighting, slowing their movement and attack speed
+>      * Major ants: 1 in 20 ants is a major (make sprite for this), with better fighting abilities. Major ants are always maxed on aggressivity
+>      * Hunter lifestyle: Ants get more food out of opponent ants
+> Fighting-maturity 2:
+>   * Powerful mandibles: ants do 1 extra damage
+>      * Acid spray: ants can attack from a distance
+>      * Corrosive sting: attacks do damage over time
+>      * Super majors: even bigger ants
+> Hatching-maturity 1:
+>   * Motherbase: Ants gain 1 attack damage and reduce incoming damage by 1 when close to nest
+>      * Get 10% speed increase in larva production
+> Hatching-maturity 2:
+>   * Get 10% more increase in larva production
+> Harvesting-maturity 1:
+>   * Carry 1 more food
+>      * Mushroom harvest: slow trickle of free food
+>      * Guarded paths: ants get a free attack on opponents on the first attack if on a path
+> Harvesting-maturity 2:
+>   * Improved mushrooms: better income from mushrooms
+>      * Nuptial flights: place a new nest with all the same upgrades wherever you want. You do not control it, but its ants are allied to you. It is set to infinite hatching.
+>
+> It is possible to attack enemy nests. An ant attacking a nest will take its larva as food. If there is no larva, the nest is attacked directly, if it runs out of HP it is destroyed.
+
+**Done:**
+- Larvae: the nest turns stored food into larvae (8 food every 4 s), stored up to 60. Larvae
+  hatch only when the player says: Hatch 1, Hatch 5, or Hatch all (a toggle that hatches each
+  larva as soon as it's laid). Hatching takes 6 s. Rival and allied colonies always hatch all.
+  The player's colony starts with Hatch all off (`player_starts_with_infinite_hatch`).
+- Gameplay bar: Pause | Hatch 1, Hatch 5, Hatch all (with the new larva icon) | Behaviour, Tech
+  tree (with icons) | colony name, food, ants, maturity (and ants needed for the next), larvae
+  stored / hatching | Menu. The old upgrade buttons and upgrades are gone (`[upgrades]` removed).
+- Maturity: level 1 at the start, level 2 at 200 ants, never goes back (`[maturity] ants_needed`;
+  only 2 levels as asked, adding ", 300" adds a level 3).
+- Behaviour menu: sliders for aggressivity (0-100%, added to each ant's random will to fight;
+  50% = as before) and exploring distance (x0.25 to x2 explore time). Only ants hatched after a
+  change use them.
+- Tech tree menu: 3 columns (fighting, hatching, harvesting) x 2 maturity rows; in each box the
+  first node and, indented, the nodes that need it. Owned / buyable / greyed out with the reason
+  (maturity, node needed, food). Hover for the description. All 16 nodes from the email, each in
+  its own `[tech_<name>]` section (cost, values). Notes on how some work:
+  - Restraining bite: spiders and rival ants fought by our ants attack at half speed (they
+    already stand still while fighting).
+  - Major ants: 1 in 20 new ants, x2.5 health, x2 attack, drawn 1.5x bigger with their own sprite
+    (big head and mandibles), will to fight always 1. Super majors also needs Major ants.
+  - Acid spray: every 1.5 s, 1 damage to the closest spider or rival ant within 28 px.
+  - Corrosive sting: hits (and acid) poison for 4 s (0.5 damage per second).
+  - Guarded paths: an ant starting a fight on a worn path hits at once.
+  - Mushrooms: 15 food per minute, +30 with Improved mushrooms.
+  - Improved mushrooms needs Mushroom harvest (from maturity 1).
+  - Nuptial flights: after buying, click the map to found an allied colony (10 ants) on our team:
+    its ants don't fight ours, it shares all our upgrades (also later ones), always hatches.
+- Raids: an ant walking into a rival nest steals a stored larva (8 food, carried home). If none
+  are left, a willing ant attacks the nest (300 health); at 0 the nest is destroyed and its ants
+  die. Eager fighters head for rival nests they see (100 px).
+- Tested in Godot 4.3: hatching (5 larvae hatch after 6 s), Hatch all, buying all 16 nodes,
+  founding an allied nest, majors appearing, mushrooms, nest destruction; all 4 levels run
+  without errors; screenshots of the bar, tech tree, behaviour menu and a major ant checked.
+
+**Commits:**
+- `b967163` — Larvae and hatching, maturity, behaviour sliders, tech tree, nest raids, allied nests
+
+---
+
 ## #23 — 2026-10-21
 
 **Request** (sent by email, subject "[clod]"):
