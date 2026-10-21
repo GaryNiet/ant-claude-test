@@ -4,6 +4,45 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #19 — 2026-10-21
+
+**Request** (sent by email, subject "[clod] d", with two inspiration images; the images were
+then sent in the chat because they couldn't be read from the email):
+> Here are some inspiration images I quite like.
+>
+> I mostly like the color scheme and the half realism. Feel free to make it lower detail/pixel-arty.
+>
+> Create tiles and sprites and apply them to the game. The enemy is going to be a spider.
+>
+> Make the visualization at a s light angle. "isometric". I recon keep the current visualization for debugging and make a new one with the isometric view. The new one will be the default, though.
+
+**Done:**
+- Art: `tools/make_art.py` draws all the art from code in the palette of the inspiration images
+  (saved in `art/inspiration/`): warm browns, moss green, cream, ochre, slate-blue water.
+  Low-detail pixel art lit from the top left.
+  - Tiles (`tiles/`): dirt, grass (blades, clovers, tiny flowers), water (ripples), obstacle
+    ground, nest soil; 3 variants each, plus edge transitions (grass creeping into dirt, damp
+    shores, shallow water edges, nest soil spreading).
+  - Sprites (`sprites/`): ant, spider, food crumb, 3 rocks, small nest mound (1 entrance) and
+    big nest mound (3 entrances), like the "starter" and "growing" nests in the images.
+- New isometric view, the default: the ground (tiles, trails, food) is turned 45 degrees and
+  squashed to half height; rocks and the nest mound stand upright on it; ants and spiders lie
+  on the ground facing where they walk. Everything is drawn back to front, so things in front
+  cover things behind. Angle and squash are settings (`[iso_view]`): 0 and 0.7 gives a straight,
+  gently tilted view instead.
+- The enemy is now a spider. Scouts are darker ants; ants carrying food hold a crumb; food on the
+  ground is ochre; trails are fainter so the art stays readable.
+- The old flat view is kept as the debug view: Tab or the tool bar button switches.
+  Painting, inspecting and zoom work in both views.
+- Tiles can now have variants (`dirt.png`, `dirt_2.png`...), picked per tile.
+- Warmer UI colors (dark brown panels, cream text).
+- Tested in Godot 4.3: all 3 levels in both views, screenshots checked.
+
+**Commits:**
+- `63b8d4e` — Add isometric view with pixel-art tiles and sprites (spider enemies); keep flat view as debug view
+
+---
+
 ## #18 — 2026-10-21
 
 **Request** (sent by email, subject "[clod]"):
