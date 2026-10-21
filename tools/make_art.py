@@ -258,8 +258,9 @@ def shaded_blob(draw, center, radius_x, radius_y, colors):
 
 
 # Creatures stand upright, parallel to the screen, seen from the side and a bit above (like
-# classic isometric games). 4 directions: "se" = walking towards the screen and to the right,
-# "ne" = away from the screen and to the right, "sw" / "nw" = the same, mirrored.
+# classic isometric games). 6 directions: "se" = walking towards the screen and to the right,
+# "ne" = away from the screen and to the right, "sw" / "nw" = the same, mirrored; "s" = straight
+# towards the screen (seen from the front), "n" = straight away from it (seen from behind).
 # 2 walking frames each (legs alternate). Their feet touch the ground GROUND_MARGIN px above
 # the bottom of the image (the game puts that line on the creature's position).
 GROUND_MARGIN = 3
@@ -334,6 +335,75 @@ def ant_sprite(towards_screen, frame, major=False):
     return creature((width, height), parts, legs_far, legs_near, extras, ((14, ground), 9, 2))
 
 
+def ant_straight_sprite(towards_screen, frame, major=False):
+    """An ant walking straight towards the screen (head in front, low) or away from it (abdomen
+    in front). Seen from the front or the back, so its legs spread out on both sides."""
+    width, height = 28, 22
+    ground = height - GROUND_MARGIN
+    middle = width / 2
+    head_size = 1.45 if major else 1.0
+    dark, mid, light, bright = rgb(ANT[1]), rgb(ANT[2]), rgb(ANT[3]), rgb(ANT[4])
+    head = ((middle, 13), 2.6 * head_size, 2.4 * head_size, [dark, mid, bright])
+    thorax = ((middle, 11), 2.2, 1.8, [dark, light, bright])
+    if towards_screen:
+        parts = [((middle, 8.5), 3.6, 3.2, [dark, mid, bright]), thorax, head]   # abdomen behind
+    else:
+        parts = [((middle, 7.5), 2.4 * head_size, 2.2 * head_size, [dark, mid, bright]), thorax,
+                 ((middle, 13), 4.2, 3.8, [dark, mid, bright])]                  # abdomen in front
+    legs_far, legs_near = [], []
+    for number, depth in enumerate([-1, 0, 1]):          # back, middle, front pair
+        for side in (-1, 1):
+            hip = (middle + side * 1.5, 11.5 + depth * 0.5)
+            knee = (middle + side * (5.5 + depth * 0.5), 12 + depth * 0.5)        # out to the side
+            foot = (middle + side * (7.5 + depth * 1.5) + gait(frame, number, side) * 0.6, ground - 1 + depth * 1)
+            (legs_far if depth < 0 else legs_near).append((hip, knee, foot, 1))
+
+    def extras(draw):
+        antenna = rgb(ANT[0])
+        for side in (-1, 1):
+            if towards_screen:
+                draw.line([(middle + side * 1.5, 11), (middle + side * 4, 6), (middle + side * 5.5, 6.5)], fill=antenna)
+                draw.point((middle + side * 1.2, 12.5), fill=(20, 8, 4))       # eyes
+                draw.line([(middle + side * 1, 15), (middle + side * (2.5 if major else 1.5), 16.5)], fill=antenna)
+            else:
+                draw.line([(middle + side * 1, 6), (middle + side * 3.5, 3), (middle + side * 5, 3.5)], fill=antenna)
+
+    return creature((width, height), parts, legs_far, legs_near, extras, ((middle, ground), 8, 2))
+
+
+def spider_straight_sprite(towards_screen, frame):
+    """A spider walking straight towards the screen (head in front) or away from it, its 8
+    legs arching up on both sides."""
+    width, height = 46, 36
+    ground = height - GROUND_MARGIN
+    middle = width / 2
+    body = [rgb(SPIDER[1]), rgb(SPIDER[2]), rgb(SPIDER[4])]
+    head_colors = [rgb(SPIDER[1]), rgb(SPIDER[3]), rgb(SPIDER[4])]
+    if towards_screen:
+        parts = [((middle, 14), 8.5, 7, body), ((middle, 20), 5.5, 4.5, head_colors)]
+    else:
+        parts = [((middle, 13), 5, 4, head_colors), ((middle, 19), 9, 7.5, body)]
+    legs_far, legs_near = [], []
+    for number in range(4):                               # back to front
+        for side in (-1, 1):
+            hip = (middle + side * 3, 17)
+            knee = (middle + side * (11 + number * 1.5), 6 + number * 1.5)
+            foot = (middle + side * (14 + number * 2.5) + gait(frame, number, side) * 0.6, ground - 4 + number * 1.5)
+            (legs_far if number < 2 else legs_near).append((hip, knee, foot, 2))
+
+    def extras(draw):
+        red = rgb(SPIDER[5])
+        if towards_screen:
+            for side in (-1, 1):
+                draw.point((middle + side * 1.5, 18.5), fill=red)               # eyes
+                draw.line([(middle + side * 1, 23), (middle + side * 1.5, 25)], fill=rgb(SPIDER[0]))  # fangs
+        else:
+            draw.line([(middle - 4, 18), (middle + 4, 18)], fill=red)          # marking
+            draw.line([(middle, 15), (middle, 21)], fill=red)
+
+    return creature((width, height), parts, legs_far, legs_near, extras, ((middle, ground), 15, 3))
+
+
 def spider_sprite(towards_screen, frame):
     """A spider walking to the right: big round abdomen, 8 legs bending up above the body."""
     width, height = 46, 36
@@ -367,10 +437,16 @@ def spider_sprite(towards_screen, frame):
     return creature((width, height), parts, legs_far, legs_near, extras, ((22, ground), 16, 3))
 
 
-def save_four_directions(maker, name, palette=None):
-    """name_se_1.png ... name_nw_2.png: se and ne are drawn, sw and nw are their mirror images.
+def save_directions(maker, straight_maker, name, palette=None):
+    """name_se_1.png ... name_nw_2.png: se and ne are drawn, sw and nw are their mirror images;
+    name_s_1.png, name_n_1.png...: walking straight towards / away from the screen.
     `palette` = (from, to) colors to swap, e.g. to make red rival ants from the orange ones."""
     for frame in range(WALK_FRAMES):
+        for direction, towards_screen in [("s", True), ("n", False)]:
+            image = straight_maker(towards_screen, frame)
+            if palette:
+                image = recolor(image, *palette)
+            save(image, "sprites", "%s_%s_%d.png" % (name, direction, frame + 1))
         for direction, towards_screen in [("e", True), ("e", False)]:
             image = maker(towards_screen, frame)
             if palette:
@@ -410,16 +486,18 @@ def rock_sprite(seed):
 
 def nest_sprite(width, height, entrances, seed):
     """An ant hill: a wide, low heap of loose soil in the colors of the dirt around it, lit from
-    the left, with dark entrances. No outline: its base breaks up into loose grains, so it
-    sits in the ground instead of on it. Drawn at about the size it's shown (1 image pixel =
+    the left, with dark entrances. Its base is a rounded ellipse (seen from above) that ends at
+    the ground line, so nothing is cut off. No outline: the base breaks up into loose grains,
+    so it sits in the ground instead of on it. Drawn at about the size it's shown (1 image pixel =
     1 map pixel). The bigger version is the growing nest."""
     local = random.Random(seed)
     image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     pixels = image.load()
     middle = width / 2
     ground = height - GROUND_MARGIN
-    base_depth = height * 0.2                   # the heap's base is an ellipse seen from above
-    peak = ground - base_depth - height * 0.5   # top of the hill
+    base_depth = height * 0.34                  # the heap's base is an ellipse seen from above
+    base_middle = ground - base_depth / 2       # its center: its front edge touches the ground line
+    peak = ground - base_depth - height * 0.45  # top of the hill
     soil = [DIRT[1], DIRT[2], NEST[1], NEST[2], NEST[3], NEST[4]]
     grain = np.random.default_rng(seed).random((height, width))
     texture = tileable_noise(max(width, height), 8, seed)
@@ -429,13 +507,14 @@ def nest_sprite(width, height, entrances, seed):
         if across >= 1:
             continue
         profile = (1 - across ** 1.8) ** 2.2        # rounded top, long gentle slopes
-        top = ground - base_depth * (1 - across ** 2) ** 0.5 - (ground - base_depth - peak) * profile
+        half_base = base_depth / 2 * (1 - across ** 2) ** 0.5   # the base ellipse at this x
+        top = base_middle - half_base - (base_middle - base_depth / 2 - peak) * profile
         top += (texture[0][x] - 0.5) * 3
         tops[x] = top
-        bottom = ground + base_depth * 0.4 * (1 - across ** 2) ** 0.5
+        bottom = base_middle + half_base
         for y in range(max(int(top), 0), min(int(bottom) + 1, height)):
             near_base = (y - top) / (bottom - top + 1)
-            if near_base > 0.8 and grain[y, x] < (near_base - 0.8) * 4:
+            if near_base > 0.75 and grain[y, x] < (near_base - 0.75) * 3:
                 continue                            # the base breaks up into loose grains
             slope = (x - middle) / middle           # -1 left (lit) .. +1 right (shade)
             light = 0.68 - slope * 0.3 - near_base * 0.3 + (texture[y % len(texture)][x] - 0.5) * 0.35
@@ -449,7 +528,7 @@ def nest_sprite(width, height, entrances, seed):
         angle = local.uniform(0, 2 * np.pi)
         distance = local.uniform(0.85, 1.1)
         x = middle + np.cos(angle) * (middle - 2) * distance
-        y = ground + np.sin(angle) * base_depth * 0.45 * distance
+        y = base_middle + np.sin(angle) * base_depth * 0.5 * distance
         if 0 <= x < width and 0 <= y < height:
             draw.point((x, y), fill=rgb(local.choice(soil[1:4])))
     for index in range(entrances):  # on the slope facing the viewer: a dark hole with a lip of soil
@@ -458,7 +537,7 @@ def nest_sprite(width, height, entrances, seed):
         ellipse(draw, (x, y + 1.5), 5, 3, rgb(NEST[4]))
         ellipse(draw, (x, y), 4, 3, rgb(DIRT[0]))
         ellipse(draw, (x + 0.5, y + 0.5), 3, 2, (18, 10, 5))
-    return with_shadow(image, (middle, ground), middle * 0.95, base_depth * 0.45)
+    return with_shadow(image, (middle, base_middle + 1), middle * 0.95, base_depth * 0.5)
 
 
 def flag_sprite():
@@ -754,12 +833,13 @@ def glow_sprite():
 
 
 def make_sprites():
-    save_four_directions(ant_sprite, "ant")
-    save_four_directions(ant_sprite, "ant_rival", (ANT, RIVAL_ANT))
+    save_directions(ant_sprite, ant_straight_sprite, "ant")
+    save_directions(ant_sprite, ant_straight_sprite, "ant_rival", (ANT, RIVAL_ANT))
     major = lambda towards_screen, frame: ant_sprite(towards_screen, frame, major=True)
-    save_four_directions(major, "ant_major")
-    save_four_directions(major, "ant_rival_major", (ANT, RIVAL_ANT))
-    save_four_directions(spider_sprite, "spider")
+    major_straight = lambda towards_screen, frame: ant_straight_sprite(towards_screen, frame, major=True)
+    save_directions(major, major_straight, "ant_major")
+    save_directions(major, major_straight, "ant_rival_major", (ANT, RIVAL_ANT))
+    save_directions(spider_sprite, spider_straight_sprite, "spider")
     dead_ant = dead_ant_sprite()
     dead_rival = recolor(dead_ant, ANT, RIVAL_ANT)
     for name, image in [("ant_dead", dead_ant), ("ant_rival_dead", dead_rival)]:

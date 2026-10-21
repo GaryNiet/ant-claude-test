@@ -6,8 +6,9 @@ extends Node2D
 ##   nests       ant hills; the big one once the colony has grown; ours has a flag on top
 ##               (rival colonies' ants are red)
 ##   dead ants   lying on their back, fading away
-##   ants        upright, parallel to the screen, in one of 4 directions (towards the screen
-##               or away from it, to the left or right) matching where they walk on screen,
+##   ants        upright, parallel to the screen, in one of 6 directions (towards the screen
+##               or away from it: to the left, to the right, or straight) matching where they
+##               walk on screen,
 ##               with a 2-frame walk; an ant carrying food holds a crumb; scouts are darker
 ##   spiders     the enemies, drawn like the ants, with a health bar above them
 ## Ants and spiders are drawn between their previous and current position (see
@@ -16,7 +17,7 @@ extends Node2D
 ## so whatever is in front covers what is behind it.
 
 ## Sprite files in [iso_view] sprite_folder (made by tools/make_art.py):
-## <creature>_<direction>_<frame>.png, direction = se, sw, ne, nw (s = towards the screen);
+## <creature>_<direction>_<frame>.png, direction = se, sw, ne, nw, s, n (s = towards the screen);
 ## objects/<kind>.png, with optional variants objects/<kind>_2.png, _3...
 const ANT_NAME := "ant"
 const RIVAL_ANT_NAME := "ant_rival"
@@ -24,15 +25,17 @@ const MAJOR_ANT_NAME := "ant_major"
 const RIVAL_MAJOR_ANT_NAME := "ant_rival_major"
 const FLAG_IMAGE := "flag.png"
 const SPIDER_NAME := "spider"
-const DIRECTIONS := ["se", "sw", "ne", "nw"]
+const DIRECTIONS := ["se", "sw", "ne", "nw", "s", "n"]
 const WALK_FRAMES := 2
 ## Creatures, objects and the nest touch the ground this many image pixels above the bottom
 ## of the image (GROUND_MARGIN in tools/make_art.py).
 const GROUND_MARGIN_PIXELS := 3.0
-## Where an ant's mouth is, as a fraction of the image size, when it faces right:
-## towards the screen / away from it (mirrored when it faces left).
-const MOUTH_TOWARDS_SCREEN := Vector2(0.84, 0.62)
-const MOUTH_AWAY_FROM_SCREEN := Vector2(0.78, 0.36)
+## Where an ant's mouth is, as a fraction of the image size, for each direction
+## (the "w" directions are the "e" ones mirrored).
+const MOUTHS := {
+	"se": Vector2(0.84, 0.62), "ne": Vector2(0.78, 0.36),
+	"s": Vector2(0.5, 0.78), "n": Vector2(0.5, 0.3),
+}
 const CRUMB_IMAGE := "food_crumb.png"
 const NEST_SMALL_IMAGE := "nest_small.png"
 const NEST_BIG_IMAGE := "nest_big.png"
@@ -73,6 +76,7 @@ var _nest_big_from_radius: float = GameSettings.get_setting("iso_view", "nest_bi
 var _flag_width: float = GameSettings.get_setting("iso_view", "flag_width")
 var _scout_tint: Color = GameSettings.get_color("iso_view", "scout_tint")
 var _walk_frames_per_second: float = GameSettings.get_setting("iso_view", "walk_frames_per_second")
+var _straight_angle: float = deg_to_rad(GameSettings.get_setting("iso_view", "straight_direction_angle"))
 var _time := 0.0
 var _health_bar_color: Color = GameSettings.get_color("colors", "enemy_health_bar")
 var _health_bar_thickness: float = GameSettings.get_setting("display", "enemy_health_bar_thickness")
@@ -242,11 +246,15 @@ func _draw_nest(colony: Colony, spot: Vector2) -> void:
 		_draw_upright(_flag_texture, hill_top, _flag_width, _foot_height(_flag_texture))
 
 
-## Which of the 4 directions a creature walking along `heading` (on the map) looks like on
-## screen: "s" = coming towards the screen (down), "n" = going away (up); then east / west.
+## Which of the 6 directions a creature walking along `heading` (on the map) looks like on
+## screen: "s" = coming towards the screen (down), "n" = going away (up); then east / west,
+## or nothing when it walks (almost) straight up or down the screen.
 func _screen_direction(heading: float, to_screen: Transform2D) -> String:
 	var on_screen := to_screen.basis_xform(Vector2.from_angle(heading))
-	return ("s" if on_screen.y >= 0.0 else "n") + ("e" if on_screen.x >= 0.0 else "w")
+	var vertical := "s" if on_screen.y >= 0.0 else "n"
+	if absf(on_screen.x) <= absf(on_screen.y) * tan(_straight_angle):
+		return vertical
+	return vertical + ("e" if on_screen.x >= 0.0 else "w")
 
 
 ## The walking frame to show. Each creature starts its walk at its own moment (from its id),
@@ -280,7 +288,7 @@ func _draw_ant(ant: Ant, spot: Vector2, to_screen: Transform2D) -> void:
 func _draw_crumb(ant: Ant, spot: Vector2, ant_texture: Texture2D, direction: String) -> void:
 	var size := ant_texture.get_size() * (_ant_size * ant.size_multiplier / ant_texture.get_width())
 	var top_left := spot - Vector2(size.x * 0.5, size.y * _foot_height(ant_texture))
-	var mouth := MOUTH_TOWARDS_SCREEN if direction.begins_with("s") else MOUTH_AWAY_FROM_SCREEN
+	var mouth: Vector2 = MOUTHS[direction.replace("w", "e")]
 	if direction.ends_with("w"):
 		mouth.x = 1.0 - mouth.x
 	var crumb := _crumb_size * sqrt(ant.carried_food)
