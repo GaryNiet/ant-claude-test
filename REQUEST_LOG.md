@@ -14,7 +14,8 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
   so not right now. It can be connected at claude.ai/customize/connectors, then a new session
   is needed. No code change.
 
-**Commits:** _(filled in below once committed)_
+**Commits:**
+- `5fe4307` — Log request #16 (Outlook question)
 
 ---
 
