@@ -199,10 +199,9 @@ func _pick_tool(tool: int) -> void:
 	_brush.selected_tool = tool
 
 
-## The Trail tool also shows the trails, so the player sees what they draw.
+## (The trails the player draws are always shown, see drawn_trail_layer.gd.)
 func _pick_trail() -> void:
 	_brush.selected_tool = _brush.Tool.TRAIL
-	_view.set_pheromones_visible(true)
 
 
 func _pick_object(kind: String) -> void:

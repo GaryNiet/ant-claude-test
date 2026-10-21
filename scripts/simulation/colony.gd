@@ -8,7 +8,8 @@ extends RefCounted
 ## fight ants of other teams. Ants only follow their own colony's trails.
 ##
 ## Hatching: the nest turns stored food into larvae. Larvae wait in the nest until they are
-## hatched (by the player, or automatically with infinite hatch); hatching takes hatch_time.
+## hatched (by the player, or automatically with infinite hatch). Hatching larvae wait in a
+## queue and hatch one after the other, each taking hatch_time.
 
 var index: int            ## position in the simulation's list of colonies (also its trails)
 var name: String
@@ -31,7 +32,8 @@ var founded_time := 0.0   ## when the colony started (its first ants emerge from
 var ant_count := 0        ## living ants of this colony
 var food_stored := 0      ## food in the nest, for larvae and upgrades
 var larvae := 0           ## larvae stored, waiting to hatch
-var hatching: Array[float] = []   ## seconds left for each larva that is hatching
+var hatching := 0                 ## larvae in the hatching queue (the first one is hatching now)
+var hatch_time_left := 0.0        ## seconds until the first larva in the queue hatches
 var infinite_hatch := false       ## hatch every larva as soon as it's laid
 var nests_to_found := 0           ## Nuptial flights bought but not placed yet
 var time_until_larva := 0.0
@@ -90,24 +92,34 @@ func larva_interval(tree: TechTree) -> float:
 	return _larva_interval / (1.0 + bonus)
 
 
-## Starts hatching up to `count` stored larvae. Returns how many started.
+## Puts up to `count` stored larvae in the hatching queue. Returns how many were added.
 func hatch(count: int) -> int:
-	var started := mini(count, larvae)
-	for larva in started:
-		hatching.append(_hatch_time)
-	larvae -= started
-	return started
+	var added := mini(count, larvae)
+	if hatching == 0 and added > 0:
+		hatch_time_left = _hatch_time  # the queue was empty: the first one starts now
+	hatching += added
+	larvae -= added
+	return added
 
 
-## Advances the larvae being hatched; returns how many are ready to become ants.
+## Advances the larva that is hatching; returns 1 when it is ready to become an ant (then
+## the next one in the queue starts), otherwise 0.
 func update_hatching(delta: float) -> int:
-	var ready := 0
-	for number in range(hatching.size() - 1, -1, -1):
-		hatching[number] -= delta
-		if hatching[number] <= 0.0:
-			hatching.remove_at(number)
-			ready += 1
-	return ready
+	if hatching == 0:
+		return 0
+	hatch_time_left -= delta
+	if hatch_time_left > 0.0:
+		return 0
+	hatching -= 1
+	hatch_time_left = _hatch_time if hatching > 0 else 0.0
+	return 1
+
+
+## How far the larva that is hatching now is (0 = just started, 1 = hatching).
+func hatch_progress() -> float:
+	if hatching == 0:
+		return 0.0
+	return 1.0 - hatch_time_left / _hatch_time
 
 
 ## Mushroom harvest: free food trickles in (`food_per_minute`); whole units go to the store.

@@ -14,7 +14,22 @@ static func make() -> Theme:
 	theme.set_stylebox("panel", "PanelContainer", background)
 	theme.set_color("font_color", "Label", GameSettings.get_color("colors", "hud_text"))
 	_add_button_styles(theme)
+	_add_progress_bar_styles(theme)
 	return theme
+
+
+## Progress bars: a dark groove that fills with ochre.
+static func _add_progress_bar_styles(theme: Theme) -> void:
+	var groove := StyleBoxFlat.new()
+	groove.bg_color = GameSettings.get_color("ui", "button_pressed_color")
+	groove.border_color = GameSettings.get_color("ui", "button_border_color")
+	groove.set_border_width_all(1)
+	groove.set_corner_radius_all(GameSettings.get_setting("ui", "button_corner_radius"))
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = GameSettings.get_color("ui", "progress_color")
+	fill.set_corner_radius_all(GameSettings.get_setting("ui", "button_corner_radius"))
+	theme.set_stylebox("background", "ProgressBar", groove)
+	theme.set_stylebox("fill", "ProgressBar", fill)
 
 
 static func _add_button_styles(theme: Theme) -> void:

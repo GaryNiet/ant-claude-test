@@ -22,7 +22,7 @@ debug buttons (fit map, debug view, trails) and all the data (level, selection, 
 | Food, Obstacles, Terrain | The tools turn into that page, one button per item showing the item itself (blueberry, strawberry, larva...; rock, twig, tree trunk...; dirt, grass, water). **Backspace** or Back returns |
 | Left mouse | Use the tool: inspect anything, place one object per click, paint terrain, erase, move the nest |
 | Right mouse | Erase objects under the brush (any tool) |
-| **7** or Trail (building tools) | Hold to draw a food trail our ants follow: draw from the nest towards where they should go (it gets stronger along the stroke and fades like any trail) |
+| **7** or Trail (building tools) | Hold to draw a food trail our ants follow: draw from the nest towards where they should go (it gets stronger along the stroke and fades like any trail). Your drawn trails always show, in pale yellow, even with the trails display off |
 | **[** / **]** or **-** / **=** | Brush size |
 | Mouse wheel | Zoom (towards the mouse) |
 | Middle mouse drag, arrows or **WASD** | Move the map |
@@ -46,7 +46,9 @@ colony (a bigger hill with 3 entrances past ~160 ants); mossy patches on the dir
 Ants carrying food hold a crumb. Dead ants lie on their back and fade away.
 
 **Larvae and hatching:** the nest turns stored food into larvae (8 food each). You decide when they
-hatch (Hatch 1 / Hatch 5, or Hatch all to hatch every larva as it's laid); hatching takes 6 seconds.
+hatch (Hatch 1 / Hatch 5, or Hatch all to hatch every larva as it's laid). They hatch one after the
+other, 3 seconds each; the bar next to the hatch buttons shows how many are in the queue and fills
+until the next ant pops out.
 
 **Maturity:** like ages in Age of Empires. A colony reaches maturity 2 at 200 ants (it never goes
 back); maturity unlocks more of the tech tree. Levels are in `[maturity]`.

@@ -1,11 +1,12 @@
 extends PanelContainer
 ## The gameplay bar under the map:
 ##
-##   Pause | Hatch 1, Hatch 5, Infinite hatch | Behaviour, Tech tree | food, ants, maturity,
-##   larvae | Menu
+##   Pause | Hatch 1, Hatch 5, Infinite hatch, hatching queue | Behaviour, Tech tree | food,
+##   ants, maturity, larvae | Menu
 ##
-## The hatch buttons start hatching stored larvae (Infinite hatch is a toggle: every larva
-## hatches as soon as it is laid). Behaviour opens sliders for the colony's ants; Tech tree
+## The hatch buttons put stored larvae in the hatching queue (Infinite hatch is a toggle:
+## every larva joins the queue as soon as it is laid). Larvae hatch one after the other: the
+## queue shows how many are waiting and a bar that fills until the next ant pops out. Behaviour opens sliders for the colony's ants; Tech tree
 ## opens the upgrades. They act on our colony, or on a rival colony while its nest is
 ## selected (see SimulationView.target_colony). The Menu button opens: Restart level,
 ## Save level, Load level, Settings, Main menu.
@@ -27,6 +28,8 @@ var _view: Node2D
 var _main: Node
 var _pause_button: Button
 var _infinite_button: Button
+var _hatching_label: Label
+var _hatching_bar: ProgressBar
 var _status: Label
 var _menu: PopupMenu
 var _behaviour_menu: PopupPanel
@@ -61,6 +64,7 @@ func setup(view: Node2D, main: Node, brush: Node2D) -> void:
 	_infinite_button.toggle_mode = true
 	_infinite_button.toggled.connect(func(on: bool) -> void: _view.target_colony().infinite_hatch = on)
 	row.add_child(_infinite_button)
+	row.add_child(_hatching_queue())
 	row.add_child(VSeparator.new())
 
 	_behaviour_menu = BehaviourMenu.new()
@@ -99,8 +103,28 @@ func _process(_delta: float) -> void:
 	var maturity_text := "Maturity %d" % colony.maturity
 	if next_level > 0:
 		maturity_text += " (next at %d ants)" % next_level
-	_status.text = "%s\nFood: %d   Ants: %d\n%s\nLarvae: %d stored, %d hatching" % [
-		colony.name, colony.food_stored, colony.ant_count, maturity_text, colony.larvae, colony.hatching.size()]
+	_status.text = "%s\nFood: %d   Ants: %d\n%s\nLarvae stored: %d" % [
+		colony.name, colony.food_stored, colony.ant_count, maturity_text, colony.larvae]
+	_hatching_bar.value = colony.hatch_progress()
+	if colony.hatching == 0:
+		_hatching_label.text = "Hatching\nnone"
+	else:
+		_hatching_label.text = "Hatching: %d\nnext in %.1f s" % [colony.hatching, colony.hatch_time_left]
+
+
+## "Hatching: 3 / next in 1.2 s" over a bar that fills while the current larva hatches.
+func _hatching_queue() -> VBoxContainer:
+	var column := VBoxContainer.new()
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	_hatching_label = Label.new()
+	_hatching_label.add_theme_font_size_override("font_size", _tool_font_size)
+	column.add_child(_hatching_label)
+	_hatching_bar = ProgressBar.new()
+	_hatching_bar.max_value = 1.0
+	_hatching_bar.show_percentage = false
+	_hatching_bar.custom_minimum_size = Vector2(GameSettings.get_setting("ui", "hatching_bar_width"), GameSettings.get_setting("ui", "progress_bar_height"))
+	column.add_child(_hatching_bar)
+	return column
 
 
 # --- The game menu ---------------------------------------------------------------------

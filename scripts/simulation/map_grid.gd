@@ -38,6 +38,10 @@ var fight := PackedFloat32Array()
 var food := PackedInt32Array()
 var obstacle := PackedByteArray()  ## 1 = obstacle, 0 = free
 var path_wear := PackedFloat32Array()
+## Trails the player drew (any colony), only to show them: the same strength as drawn, fading
+## like the real trail in going_home (which is what the ants smell).
+var drawn_trail := PackedFloat32Array()
+var drawn_trail_cells := 0  ## cells with some drawn trail left (0 = nothing to show)
 var unobstructed_wear: float  ## path wear from which a cell counts as unobstructed
 var _max_path_wear: float
 
@@ -77,6 +81,7 @@ func _init(columns: int, rows: int, cell_size_in_pixels: float, colonies: int) -
 	unobstructed_wear = GameSettings.get_setting("paths", "unobstructed_wear")
 	_max_path_wear = GameSettings.get_setting("paths", "max_wear")
 	path_wear.resize(width * height)
+	drawn_trail.resize(width * height)
 	going_out.resize(cell_count * colony_count)
 	going_home.resize(cell_count * colony_count)
 	fight.resize(width * height)
@@ -154,6 +159,9 @@ func raise_zone(kind: Kind, center: Vector2, radius: float, strength: float, col
 		if obstacle[index] == 0:
 			var slot := index + colony * cell_count
 			trail[slot] = maxf(trail[slot], minf(strength, max_strength))
+			if drawn_trail[index] == 0.0:
+				drawn_trail_cells += 1
+			drawn_trail[index] = maxf(drawn_trail[index], minf(strength, max_strength))
 
 
 ## Returns the strength of pheromone `kind` of `colony` at `world_position` (0 outside the map).
@@ -197,10 +205,22 @@ func decay(delta: float) -> void:
 	for index in range(first, last):
 		fight[index] *= fight_factor
 		path_wear[index] *= path_factor
+	if drawn_trail_cells > 0:
+		_fade_drawn_trail(first, last, factor)
 	for colony in colony_count:
 		for index in range(first + colony * cell_count, last + colony * cell_count):
 			going_out[index] *= factor
 			going_home[index] *= factor
+
+
+## Drawn trails fade like the pheromone; below detection they are gone.
+func _fade_drawn_trail(first: int, last: int, factor: float) -> void:
+	for index in range(first, last):
+		if drawn_trail[index] > 0.0:
+			drawn_trail[index] *= factor
+			if drawn_trail[index] < 0.05:
+				drawn_trail[index] = 0.0
+				drawn_trail_cells -= 1
 
 
 # --- Paths (unobstructed areas) ---------------------------------------------
@@ -235,6 +255,9 @@ func set_obstacle(index: int, is_blocked: bool) -> void:
 			going_home[index + colony * cell_count] = 0.0
 		fight[index] = 0.0
 		path_wear[index] = 0.0
+		if drawn_trail[index] > 0.0:
+			drawn_trail[index] = 0.0
+			drawn_trail_cells -= 1
 	obstacle[index] = 1 if is_blocked else 0
 	terrain_version += 1
 

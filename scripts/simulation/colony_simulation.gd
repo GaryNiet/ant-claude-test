@@ -293,8 +293,8 @@ func _lay_larvae(colony: Colony, delta: float) -> void:
 		colony.larvae += 1
 
 
-## Hatched larvae become ants (or wait, as larvae, while the map has max_ants).
-## With infinite hatch, every stored larva starts hatching right away.
+## Hatched larvae become ants (or wait, as larvae, while the map has max_ants). Larvae
+## hatch one after the other. With infinite hatch, every stored larva joins the queue.
 func _hatch_larvae(colony: Colony, delta: float) -> void:
 	if colony.infinite_hatch:
 		colony.hatch(colony.larvae)
@@ -326,7 +326,7 @@ func _grow_mushrooms(colony: Colony, delta: float) -> void:
 func _destroy(colony: Colony) -> void:
 	colony.destroyed = true
 	colony.larvae = 0
-	colony.hatching.clear()
+	colony.hatching = 0
 	for ant in ants:
 		if ant.colony == colony:
 			ant.hp = 0.0

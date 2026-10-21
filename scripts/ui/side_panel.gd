@@ -80,7 +80,7 @@ func _colony_stats(sim: ColonySimulation, colony: Colony) -> String:
 	var scouts := sim.count_scouts(colony)
 	var lines := PackedStringArray([
 		"Food stored in nest: %d   (a larva: %d food every %.1f s)" % [colony.food_stored, sim.food_per_larva, colony.larva_interval(sim.tech_tree)],
-		"Larvae: %d stored, %d hatching%s   Maturity: %d" % [colony.larvae, colony.hatching.size(), "  (hatch all)" if colony.infinite_hatch else "", colony.maturity],
+		"Larvae: %d stored, %d hatching%s   Maturity: %d" % [colony.larvae, colony.hatching, "  (hatch all)" if colony.infinite_hatch else "", colony.maturity],
 		"Upgrades owned: %d of %d   Nest health: %.0f / %.0f" % [colony.techs.size(), sim.tech_tree.nodes.size(), colony.hp, colony.max_hp],
 		"Food collected: %d   (%.2f per second)" % [colony.total_food_collected, colony.food_per_second(sim.elapsed_time)],
 		"Food left on map: %d" % sim.grid.total_food,
@@ -172,7 +172,7 @@ func _describe_nest(sim: ColonySimulation, colony: Colony) -> String:
 	return "\n".join(PackedStringArray([
 		"NEST of %s%s" % [colony.name, "" if colony.is_player else "  (the buttons below the map now act on this colony)"],
 		"Food stored: %d" % colony.food_stored,
-		"Next larva in %.1f s (needs %d food); %d larvae stored, %d hatching" % [maxf(colony.time_until_larva, 0.0), sim.food_per_larva, colony.larvae, colony.hatching.size()],
+		"Next larva in %.1f s (needs %d food); %d larvae stored, %d hatching" % [maxf(colony.time_until_larva, 0.0), sim.food_per_larva, colony.larvae, colony.hatching],
 		"Nest health: %.0f / %.0f%s" % [colony.hp, colony.max_hp, "  (DESTROYED)" if colony.destroyed else ""],
 		"Ants: %d" % colony.ant_count,
 		"Size: %.0f px radius, %d tiles (grows with the colony)" % [colony.nest_radius, sim.nest_tile_count(colony)],

@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/view/simulation_view.gd" id="2_view"]
@@ -14,6 +14,7 @@
 [ext_resource type="Script" path="res://scripts/view/sprite_layer.gd" id="12_sprites"]
 [ext_resource type="Script" path="res://scripts/view/path_layer.gd" id="13_paths"]
 [ext_resource type="Script" path="res://scripts/view/moss_layer.gd" id="14_moss"]
+[ext_resource type="Script" path="res://scripts/view/drawn_trail_layer.gd" id="15_drawn_trails"]
 
 [node name="Game" type="Node2D"]
 script = ExtResource("1_main")
@@ -34,6 +35,9 @@ script = ExtResource("13_paths")
 
 [node name="PheromoneLayer" type="Node2D" parent="SimulationView/MapSpace"]
 script = ExtResource("3_pheromones")
+
+[node name="DrawnTrailLayer" type="Node2D" parent="SimulationView/MapSpace"]
+script = ExtResource("15_drawn_trails")
 
 [node name="FoodLayer" type="Node2D" parent="SimulationView/MapSpace"]
 script = ExtResource("4_food")
