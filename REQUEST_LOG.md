@@ -4,6 +4,79 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #18 — 2026-10-21
+
+**Request** (sent by email, subject "[clod]"):
+> Now back to the ants project.
+>
+> Make the visualization launch into a main menu. The main menu has options to launch into level 1, level 2, or level 3. It also can go into a settings menu.
+>
+> settings menu will have the resolution options only for now.
+>
+> Make ants and enemies triangles like arrows, this will show their direction. The collision box can stay the same.
+>
+> Prepare the game to make it a tile based render. Choose a good ratio of level resolution to tile.
+>
+> here are possible tiles:
+> dirt
+> grass
+> water
+> Obstacle
+> Nest
+>
+> These can stay simple colors for now, but they'll be replaced by tiles as some point. Obviously there won't be a single tile of each, so it has to support different images. A dirt tile next to grass will have a transition within it for example.
+>
+> This creates a separation between what the ground is and what is on it. "food" is no longer a tile.
+>
+> I haven't tested since last night, but I would like to make sure that you implemented carrying food this way: you will see ants carry the block with them.
+>
+> The nest can grow. The more ants there are, the bigger the ants nest
+
+**Done:**
+- Main menu (`scenes/main_menu.tscn`, now the first scene): Level 1 (Meadow), Level 2 (Walled
+  valley), Level 3 (River crossing, new), Settings (resolution only) and Quit. Levels are listed
+  in `[menu] levels`. In the game, Escape or the "Menu" button goes back.
+- Ground and what's on it are separate now: the ground is a tile map (`ground_map.gd`: dirt,
+  grass, water, obstacle, nest), food and pheromones stay in the finer 8 px cells on top.
+  Ratio: 4 x 4 cells per tile = 32 px tiles (a usual tile image size; level 1 is 40 x 22 tiles).
+  Water and obstacles can't be walked on (`[ground] walkable`).
+- Tiles are plain colors for now. PNG files in `tiles/` replace them automatically, including
+  transitions: `dirt_grass_ne.png` = dirt with grass on its north and east sides, falling back
+  to `dirt.png`, then to the color (see `tiles/README.md`).
+- New tools: 6 Dirt, 7 Grass, 8 Water paint tiles (Obstacle too); Erase / right click remove food.
+- Level files store `tiles:` (one letter per tile) and `food:` (per cell). The two old levels
+  were converted (walls snapped to tiles; checked every food cell is still reachable).
+- Ants and enemies are drawn as arrows pointing where they go; collisions are unchanged.
+- Carrying food: before, an ant carrying food only turned orange. Now it also shows the green
+  food block in front of it (bigger when it carries more pieces).
+- The nest grows with the colony: about 32 square px per ant (100 ants = 32 px radius,
+  300 ants = 55 px), covering every tile whose center is inside; ants are "home" anywhere in it.
+- Tested headless in Godot 4.3: all 3 levels load and run, save/load gives the same map,
+  screenshots checked. Walled valley, 12 games x 5 minutes: ~257 food on average vs ~234
+  before the change (big random spread, 86 to 557), so no slowdown from the tiles.
+
+**Commits:**
+- `9679ed0` — Add main menu with 3 levels, tile-based ground, arrow-shaped ants and enemies, growing nest
+
+---
+
+## #17 — 2026-10-21
+
+**Request:**
+> Can you read my Gmail emails?
+> [...] I only want you to read my emails that are from Gary.nietlispach@eta.ch with the subject line starting with "[clod]"
+> [...] From now on I want you to consider any email that fits the criteria as a prompt I would have written here.
+
+**Done:**
+- Gmail is connected in this session. Only emails from Gary.nietlispach@eta.ch whose subject
+  starts with "[clod]" are read, and only when asked to check; each one is treated as a request
+  (#18 came this way). No code change.
+
+**Commits:**
+- none
+
+---
+
 ## #16 — 2026-10-21
 
 **Request:**
