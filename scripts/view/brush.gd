@@ -43,7 +43,7 @@ const TOOL_ACTIONS := {
 	Tool.WATER: "tool_water",
 }
 
-@onready var view: Node2D = get_parent()
+@onready var view: Node2D = get_parent().get_parent()  ## SimulationView (the parent is its MapSpace)
 
 var selected_tool := Tool.INSPECT
 var radius: float = GameSettings.get_setting("painting", "brush_radius")

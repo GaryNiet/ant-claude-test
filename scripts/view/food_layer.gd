@@ -1,9 +1,10 @@
 extends Node2D
 ## Draws the food lying on the ground: one pixel per map cell, stretched over the map with
 ## sharp edges. Food cells get more opaque the more food they hold. Only redrawn when the
-## food changed. (The ground itself is drawn by the ground layer.)
+## food or the view changed. The isometric view draws it in its own color (seeds and crumbs).
+## (The ground itself is drawn by the ground layer.)
 
-@onready var view: Node2D = get_parent()
+@onready var view: Node2D = get_parent().get_parent()  ## SimulationView (the parent is its MapSpace)
 
 var _image: Image
 var _texture: ImageTexture
@@ -11,13 +12,15 @@ var _pixels := PackedByteArray()
 var _drawn_version := -1
 var _drawn_simulation: ColonySimulation
 
-var _food_color: Color = GameSettings.get_color("colors", "food")
+var _debug_food_color: Color = GameSettings.get_color("colors", "food")
+var _iso_food_color: Color = GameSettings.get_color("iso_view", "food_color")
 var _full_food: float = GameSettings.get_setting("display", "food_full_opacity")
 var _faintest_food: float = GameSettings.get_setting("display", "food_min_opacity")
 
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	view.view_mode_changed.connect(func() -> void: _drawn_version = -1)
 
 
 func _process(_delta: float) -> void:
@@ -36,7 +39,7 @@ func _update_texture(grid: MapGrid) -> void:
 	for index in grid.food.size():
 		var color := Color.TRANSPARENT
 		if grid.food[index] > 0:
-			color = _food_color
+			color = _iso_food_color if view.is_iso_view else _debug_food_color
 			color.a = lerpf(_faintest_food, 1.0, minf(grid.food[index] / _full_food, 1.0))
 		_pixels[index * 4] = color.r8
 		_pixels[index * 4 + 1] = color.g8

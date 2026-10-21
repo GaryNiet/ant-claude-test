@@ -1,6 +1,7 @@
 extends PanelContainer
 ## The bar at the top of the window: painting tools, brush size, pause/restart,
-## save/load level, "fit map" to reset the zoom, the settings menu and back to the main menu.
+## save/load level, "fit map" to reset the zoom, switch between the isometric and debug views,
+## the settings menu and back to the main menu.
 
 var _view: Node2D
 var _brush: Node2D
@@ -8,6 +9,7 @@ var _main: Node
 var _tool_buttons := {}       ## Brush.Tool -> Button
 var _brush_size_label: Label
 var _pause_button: Button
+var _view_button: Button
 
 
 ## Builds the buttons. Called by main.gd once everything exists.
@@ -39,6 +41,8 @@ func setup(view: Node2D, brush: Node2D, main: Node) -> void:
 	row.add_child(_pause_button)
 	row.add_child(_button("Restart", _view.restart_level))
 	row.add_child(_button("Fit map", _view.fit_map_to_area))
+	_view_button = _button("", func() -> void: _view.set_iso_view(not _view.is_iso_view))
+	row.add_child(_view_button)
 
 	row.add_child(VSeparator.new())
 	row.add_child(_button("Save level", _main.open_save_dialog))
@@ -54,6 +58,8 @@ func _process(_delta: float) -> void:
 		return
 	_brush_size_label.text = "%d" % _brush.radius
 	_pause_button.text = "Resume" if _view.is_paused else "Pause"
+	var view_key := ", ".join(GameSettings.get_list("controls", "toggle_view"))
+	_view_button.text = "%s view (%s)" % ["Debug" if _view.is_iso_view else "Iso", view_key]
 	_tool_buttons[_brush.selected_tool].button_pressed = true  # follows keyboard shortcuts too
 
 

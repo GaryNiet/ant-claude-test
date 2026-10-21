@@ -65,7 +65,7 @@ func _colony_stats(sim: ColonySimulation) -> String:
 		lines.append("    %s: %d" % [_mode_name(mode), sim.count_ants_in_mode(mode)])
 	lines.append("Born: %d   killed by enemies: %d   died of old age: %d" % [sim.ants_born, sim.ants_killed, sim.ants_died_of_old_age])
 	lines.append("")
-	lines.append("Enemies: %d here, %d killed, %d escaped (ate %d food)" % [sim.enemies.size(), sim.enemies_killed, sim.enemies_escaped, sim.food_eaten_by_enemies])
+	lines.append("Spiders: %d here, %d killed, %d escaped (ate %d food)" % [sim.enemies.size(), sim.enemies_killed, sim.enemies_escaped, sim.food_eaten_by_enemies])
 	return "\n".join(lines)
 
 
@@ -126,12 +126,12 @@ func _will_description(ant: Ant) -> String:
 
 func _describe_enemy(enemy: Enemy) -> String:
 	if enemy.is_dead():
-		return "This enemy was killed and turned into food."
+		return "This spider was killed and turned into food."
 	if enemy.has_left_the_map:
-		return "This enemy escaped with %d food." % enemy.food_eaten
+		return "This spider escaped with %d food." % enemy.food_eaten
 	var state_name: String = Enemy.State.keys()[enemy.state].capitalize()
 	return "\n".join(PackedStringArray([
-		"ENEMY",
+		"SPIDER (enemy)",
 		"Doing: %s%s" % [state_name, " (fighting %d ants)" % enemy.ants_in_contact.size() if not enemy.ants_in_contact.is_empty() else ""],
 		"Health: %.0f / %.0f" % [enemy.hp, enemy.max_hp],
 		"Food eaten: %d" % enemy.food_eaten,

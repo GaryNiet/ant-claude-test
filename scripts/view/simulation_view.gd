@@ -1,10 +1,19 @@
 extends Node2D
-## Runs the simulation at a fixed rate, loads levels, and handles the camera (zoom and pan)
-## and selection (what the player clicked on). The drawing itself is done by the child
-## layers (pheromones, terrain, ants, brush).
+## Runs the simulation at a fixed rate, loads levels, and handles the camera (zoom and pan),
+## the two views and selection (what the player clicked on). The drawing itself is done by
+## the layers.
+##
+## Two views of the same map:
+##   isometric (default)  the map is seen at an angle: the ground is turned and squashed,
+##                        ants, spiders, rocks and the nest are drawn as sprites
+##   debug                the flat top-down view with simple shapes and colors
+## The map layers live in the MapSpace child, whose transform is the projection (none in the
+## debug view), so they draw in map pixels in both views. The sprite layer draws on top,
+## upright, at the projected positions.
 
 signal stepped        ## emitted after one or more simulation ticks ran this frame
 signal level_loaded   ## emitted after a level was loaded (or restarted)
+signal view_mode_changed  ## emitted when switching between the isometric and debug views
 
 const SELECTED_NEST := "nest"  ## value of `selection` when the nest is selected
 
@@ -14,6 +23,11 @@ var is_paused := false
 var play_time := 0.0          ## seconds played on this level; stops while paused
 ## What the player clicked on: an Ant, an Enemy, SELECTED_NEST, a Vector2i cell, or null.
 var selection: Variant = null
+var is_iso_view := false
+
+@onready var map_space: Node2D = $MapSpace
+@onready var _debug_shapes: Node2D = $MapSpace/AntLayer
+@onready var _sprites: Node2D = $SpriteLayer
 
 var _tick_length: float
 var _max_ticks_per_frame: int
@@ -31,6 +45,10 @@ var _side_panel_width: float = GameSettings.get_setting("ui", "side_panel_width"
 var _fit_zoom := 1.0           ## zoom at which the whole map fits the map area
 var _needs_fit := true
 
+# Isometric projection
+var _iso_rotation: float = deg_to_rad(GameSettings.get_setting("iso_view", "rotation_degrees"))
+var _iso_squash: float = GameSettings.get_setting("iso_view", "vertical_squash")
+
 
 # Done in _enter_tree (not _ready) so the simulation exists before the child layers start:
 # Godot readies children before their parent.
@@ -41,6 +59,28 @@ func _enter_tree() -> void:
 	if not load_level(GameSession.current_level_path()):
 		push_error("Could not load the level %s; check [menu] levels" % GameSession.current_level_path())
 	get_viewport().size_changed.connect(func() -> void: _needs_fit = true)
+
+
+func _ready() -> void:
+	set_iso_view(GameSettings.get_setting("iso_view", "start_in_iso_view"))
+
+
+## Switches between the isometric view (true) and the flat debug view (false).
+func set_iso_view(iso: bool) -> void:
+	is_iso_view = iso
+	map_space.transform = projection()
+	_debug_shapes.visible = not iso
+	_sprites.visible = iso
+	_needs_fit = true
+	view_mode_changed.emit()
+
+
+## How map pixels are placed on screen (before zoom and pan): in the isometric view the map
+## is turned by rotation_degrees, then squashed vertically by vertical_squash.
+func projection() -> Transform2D:
+	if not is_iso_view:
+		return Transform2D.IDENTITY
+	return Transform2D(_iso_rotation, Vector2.ZERO).scaled(Vector2(1.0, _iso_squash))
 
 
 ## Starts a new game on the level stored in `path`. Returns false if it can't be read.
@@ -72,10 +112,20 @@ func map_area() -> Rect2:
 ## Zooms so the whole map fits the map area, centered.
 func fit_map_to_area() -> void:
 	var area := map_area()
-	var map_size := simulation.grid.world_size()
-	_fit_zoom = minf(area.size.x / map_size.x, area.size.y / map_size.y)
+	var bounds := _projected_map_bounds()
+	_fit_zoom = minf(area.size.x / bounds.size.x, area.size.y / bounds.size.y)
 	scale = Vector2(_fit_zoom, _fit_zoom)
-	position = area.position + (area.size - map_size * _fit_zoom) / 2.0
+	position = area.get_center() - bounds.get_center() * _fit_zoom
+
+
+## The rectangle the map covers once projected (a diamond's bounding box in the iso view).
+func _projected_map_bounds() -> Rect2:
+	var map_size := simulation.grid.world_size()
+	var corners := [Vector2.ZERO, Vector2(map_size.x, 0.0), map_size, Vector2(0.0, map_size.y)]
+	var bounds := Rect2(map_space.transform * corners[0], Vector2.ZERO)
+	for corner in corners:
+		bounds = bounds.expand(map_space.transform * corner)
+	return bounds
 
 
 func _process(delta: float) -> void:
@@ -94,6 +144,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		is_paused = not is_paused
 	elif event.is_action_pressed("restart"):
 		restart_level()
+	elif event.is_action_pressed("toggle_view"):
+		set_iso_view(not is_iso_view)
 	elif event.is_action_pressed("zoom_in"):
 		_zoom_at(get_viewport().get_mouse_position(), _zoom_step)
 	elif event.is_action_pressed("zoom_out"):

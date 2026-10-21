@@ -1,17 +1,20 @@
 class_name TileArt
 extends RefCounted
-## Finds the image to draw for a ground tile. Until images exist, tiles are plain colors.
+## Finds the image to draw for a ground tile (the plain colors are used in the debug view,
+## or when there is no image).
 ##
 ## Images are PNG files in [ground] tile_image_folder, named after the tile type and,
 ## optionally, the transition to a neighbouring type (see tiles/README.md):
 ##     dirt_grass_ne.png   dirt tile with grass on its north and east sides
 ##     dirt.png            any other dirt tile
-## The most specific image that exists is used; if none does, the tile is drawn in its
-## [colors] color. Lookups are remembered, so checking for files only happens once per name.
+## Any image can have variants: dirt.png, dirt_2.png, dirt_3.png... Each tile always uses
+## the same variant (picked from its position), so the ground doesn't look repetitive.
+## The most specific image that exists is used. Lookups are remembered, so checking for
+## files only happens once per name.
 
 var _folder: String = GameSettings.get_setting("ground", "tile_image_folder")
 var _colors := {}        ## GroundMap.Type -> Color
-var _textures := {}      ## image name -> Texture2D, or null when there is no such file
+var _variants := {}      ## image name -> Array of textures (empty when there is no such file)
 
 
 func _init() -> void:
@@ -27,15 +30,28 @@ func color_of(type: GroundMap.Type) -> Color:
 func texture_for(ground: GroundMap, column: int, row: int) -> Texture2D:
 	var type_name: String = GroundMap.TYPE_NAMES[ground.type_at(column, row)]
 	var transition := ground.transition(column, row)
+	var choices: Array = []
 	if transition[0] != "":
-		var with_transition := _texture("%s_%s_%s" % [type_name, transition[0], transition[1]])
-		if with_transition != null:
-			return with_transition
-	return _texture(type_name)
+		choices = _textures("%s_%s_%s" % [type_name, transition[0], transition[1]])
+	if choices.is_empty():
+		choices = _textures(type_name)
+	if choices.is_empty():
+		return null
+	return choices[_variant_number(column, row) % choices.size()]
 
 
-func _texture(image_name: String) -> Texture2D:
-	if not _textures.has(image_name):
+## A number that looks random but is always the same for the same tile.
+func _variant_number(column: int, row: int) -> int:
+	return absi(hash(Vector2i(column, row)))
+
+
+## `image_name`.png plus its variants _2, _3... that exist (empty if none).
+func _textures(image_name: String) -> Array:
+	if not _variants.has(image_name):
+		var found: Array = []
 		var path := "%s/%s.png" % [_folder, image_name]
-		_textures[image_name] = load(path) if ResourceLoader.exists(path) else null
-	return _textures[image_name]
+		while ResourceLoader.exists(path):
+			found.append(load(path))
+			path = "%s/%s_%d.png" % [_folder, image_name, found.size() + 1]
+		_variants[image_name] = found
+	return _variants[image_name]

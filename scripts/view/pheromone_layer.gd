@@ -2,8 +2,9 @@ extends Node2D
 ## Draws the three pheromones as a colored glow: one pixel per map cell, stretched over the
 ## map with smoothing, the colors added together (pink where going out and home overlap).
 ## The glow is added on top of the ground (black = no pheromone = ground unchanged).
+## It is fainter in the isometric view, so the ground art stays readable.
 
-@onready var view: Node2D = get_parent()
+@onready var view: Node2D = get_parent().get_parent()  ## SimulationView (the parent is its MapSpace)
 
 var _image: Image
 var _texture: ImageTexture
@@ -13,6 +14,7 @@ var _going_out_color: Color = GameSettings.get_color("colors", "going_out_pherom
 var _going_home_color: Color = GameSettings.get_color("colors", "going_home_pheromone")
 var _fight_color: Color = GameSettings.get_color("colors", "fight_pheromone")
 var _full_brightness: float = GameSettings.get_setting("display", "pheromone_full_brightness")
+var _iso_opacity: float = GameSettings.get_setting("iso_view", "pheromone_opacity")
 
 
 func _ready() -> void:
@@ -20,6 +22,7 @@ func _ready() -> void:
 	glow.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	material = glow
 	view.stepped.connect(_update_texture)
+	view.view_mode_changed.connect(func() -> void: modulate.a = _iso_opacity if view.is_iso_view else 1.0)
 	_update_texture()
 
 

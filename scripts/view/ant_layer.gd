@@ -1,10 +1,11 @@
 extends Node2D
-## Draws the nest entrance, the ants and the enemies, and a ring around whatever the player
-## selected. Ants and enemies are arrows pointing where they are heading (only the drawing:
+## Debug view only: draws the nest entrance, the ants and the enemies (spiders) as simple
+## shapes. Ants and enemies are arrows pointing where they are heading (only the drawing:
 ## their collision size stays a circle). An ant carrying food holds the food block in front
-## of it. (The nest tiles themselves are drawn by the ground layer.)
+## of it. (The nest tiles are drawn by the ground layer; the isometric view uses the
+## sprite layer instead of this one.)
 
-@onready var view: Node2D = get_parent()
+@onready var view: Node2D = get_parent().get_parent()  ## SimulationView (the parent is its MapSpace)
 
 var _nest_entrance_color: Color = GameSettings.get_color("colors", "nest_entrance")
 var _ant_color: Color = GameSettings.get_color("colors", "ant")
@@ -25,7 +26,6 @@ var _enemy_length: float = GameSettings.get_setting("display", "enemy_length")
 var _enemy_width: float = GameSettings.get_setting("display", "enemy_width")
 var _food_block_size: float = GameSettings.get_setting("display", "carried_food_block_size")
 var _nest_entrance_radius: float = GameSettings.get_setting("display", "nest_entrance_radius")
-var _selection_color: Color = GameSettings.get_color("display", "selection_color")
 
 
 func _process(_delta: float) -> void:
@@ -39,23 +39,6 @@ func _draw() -> void:
 		_draw_ant(ant)
 	for enemy in simulation.enemies:
 		_draw_enemy(enemy)
-	_draw_selection(simulation)
-
-
-## A ring around the selected ant / enemy / nest, or a square around the selected cell.
-## Lines are kept 1 screen pixel thick whatever the zoom.
-func _draw_selection(simulation: ColonySimulation) -> void:
-	var line_width := 1.5 / view.scale.x
-	var selected: Variant = view.selection
-	if selected is Ant and not selected.is_dead():
-		draw_arc(selected.position, _ant_length, 0.0, TAU, 24, _selection_color, line_width)
-	elif selected is Enemy and not selected.is_dead() and not selected.has_left_the_map:
-		draw_arc(selected.position, _enemy_radius * 1.5, 0.0, TAU, 32, _selection_color, line_width)
-	elif selected is String and selected == view.SELECTED_NEST:
-		draw_arc(simulation.nest_position, simulation.nest_radius, 0.0, TAU, 48, _selection_color, line_width)
-	elif selected is Vector2i:
-		var cell_size := simulation.grid.cell_size
-		draw_rect(Rect2(Vector2(selected) * cell_size, Vector2(cell_size, cell_size)), _selection_color, false, line_width)
 
 
 func _draw_ant(ant: Ant) -> void:

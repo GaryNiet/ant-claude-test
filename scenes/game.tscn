@@ -1,15 +1,17 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/view/simulation_view.gd" id="2_view"]
 [ext_resource type="Script" path="res://scripts/view/pheromone_layer.gd" id="3_pheromones"]
 [ext_resource type="Script" path="res://scripts/view/food_layer.gd" id="4_food"]
-[ext_resource type="Script" path="res://scripts/view/ground_layer.gd" id="10_ground"]
 [ext_resource type="Script" path="res://scripts/view/ant_layer.gd" id="5_ants"]
 [ext_resource type="Script" path="res://scripts/view/brush.gd" id="6_brush"]
 [ext_resource type="Script" path="res://scripts/ui/toolbar.gd" id="7_toolbar"]
 [ext_resource type="Script" path="res://scripts/ui/side_panel.gd" id="8_side_panel"]
 [ext_resource type="Script" path="res://scripts/ui/settings_menu.gd" id="9_settings"]
+[ext_resource type="Script" path="res://scripts/view/ground_layer.gd" id="10_ground"]
+[ext_resource type="Script" path="res://scripts/view/selection_layer.gd" id="11_selection"]
+[ext_resource type="Script" path="res://scripts/view/sprite_layer.gd" id="12_sprites"]
 
 [node name="Game" type="Node2D"]
 script = ExtResource("1_main")
@@ -17,20 +19,29 @@ script = ExtResource("1_main")
 [node name="SimulationView" type="Node2D" parent="."]
 script = ExtResource("2_view")
 
-[node name="GroundLayer" type="Node2D" parent="SimulationView"]
+[node name="MapSpace" type="Node2D" parent="SimulationView"]
+
+[node name="GroundLayer" type="Node2D" parent="SimulationView/MapSpace"]
 script = ExtResource("10_ground")
 
-[node name="PheromoneLayer" type="Node2D" parent="SimulationView"]
+[node name="PheromoneLayer" type="Node2D" parent="SimulationView/MapSpace"]
 script = ExtResource("3_pheromones")
 
-[node name="FoodLayer" type="Node2D" parent="SimulationView"]
+[node name="FoodLayer" type="Node2D" parent="SimulationView/MapSpace"]
 script = ExtResource("4_food")
 
-[node name="AntLayer" type="Node2D" parent="SimulationView"]
+[node name="AntLayer" type="Node2D" parent="SimulationView/MapSpace"]
 script = ExtResource("5_ants")
 
-[node name="Brush" type="Node2D" parent="SimulationView"]
+[node name="SelectionLayer" type="Node2D" parent="SimulationView/MapSpace"]
+script = ExtResource("11_selection")
+
+[node name="Brush" type="Node2D" parent="SimulationView/MapSpace"]
+z_index = 1
 script = ExtResource("6_brush")
+
+[node name="SpriteLayer" type="Node2D" parent="SimulationView"]
+script = ExtResource("12_sprites")
 
 [node name="UI" type="CanvasLayer" parent="."]
 
