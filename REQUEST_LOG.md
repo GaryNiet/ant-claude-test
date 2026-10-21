@@ -4,6 +4,24 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #25 — 2026-10-21
+
+**Request:**
+> when I run the game, it plays in a little window how do I make it play at the right resolution?
+
+**Done:**
+- Answered: with Godot 4.4+, F5 runs the game embedded in the editor's Game tab (the editor
+  decides its size); untick "Embed Game on Next Play" in the Game tab to get a real window.
+- project.godot now sets the window size (1920x1080, laid out at 1600x900, 16:9 scaling), so the
+  game opens at the right size instead of Godot's default 1152x648 window.
+- Fullscreen: checkbox in Settings and F11, remembered between games (`default_fullscreen`).
+- README: note about the embedded Game tab, F11.
+
+**Commits:**
+- `c36d9cf` — Open at 1920x1080 from the start; fullscreen option (Settings, F11)
+
+---
+
 ## #24 — 2026-10-21
 
 **Request** (sent by email, subject "[clod]"):
