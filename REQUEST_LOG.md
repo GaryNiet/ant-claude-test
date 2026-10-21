@@ -4,6 +4,29 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #26 — 2026-10-21
+
+**Request:**
+> okay got it. I'm testing for the first time of the day.
+>
+> visually, creature will need sprites for when they walk straight up or down
+>
+> the an nest looks good but give it a rounded bottom, it cuts off too abruptly
+
+**Done:**
+- Ants, majors, rival ants and spiders have 2 more directions: seen from the front (walking
+  straight down the screen, towards the viewer) and from behind (straight up), each with the
+  2-frame walk. They are used when the creature walks within 22.5 degrees of straight up or down
+  (`[iso_view] straight_direction_angle`); otherwise the 4 diagonal sprites as before.
+- Ant hill: its base is now a deeper rounded ellipse that ends at the ground line. Before, the
+  bottom of the base went past the bottom of the image and was cut off flat.
+- Checked in game screenshots (close-up of the nest with ants walking in all directions).
+
+**Commits:**
+- `48e6cc9` — Ants and spiders: front and back sprites for walking straight up/down; rounded ant hill base
+
+---
+
 ## #25 — 2026-10-21
 
 **Request:**
