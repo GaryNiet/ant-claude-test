@@ -23,6 +23,9 @@ var food_eaten := 0
 var has_left_the_map := false
 var poison_time_left := 0.0     ## Corrosive sting (ants' upgrade): seconds of poison left
 var poison_damage_per_second := 0.0
+var poison_team := -1           ## team of the ant that poisoned it
+var damage_to_show := 0.0       ## damage taken since the simulation last reported it (damage numbers)
+var damage_attacker_team := -1  ## team of whoever hurt it last (-1 = a spider)
 var ants_in_contact: Array[Ant] = []  ## filled by the simulation every tick
 
 var _settings: EnemySettings
@@ -43,14 +46,18 @@ func is_dead() -> bool:
 	return hp <= 0.0
 
 
-func take_damage(amount: float) -> void:
+## Called when an ant hits the spider.
+func take_damage(amount: float, attacker: Ant) -> void:
 	hp -= amount
+	damage_to_show += amount
+	damage_attacker_team = attacker.colony.team
 
 
 ## Corrosive sting: loses `damage_per_second` health for `duration` seconds.
-func poison(damage_per_second: float, duration: float) -> void:
+func poison(damage_per_second: float, duration: float, team: int) -> void:
 	poison_damage_per_second = damage_per_second
 	poison_time_left = duration
+	poison_team = team
 
 
 ## Advances the enemy by one tick of `delta` seconds.
@@ -59,6 +66,8 @@ func update(sim: ColonySimulation, delta: float) -> void:
 	if poison_time_left > 0.0:
 		poison_time_left -= delta
 		hp -= poison_damage_per_second * delta
+		damage_to_show += poison_damage_per_second * delta
+		damage_attacker_team = poison_team
 	_time_in_state += delta
 	if not ants_in_contact.is_empty():
 		_fight(sim, delta)

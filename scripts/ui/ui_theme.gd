@@ -72,6 +72,7 @@ static func add_click_animation(button: Button) -> void:
 	var click_time: float = GameSettings.get_setting("ui", "click_time")
 	button.resized.connect(func() -> void: button.pivot_offset = button.size / 2.0)
 	button.button_down.connect(func() -> void:
+		Sounds.play("click")
 		button.create_tween().tween_property(button, "scale", Vector2.ONE * click_scale, click_time))
 	button.button_up.connect(func() -> void:
 		button.create_tween().tween_property(button, "scale", Vector2.ONE, click_time))

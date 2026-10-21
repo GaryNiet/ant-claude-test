@@ -30,6 +30,10 @@ var ants: Array[Ant] = []    ## ants of all colonies
 var enemies: Array[Enemy] = []
 var enemy_settings := EnemySettings.new()
 var collisions: AntCollisions
+## Damage dealt since the view last took them (see take_damage_events): one entry per thing
+## hurt during a tick: {victim, position, amount, victim_team, attacker_team} (team -1 = spider).
+var damage_events: Array[Dictionary] = []
+var _max_damage_events: int = GameSettings.get_setting("damage_numbers", "max_waiting_events")
 
 var _nest_min_radius: float = GameSettings.get_setting("nest", "radius")
 var _nest_area_per_ant: float = GameSettings.get_setting("nest", "area_per_ant")
@@ -38,6 +42,7 @@ var _nest_sized_for := {}    ## colony index -> ant count its nest was last size
 # Statistics
 var elapsed_time := 0.0
 var enemies_killed := 0
+var enemies_arrived := 0
 var enemies_escaped := 0
 var food_eaten_by_enemies := 0
 
@@ -118,6 +123,7 @@ func step(delta: float) -> void:
 	for pair in collisions.rival_contacts:
 		pair[0].touch_rival(pair[1])
 		pair[1].touch_rival(pair[0])
+	_report_damage()
 	_remove_the_dead()
 	_fade_dead_ants(delta)
 	_handle_enemy_contacts()
@@ -540,6 +546,35 @@ func _handle_enemy_contacts() -> void:
 			ant.touch_enemy(self, enemy)
 
 
+## Records the damage every ant, spider and nest took this tick (for the damage numbers).
+## Nobody may be reading them (no view): then the oldest are dropped.
+func _report_damage() -> void:
+	var hurt: Array[Object] = []
+	for ant in ants:
+		if ant.damage_to_show > 0.0:
+			hurt.append(ant)
+	for enemy in enemies:
+		if enemy.damage_to_show > 0.0:
+			hurt.append(enemy)
+	for colony in colonies:
+		if colony.damage_to_show > 0.0:
+			hurt.append(colony)
+	for thing in hurt:
+		var victim_team: int = thing.team if thing is Colony else (thing.colony.team if thing is Ant else -1)
+		damage_events.append({victim = thing, position = thing.position, amount = thing.damage_to_show,
+			victim_team = victim_team, attacker_team = thing.damage_attacker_team})
+		thing.damage_to_show = 0.0
+	if damage_events.size() > _max_damage_events:
+		damage_events = damage_events.slice(damage_events.size() - _max_damage_events)
+
+
+## The damage dealt since the last call (see damage_events); the list is emptied.
+func take_damage_events() -> Array[Dictionary]:
+	var taken := damage_events
+	damage_events = []
+	return taken
+
+
 ## Dead ants lie on the ground for a while (with any food they carried lost); dead enemies
 ## become a dead spider food item;
 ## enemies that reached the edge on their way out are gone (with the food they ate).
@@ -602,6 +637,7 @@ func _spawn_enemy_at_edge() -> void:
 			var enemy := Enemy.new(spot, enemy_settings)
 			enemy.heading = (nearest_colony(spot).nest_position - spot).angle()
 			enemies.append(enemy)
+			enemies_arrived += 1
 			return
 
 

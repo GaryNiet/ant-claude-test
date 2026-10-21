@@ -23,6 +23,8 @@ var nest_radius: float    ## ants count as "home" inside this distance; grows wi
 var hp: float             ## nest health (rival ants attack a nest with no larvae left)
 var max_hp: float
 var destroyed := false
+var damage_to_show := 0.0       ## damage taken since the simulation last reported it (damage numbers)
+var damage_attacker_team := -1  ## team of whoever hurt it last
 var ant_settings := AntSettings.new()
 var techs := {}           ## tech tree node -> true when owned (shared with allied colonies)
 var maturity := 1         ## grows with the number of ants, never goes back
@@ -79,8 +81,10 @@ func is_dead() -> bool:
 
 
 ## Rival ants attacking the nest (when it has no larvae left to steal).
-func take_damage(amount: float) -> void:
+func take_damage(amount: float, attacker: Ant) -> void:
 	hp -= amount
+	damage_to_show += amount
+	damage_attacker_team = attacker.colony.team
 
 
 ## Seconds between two larvae (shorter with the Faster larvae upgrades).

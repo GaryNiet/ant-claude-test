@@ -1,10 +1,12 @@
 extends PopupPanel
 ## A small Settings window, opened from the main menu or the tool bar.
-## For now: the window resolution and fullscreen (also F11).
+## The window resolution, fullscreen (also F11), and the music and sound effects volumes.
 
 var _resolution_choice: OptionButton
 var _fullscreen: CheckBox
 var _note: Label
+var _music_volume: HSlider
+var _effects_volume: HSlider
 
 
 ## Builds the menu. Called by the screen that owns it once everything exists.
@@ -39,6 +41,13 @@ func setup() -> void:
 	_note = Label.new()
 	column.add_child(_note)
 
+	_music_volume = _volume_row(column, "Music:", func(volume: float) -> void:
+		PlayerSettings.save_music_volume(volume)
+		Sounds.apply_volumes())
+	_effects_volume = _volume_row(column, "Sound effects:", func(volume: float) -> void:
+		PlayerSettings.save_effects_volume(volume)
+		Sounds.play("click"))
+
 	var close := Button.new()
 	close.text = "Close"
 	close.pressed.connect(hide)
@@ -51,8 +60,28 @@ func open() -> void:
 		if _resolution_choice.get_item_text(index) == current:
 			_resolution_choice.select(index)
 	_fullscreen.set_pressed_no_signal(PlayerSettings.fullscreen())
+	_music_volume.set_value_no_signal(PlayerSettings.music_volume())
+	_effects_volume.set_value_no_signal(PlayerSettings.effects_volume())
 	_update_note()
 	popup_centered()
+
+
+## A labelled slider from 0 (off) to 1, calling `on_changed` with the new volume.
+func _volume_row(column: VBoxContainer, text: String, on_changed: Callable) -> HSlider:
+	var row := HBoxContainer.new()
+	column.add_child(row)
+	var label := Label.new()
+	label.text = text
+	label.custom_minimum_size.x = GameSettings.get_setting("ui", "slider_label_width")
+	row.add_child(label)
+	var slider := HSlider.new()
+	slider.max_value = 1.0
+	slider.step = GameSettings.get_setting("ui", "volume_slider_step")
+	slider.custom_minimum_size.x = GameSettings.get_setting("ui", "slider_width")
+	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	slider.value_changed.connect(on_changed)
+	row.add_child(slider)
+	return slider
 
 
 func _on_resolution_selected(index: int) -> void:

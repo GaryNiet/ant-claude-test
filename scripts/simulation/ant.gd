@@ -87,6 +87,9 @@ var size_multiplier := 1.0      ## how much bigger it is drawn (majors)
 var attack_multiplier := 1.0
 var poison_time_left := 0.0     ## Corrosive sting: seconds of poison left
 var poison_damage_per_second := 0.0
+var poison_team := -1           ## team of the ant that poisoned it
+var damage_to_show := 0.0       ## damage taken since the simulation last reported it (damage numbers)
+var damage_attacker_team := -1  ## team of whoever hurt it last (-1 = a spider)
 var _mode_before_fight := Mode.EXPLORING
 var _time_until_attack := 0.0
 
@@ -154,15 +157,19 @@ func take_damage(amount: float, attacker: Object) -> void:
 	var reduction := _settings.damage_reduction
 	if _near_own_nest_with("motherbase"):
 		reduction += float(_tree.value("motherbase", "damage_reduction"))
-	hp -= maxf(amount - reduction, _settings.minimum_damage) if reduction > 0.0 else amount
+	var damage := maxf(amount - reduction, _settings.minimum_damage) if reduction > 0.0 else amount
+	hp -= damage
+	damage_to_show += damage
+	damage_attacker_team = attacker.colony.team if attacker is Ant else -1
 	if not is_dead() and mode != Mode.FIGHTING:
 		_start_fight(attacker)
 
 
 ## Corrosive sting: loses `damage_per_second` health for `duration` seconds.
-func poison(damage_per_second: float, duration: float) -> void:
+func poison(damage_per_second: float, duration: float, team: int) -> void:
 	poison_damage_per_second = damage_per_second
 	poison_time_left = duration
+	poison_team = team
 
 
 ## How hard this ant hits: its colony's attack, more for majors and near the nest (Motherbase).
@@ -180,12 +187,9 @@ func _near_own_nest_with(node: String) -> bool:
 
 ## Hits `target` (a spider, a rival ant or a rival nest), poisoning it with Corrosive sting.
 func _hit(target: Object) -> void:
-	if target is Ant:
-		target.take_damage(attack_power(), self)
-	else:
-		target.take_damage(attack_power())
+	target.take_damage(attack_power(), self)
 	if colony.has_tech("corrosive_sting") and not target is Colony:
-		target.poison(_tree.value("corrosive_sting", "damage_per_second"), _tree.value("corrosive_sting", "duration"))
+		target.poison(_tree.value("corrosive_sting", "damage_per_second"), _tree.value("corrosive_sting", "duration"), colony.team)
 
 
 ## Called by the simulation every tick this ant touches `enemy`.
@@ -216,6 +220,8 @@ func update(sim: ColonySimulation, delta: float) -> void:
 	if poison_time_left > 0.0:
 		poison_time_left -= delta
 		hp -= poison_damage_per_second * delta
+		damage_to_show += poison_damage_per_second * delta
+		damage_attacker_team = poison_team
 		if is_dead():
 			return
 	time_in_mode += delta
@@ -297,12 +303,9 @@ func _spray_acid(sim: ColonySimulation, delta: float) -> void:
 		return
 	_time_until_acid = _tree.value("acid_spray", "interval")
 	var damage: float = _tree.value("acid_spray", "damage")
-	if target is Ant:
-		target.take_damage(damage, self)
-	else:
-		target.take_damage(damage)
+	target.take_damage(damage, self)
 	if colony.has_tech("corrosive_sting"):
-		target.poison(_tree.value("corrosive_sting", "damage_per_second"), _tree.value("corrosive_sting", "duration"))
+		target.poison(_tree.value("corrosive_sting", "damage_per_second"), _tree.value("corrosive_sting", "duration"), colony.team)
 
 
 # --- The modes --------------------------------------------------------------

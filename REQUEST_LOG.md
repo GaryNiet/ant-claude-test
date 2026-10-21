@@ -4,6 +4,48 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #29 — 2026-10-21
+
+**Request:**
+> do a rough rebalance. ant numbers should be trending up, soft limit should be way higher than 150.
+>
+> display damage numbers inflicted and received
+>
+> food sources should last way longer, I want to see it stay for at least a minute. enemies should be less frequent and be way stronger as a result.
+>
+> make some sound design. background music and at least some sound on enemies dying.
+
+**Done:**
+- Why the colony stopped near 150: a larva could only be laid every 4 s (15 ants a minute at
+  most) while ants lived 8-12 minutes. Measured on the Meadow with Hatch all: 100 ants -> 92 after
+  20 minutes, with 1480 food piling up unused.
+- Rebalance (`game_settings.cfg`): a larva every 1 s for 6 food (was 4 s, 8 food), hatching 1 s
+  each (still one after the other), ants live 15-25 min (was 8-12), `max_ants` 1000 (was 300),
+  maturity 2 at 300 ants (was 200). Food items hold ~3x more (strawberry 500, blueberry 200, seed
+  60, larva 150, dead spider 250). Spiders: one every 75 s (was 25), at most 2 (was 4), first one
+  after 60 s; 250 health (was 60), a bite does 10 (kills an ant) every 2 s, bigger body; they
+  eat up to 60 and leave 300 food when killed (was 80).
+- Result (Meadow, Hatch all): 100 -> ~480 ants at 20 game minutes, then ~400-450 as old age
+  catches up; Garden (level 3) ~590 at 20 min. Food items last 2-6 game minutes (4-12 real
+  minutes), a dead spider ~1.5 game minutes. 7 ms per tick with ~500 ants.
+- Damage numbers: every hit shows its damage rising over the victim: gold = dealt by our ants,
+  red = taken by our ants or nest, grey = other fights. Hits on the same victim within 0.3 s add
+  up. New `scripts/view/damage_number_layer.gd`, `[damage_numbers]`; the simulation records the
+  damage each ant, spider and nest takes (and who dealt it).
+- Sound: `tools/make_sounds.py` generates `sounds/`: a calm looping tune (A minor, 46 s: pad,
+  plucked arpeggios, bass, kalimba melody, shaker), and effects for a spider killed, a spider
+  arriving, a larva hatching and button clicks. `Sounds` autoload plays them (`[sound]`: volumes,
+  shortest time between two plays); `sound_cues.gd` picks the game events. Music and effects
+  volume sliders in the Settings menu (remembered).
+- Tested: headless runs above; screenshots of a spider fight with gold and red numbers, and of the
+  Settings menu. (No sound card in the test machine: the sounds were checked for level, clipping
+  and a seamless loop, not by ear.)
+
+**Commits:**
+- (pending)
+
+---
+
 ## #28 — 2026-10-21
 
 **Request:**

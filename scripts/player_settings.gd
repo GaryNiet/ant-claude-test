@@ -35,6 +35,34 @@ static func save_fullscreen(on: bool) -> void:
 	file.save(FILE_PATH)
 
 
+## Music volume the player chose, 0 (off) .. 1 (default from game_settings.cfg [sound]).
+static func music_volume() -> float:
+	var file := ConfigFile.new()
+	file.load(FILE_PATH)
+	return file.get_value("sound", "music_volume", GameSettings.get_setting("sound", "default_music_volume"))
+
+
+static func save_music_volume(volume: float) -> void:
+	var file := ConfigFile.new()
+	file.load(FILE_PATH)
+	file.set_value("sound", "music_volume", volume)
+	file.save(FILE_PATH)
+
+
+## Sound effects volume the player chose, 0 (off) .. 1.
+static func effects_volume() -> float:
+	var file := ConfigFile.new()
+	file.load(FILE_PATH)
+	return file.get_value("sound", "effects_volume", GameSettings.get_setting("sound", "default_effects_volume"))
+
+
+static func save_effects_volume(volume: float) -> void:
+	var file := ConfigFile.new()
+	file.load(FILE_PATH)
+	file.set_value("sound", "effects_volume", volume)
+	file.save(FILE_PATH)
+
+
 ## "1920x1080" -> Vector2i(1920, 1080)
 static func parse_resolution(choice: String) -> Vector2i:
 	var parts := choice.split("x")

@@ -25,3 +25,4 @@ window/stretch/aspect="keep"
 
 GameSettings="*res://scripts/game_settings.gd"
 Startup="*res://scripts/startup.gd"
+Sounds="*res://scripts/sounds.gd"
