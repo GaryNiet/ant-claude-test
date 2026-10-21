@@ -24,10 +24,12 @@ var play_time := 0.0          ## seconds played on this level; stops while pause
 ## What the player clicked on: an Ant, an Enemy, SELECTED_NEST, a Vector2i cell, or null.
 var selection: Variant = null
 var is_iso_view := false
+var show_pheromones: bool = GameSettings.get_setting("display", "show_pheromones")
 
 @onready var map_space: Node2D = $MapSpace
 @onready var _debug_shapes: Node2D = $MapSpace/AntLayer
 @onready var _sprites: Node2D = $SpriteLayer
+@onready var _pheromones: Node2D = $MapSpace/PheromoneLayer
 
 var _tick_length: float
 var _max_ticks_per_frame: int
@@ -63,6 +65,13 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
 	set_iso_view(GameSettings.get_setting("iso_view", "start_in_iso_view"))
+	set_pheromones_visible(show_pheromones)
+
+
+## Shows or hides the pheromone trails (in both views).
+func set_pheromones_visible(shown: bool) -> void:
+	show_pheromones = shown
+	_pheromones.visible = shown
 
 
 ## Switches between the isometric view (true) and the flat debug view (false).
@@ -146,6 +155,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		restart_level()
 	elif event.is_action_pressed("toggle_view"):
 		set_iso_view(not is_iso_view)
+	elif event.is_action_pressed("toggle_pheromones"):
+		set_pheromones_visible(not show_pheromones)
 	elif event.is_action_pressed("zoom_in"):
 		_zoom_at(get_viewport().get_mouse_position(), _zoom_step)
 	elif event.is_action_pressed("zoom_out"):

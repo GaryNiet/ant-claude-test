@@ -41,6 +41,9 @@ extends RefCounted
 ##
 ## Why trails can be followed "backwards": an ant lays less pheromone the longer it
 ## has been walking, so every trail is strongest near where it started.
+##
+## Paths: every walking ant wears the ground under it a little. Where many ants pass, the
+## ground becomes an unobstructed path (see MapGrid), and ants walk faster there.
 
 enum Mode { EXPLORING, GATHERING, CUTTING_FOOD, CARRYING_FOOD, RETURNING_HOME, JOINING_FIGHT, FIGHTING }
 
@@ -377,10 +380,15 @@ func _turn_towards(target: Vector2) -> float:
 
 # --- Movement and trails ----------------------------------------------------
 
-## Walks forward and bounces off obstacles and the map edges (like a ball off a wall:
-## hitting a vertical wall flips the left/right direction, a horizontal one flips up/down).
+## Walks forward (faster on unobstructed paths) and bounces off obstacles and the map
+## edges (like a ball off a wall: hitting a vertical wall flips the left/right direction,
+## a horizontal one flips up/down). Wears the ground it walks on.
 func _move_forward(sim: ColonySimulation, delta: float) -> void:
-	var step := Vector2.from_angle(heading) * _settings.speed * delta
+	sim.grid.wear_path(position, _settings.path_wear_per_second * delta)
+	var speed := _settings.speed
+	if sim.grid.is_unobstructed(position):
+		speed *= 1.0 + _settings.path_speed_bonus
+	var step := Vector2.from_angle(heading) * speed * delta
 	if _is_blocked(sim, position + Vector2(step.x, 0.0)):
 		heading = PI - heading
 		step.x = 0.0

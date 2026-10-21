@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bkyyywms2q35a"
-path="res://.godot/imported/ant.png-c056720ea3c0c94a92da847471959a79.ctex"
+uid="uid://bc6jy5dk5larn"
+path="res://.godot/imported/nest_variations.jpg-e6d49a9e57d23b135d3904685042cca7.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://sprites/ant.png"
-dest_files=["res://.godot/imported/ant.png-c056720ea3c0c94a92da847471959a79.ctex"]
+source_file="res://art/inspiration/nest_variations.jpg"
+dest_files=["res://.godot/imported/nest_variations.jpg-e6d49a9e57d23b135d3904685042cca7.ctex"]
 
 [params]
 

@@ -23,14 +23,20 @@ A video game prototype made with **Godot 4.3+** (standard version, not .NET).
 | Settings (main menu or tool bar) | Window resolution: 720p, 1080p, 1440p or 4K (16:9, remembered) |
 | **Escape** or Menu (tool bar) | Back to the main menu |
 | **Tab** or the view button (tool bar) | Switch between the isometric view and the flat debug view |
+| **T** or the trails button (tool bar) | Show / hide the pheromone trails |
 
 All controls can be changed in `game_settings.cfg` under `[controls]`.
 
 ## What you see
 An ant colony simulation, seen at an angle (isometric) with pixel-art tiles and sprites:
-orange ants (darker ones are scouts), spiders (the enemies, with a health bar), rocks, and a dirt
-nest mound that grows with the colony (a bigger mound with 3 entrances past ~160 ants).
-Ants carrying food hold a crumb. Food on the ground is ochre. Press **Tab** (or the tool bar
+orange ants (darker ones are scouts) and spiders (the enemies, with a health bar) stand upright
+facing the screen, in 4 directions with a walking animation; rocks; and a dirt nest mound that
+grows with the colony (a bigger mound with 3 entrances past ~160 ants).
+Ants carrying food hold a crumb. Food on the ground is ochre.
+
+**Paths:** where ants walk a lot, the ground wears into a smooth, lighter path (an "unobstructed
+area") where ants walk 40% faster. Paths fade back slowly when ants stop using them (much slower
+than pheromones). Settings in `[paths]`. Press **T** to hide the pheromone trails. Press **Tab** (or the tool bar
 button) to switch to the **debug view**: the flat top-down map described below.
 The angle and all sprite sizes are in `[iso_view]` in `game_settings.cfg`.
 
@@ -55,7 +61,7 @@ tile with grass on one side): see `tiles/README.md`.
 |------|------------|
 | `levels/` | Level files (`*.level`): map size, nest, starting ants, ground tiles and food, as editable text. Levels 1-3 are listed in `[menu] levels`. |
 | `tiles/` | Ground tile images (with variants and transitions). `tiles/README.md` explains the file names. |
-| `sprites/` | Ant, spider, food crumb, rock and nest mound sprites. |
+| `sprites/` | Ant and spider sprites (4 directions x 2 walk frames), food crumb, rocks and nest mounds. |
 | `tools/make_art.py` | Generates all tiles and sprites (Python + Pillow + numpy). Edit colors/shapes and re-run. |
 | `art/inspiration/` | The inspiration images the art is based on. |
 | `game_settings.cfg` | **All tunable values** (speeds, sizes, colors, keys, window). Edit this to tweak the game. |

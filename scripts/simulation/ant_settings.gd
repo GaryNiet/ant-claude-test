@@ -20,6 +20,10 @@ var carry_capacity := base_carry_capacity
 var food_reach: float = GameSettings.get_setting("ant", "food_reach")
 var gatherers_lay_going_out: bool = GameSettings.get_setting("ant", "gatherers_lay_going_out")
 
+# Paths — [paths]
+var path_wear_per_second: float = GameSettings.get_setting("paths", "wear_per_second")
+var path_speed_bonus: float = GameSettings.get_setting("paths", "speed_bonus")
+
 # Personality — [ant_personality]
 var scout_fraction: float = GameSettings.get_setting("ant_personality", "scout_fraction")
 var homebody_fraction: float = GameSettings.get_setting("ant_personality", "homebody_fraction")

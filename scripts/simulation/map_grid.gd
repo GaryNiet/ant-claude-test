@@ -7,9 +7,14 @@ extends RefCounted
 ## - "fight" pheromone      : laid in a zone around ants that are fighting an enemy
 ## - food                   : units of food in the cell (an ant carries 1 unit)
 ## - obstacle               : ants can't walk through obstacle cells
+## - path wear              : how worn the ground is by ants walking over it. Above
+##                            [paths] unobstructed_wear the cell is "unobstructed": a path
+##                            where ants walk faster. Not a tile type: any walkable ground
+##                            can have it, a dirt tile may have unobstructed parts.
 ##
 ## Pheromones fade a little every tick (exponential decay with a configurable half-life),
-## so busy paths stay strong while abandoned ones disappear.
+## so busy paths stay strong while abandoned ones disappear. Path wear fades the same way,
+## but much more slowly.
 ## Everything outside the map counts as an obstacle.
 
 enum Kind { GOING_OUT, GOING_HOME, FIGHT }
@@ -26,6 +31,9 @@ var going_home := PackedFloat32Array()
 var fight := PackedFloat32Array()
 var food := PackedInt32Array()
 var obstacle := PackedByteArray()  ## 1 = obstacle, 0 = free
+var path_wear := PackedFloat32Array()
+var unobstructed_wear: float  ## path wear from which a cell counts as unobstructed
+var _max_path_wear: float
 
 var total_food := 0          ## sum of all food on the map, kept up to date
 var terrain_version := 0     ## goes up whenever food or obstacles change (tells the view to redraw)
@@ -39,6 +47,7 @@ var _food_in_region := PackedInt32Array()
 
 var _decay_per_second_log: float        ## precomputed for the decay formula
 var _fight_decay_per_second_log: float  ## the fight pheromone fades faster
+var _path_decay_per_second_log: float   ## path wear fades much slower
 
 
 ## Creates an empty map of `columns` x `rows` cells, each `cell_size_in_pixels` wide.
@@ -52,6 +61,10 @@ func _init(columns: int, rows: int, cell_size_in_pixels: float) -> void:
 	_decay_per_second_log = log(0.5) / half_life
 	var fight_half_life: float = GameSettings.get_setting("ant_combat", "fight_pheromone_half_life")
 	_fight_decay_per_second_log = log(0.5) / fight_half_life
+	_path_decay_per_second_log = log(0.5) / float(GameSettings.get_setting("paths", "half_life"))
+	unobstructed_wear = GameSettings.get_setting("paths", "unobstructed_wear")
+	_max_path_wear = GameSettings.get_setting("paths", "max_wear")
+	path_wear.resize(width * height)
 	going_out.resize(width * height)
 	going_home.resize(width * height)
 	fight.resize(width * height)
@@ -137,14 +150,31 @@ func sample_area(kind: Kind, world_position: Vector2, radius_in_cells: int) -> f
 	return total / cells_read
 
 
-## Makes every pheromone fade by the amount matching `delta` seconds.
+## Makes every pheromone and the path wear fade by the amount matching `delta` seconds.
 func decay(delta: float) -> void:
 	var factor := exp(_decay_per_second_log * delta)
 	var fight_factor := exp(_fight_decay_per_second_log * delta)
+	var path_factor := exp(_path_decay_per_second_log * delta)
 	for index in going_out.size():
 		going_out[index] *= factor
 		going_home[index] *= factor
 		fight[index] *= fight_factor
+		path_wear[index] *= path_factor
+
+
+# --- Paths (unobstructed areas) ---------------------------------------------
+
+## Wears the ground under `world_position` a little (an ant walking over it).
+func wear_path(world_position: Vector2, amount: float) -> void:
+	var index := cell_index(world_position)
+	if index != -1:
+		path_wear[index] = minf(path_wear[index] + amount, _max_path_wear)
+
+
+## True if the cell under `world_position` is worn enough to be an unobstructed path.
+func is_unobstructed(world_position: Vector2) -> bool:
+	var index := cell_index(world_position)
+	return index != -1 and path_wear[index] >= unobstructed_wear
 
 
 # --- Obstacles --------------------------------------------------------------
@@ -162,6 +192,7 @@ func set_obstacle(index: int, is_blocked: bool) -> void:
 		going_out[index] = 0.0
 		going_home[index] = 0.0
 		fight[index] = 0.0
+		path_wear[index] = 0.0
 	obstacle[index] = 1 if is_blocked else 0
 	terrain_version += 1
 

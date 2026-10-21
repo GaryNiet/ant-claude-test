@@ -160,6 +160,7 @@ func _describe_cell(sim: ColonySimulation, cell: Vector2i) -> String:
 		"Ground: %s%s" % [ground_name.capitalize(), "" if sim.ground.is_walkable(tile.x, tile.y) else " (can't be walked on)"],
 		"Food: %d" % grid.food[index],
 		"Pheromones:  going out %.2f   going home %.2f   fight %.2f" % [grid.going_out[index], grid.going_home[index], grid.fight[index]],
+		"Path wear: %.1f / %.1f%s" % [grid.path_wear[index], grid.unobstructed_wear, "  (unobstructed: ants walk faster)" if grid.path_wear[index] >= grid.unobstructed_wear else ""],
 	]))
 
 

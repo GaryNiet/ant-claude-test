@@ -142,6 +142,12 @@ def nest_tile(seed):
     return scatter(image, 4, PEBBLE[1:], 2, seed + 9)
 
 
+def path_tile(seed):
+    """Unobstructed ground worn by ants: smoother and lighter, almost no gravel or moss."""
+    image = shade(layered_noise(seed) * 0.7 + 0.15, NEST[2:5])
+    return scatter(image, 3, [NEST[1]], 1, seed)
+
+
 def edge_mask(sides, seed, width):
     """1 where a transition band from the given sides reaches, with a ragged edge."""
     wobble = tileable_noise(TILE, 8, seed) * 4.0
@@ -177,6 +183,8 @@ def make_tiles():
         for variant in range(VARIANTS):
             name = type_name if variant == 0 else "%s_%d" % (type_name, variant + 1)
             save(maker(100 * variant + len(type_name)), "tiles", name + ".png")
+    # Laid over any ground where ants have worn a path (see [paths] in game_settings.cfg).
+    save(path_tile(11), "tiles", "path.png")
 
     damp = Image.new("RGB", (TILE, TILE), rgb(DAMP))
     shallow = shade(layered_noise(77) * 0.6 + 0.4, WATER[2:4])
@@ -232,47 +240,117 @@ def shaded_blob(draw, center, radius_x, radius_y, colors):
     ellipse(draw, (x - radius_x * 0.35, y - radius_y * 0.4), max(radius_x * 0.35, 0.6), max(radius_y * 0.3, 0.6), colors[2])
 
 
-def ant_sprite():
-    """Seen from above, facing right (the game turns it to face where the ant walks)."""
-    size = 24
-    image = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(image)
-    legs = rgb(ANT[0])
-    for x_offset, spread in [(-2, -3), (0, 0), (2, 3)]:  # 3 pairs of legs from the thorax
-        for side in (-1, 1):
-            knee = (12 + x_offset + spread * 0.3, 12 + side * 4)
-            draw.line([(12 + x_offset, 12), knee, (12 + x_offset + spread, 12 + side * 7)], fill=legs)
-    draw.line([(18, 11), (21, 8), (22, 7)], fill=legs)   # antennae
-    draw.line([(18, 13), (21, 16), (22, 17)], fill=legs)
-    shaded_blob(draw, (6.5, 12), 4.5, 3.5, [rgb(ANT[1]), rgb(ANT[2]), rgb(ANT[4])])   # abdomen
-    shaded_blob(draw, (12, 12), 2.5, 2, [rgb(ANT[1]), rgb(ANT[3]), rgb(ANT[4])])      # thorax
-    shaded_blob(draw, (16.5, 12), 2.5, 2.5, [rgb(ANT[1]), rgb(ANT[2]), rgb(ANT[4])])  # head
-    return outline(image, ANT[0])
+# Creatures stand upright, parallel to the screen, seen from the side and a bit above (like
+# classic isometric games). 4 directions: "se" = walking towards the screen and to the right,
+# "ne" = away from the screen and to the right, "sw" / "nw" = the same, mirrored.
+# 2 walking frames each (legs alternate). Their feet touch the ground GROUND_MARGIN px above
+# the bottom of the image (the game puts that line on the creature's position).
+GROUND_MARGIN = 3
+WALK_FRAMES = 2
 
 
-def spider_sprite():
-    """Seen from above, facing right: big round abdomen, 8 bent legs."""
-    size = 40
-    image = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+def leg(draw, hip, knee, foot, color, width=1):
+    draw.line([hip, knee], fill=color, width=width)
+    draw.line([knee, foot], fill=color, width=1)
+
+
+def gait(frame, leg_number, side):
+    """Tripod walk: legs 0 and 2 of one side move with leg 1 of the other side."""
+    forward = (leg_number + side) % 2 == frame
+    return 1.5 if forward else -1.5
+
+
+def creature(size, body_parts, legs_far, legs_near, extras, shadow):
+    """Draws far legs, the body parts (back to front), near legs and extras, then outlines.
+    body_parts: list of (center, radius_x, radius_y, colors). Legs: list of (hip, knee, foot, width).
+    extras: function(draw) for eyes, antennae, markings."""
+    image = Image.new("RGBA", size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
-    legs = rgb(SPIDER[1])
-    joints = rgb(SPIDER[3])
-    for index, angle in enumerate([-60, -25, 15, 50]):  # 4 legs per side, from the front pair back
-        for side in (-1, 1):
-            start = (22 - index * 1.5, 20)
-            knee = (start[0] + 6 - index * 4, 20 + side * (8 + index % 2))
-            foot = (start[0] + 9 - index * 7, 20 + side * 17)
-            draw.line([start, knee], fill=legs, width=2)
-            draw.line([knee, foot], fill=legs, width=1)
-            draw.point(knee, fill=joints)
-    shaded_blob(draw, (12, 20), 8, 7, [rgb(SPIDER[1]), rgb(SPIDER[2]), rgb(SPIDER[4])])   # abdomen
-    draw.line([(8, 20), (15, 20)], fill=rgb(SPIDER[5]))                                    # marking
-    draw.line([(11, 18), (11, 22)], fill=rgb(SPIDER[5]))
-    shaded_blob(draw, (23, 20), 4.5, 4, [rgb(SPIDER[1]), rgb(SPIDER[3]), rgb(SPIDER[4])])  # head
-    for dy in (-1, 1):  # eyes and fangs
-        draw.point((26, 20 + dy), fill=rgb(SPIDER[5]))
-        draw.point((28, 20 + dy * 2), fill=rgb(SPIDER[0]))
-    return outline(image, SPIDER[0])
+    for hip, knee, foot, width in legs_far:
+        leg(draw, hip, knee, foot, rgb(ANT[0]) if size[0] < 40 else rgb(SPIDER[0]), width)
+    for center, radius_x, radius_y, colors in body_parts:
+        shaded_blob(draw, center, radius_x, radius_y, colors)
+    for hip, knee, foot, width in legs_near:
+        leg(draw, hip, knee, foot, rgb(ANT[1]) if size[0] < 40 else rgb(SPIDER[2]), width)
+    extras(draw)
+    outlined = outline(image, ANT[0] if size[0] < 40 else SPIDER[0])
+    return with_shadow(outlined, *shadow)
+
+
+def ant_sprite(towards_screen, frame):
+    """An ant walking to the right, towards the screen (head low and in front) or away from it."""
+    width, height = 28, 22
+    ground = height - GROUND_MARGIN
+    dark, mid, light, bright = rgb(ANT[1]), rgb(ANT[2]), rgb(ANT[3]), rgb(ANT[4])
+    if towards_screen:
+        abdomen, thorax, head = (7, 10), (13.5, 11), (19, 12)
+        parts = [(abdomen, 4.3, 3.4, [dark, mid, bright]), (thorax, 2.4, 1.6, [dark, light, bright]),
+                 (head, 2.6, 2.4, [dark, mid, bright])]
+    else:
+        abdomen, thorax, head = (8, 12), (14, 10), (19, 8.5)
+        parts = [(head, 2.4, 2.2, [dark, mid, bright]), (thorax, 2.4, 1.6, [dark, light, bright]),
+                 (abdomen, 4.5, 3.6, [dark, mid, bright])]
+    legs_far, legs_near = [], []
+    for number, along in enumerate([-1, 0, 1]):  # back, middle, front leg
+        for side, legs, foot_y, knee_drop in [(0, legs_far, ground - 1.5, 0.5), (1, legs_near, ground, 2)]:
+            hip = (thorax[0] + along * 1.2, thorax[1] + 1)
+            knee = (thorax[0] + along * 4.5, thorax[1] + knee_drop - 2)
+            foot = (thorax[0] + along * 7 + gait(frame, number, side), foot_y)
+            legs.append((hip, knee, foot, 1))
+
+    def extras(draw):
+        antenna = rgb(ANT[0])
+        if towards_screen:
+            draw.line([(20, 10), (22.5, 6), (25, 7)], fill=antenna)
+            draw.point((20, 11.5), fill=(20, 8, 4))           # eye
+            draw.line([(21.5, 13.5), (22.5, 14)], fill=antenna)  # mandibles
+        else:
+            draw.line([(20, 7), (22, 4), (24, 4.5)], fill=antenna)
+
+    return creature((width, height), parts, legs_far, legs_near, extras, ((14, ground), 9, 2))
+
+
+def spider_sprite(towards_screen, frame):
+    """A spider walking to the right: big round abdomen, 8 legs bending up above the body."""
+    width, height = 46, 36
+    ground = height - GROUND_MARGIN
+    body = [rgb(SPIDER[1]), rgb(SPIDER[2]), rgb(SPIDER[4])]
+    head_colors = [rgb(SPIDER[1]), rgb(SPIDER[3]), rgb(SPIDER[4])]
+    if towards_screen:
+        abdomen, head = (15, 17), (27, 21)
+        parts = [(abdomen, 9, 7.5, body), (head, 5.5, 4.5, head_colors)]
+    else:
+        abdomen, head = (17, 20), (28, 15)
+        parts = [(head, 5, 4, head_colors), (abdomen, 9.5, 8, body)]
+    legs_far, legs_near = [], []
+    for number, (knee_x, foot_x) in enumerate([(9, 16), (4, 9), (-6, -9), (-12, -17)]):  # front to back
+        for side, legs, foot_y, knee_y in [(0, legs_far, ground - 4, head[1] - 15), (1, legs_near, ground, head[1] - 12)]:
+            knee = (head[0] + knee_x, knee_y - number % 2)
+            foot = (head[0] + foot_x + gait(frame, number, side), foot_y)
+            legs.append((head, knee, foot, 2))
+
+    def extras(draw):
+        red = rgb(SPIDER[5])
+        if towards_screen:
+            draw.point((30, 19), fill=red)                    # eyes
+            draw.point((31, 20.5), fill=red)
+            draw.line([(31.5, 23), (32.5, 24)], fill=rgb(SPIDER[0]))  # fangs
+            draw.line([(11, 15), (18, 15)], fill=red)        # marking on the abdomen
+        else:
+            draw.line([(13, 18), (21, 18)], fill=red)
+            draw.line([(17, 15), (17, 21)], fill=red)
+
+    return creature((width, height), parts, legs_far, legs_near, extras, ((22, ground), 16, 3))
+
+
+def save_four_directions(maker, name):
+    """name_se_1.png ... name_nw_2.png: se and ne are drawn, sw and nw are their mirror images."""
+    for frame in range(WALK_FRAMES):
+        for direction, towards_screen in [("e", True), ("e", False)]:
+            image = maker(towards_screen, frame)
+            vertical = "s" if towards_screen else "n"
+            save(image, "sprites", "%s_%se_%d.png" % (name, vertical, frame + 1))
+            save(image.transpose(Image.FLIP_LEFT_RIGHT), "sprites", "%s_%sw_%d.png" % (name, vertical, frame + 1))
 
 
 def crumb_sprite():
@@ -327,8 +405,8 @@ def nest_sprite(width, height, entrances, seed):
 
 
 def make_sprites():
-    save(ant_sprite(), "sprites", "ant.png")
-    save(spider_sprite(), "sprites", "spider.png")
+    save_four_directions(ant_sprite, "ant")
+    save_four_directions(spider_sprite, "spider")
     save(crumb_sprite(), "sprites", "food_crumb.png")
     for variant in range(3):
         save(rock_sprite(variant), "sprites", "rock_%d.png" % (variant + 1))
