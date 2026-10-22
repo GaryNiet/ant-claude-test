@@ -23,7 +23,7 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
   focusing on one larva kills it and leaves the other alone.
 
 **Commits:**
-- (pending)
+- `f2be21c` — Aphid flowers hold 5 ants at most; attack ants leave neutral animals alone unless focused on
 
 ---
 
