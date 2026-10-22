@@ -32,6 +32,7 @@ var homebody_max_explore_time: float = GameSettings.get_setting("ant_personality
 var explorer_min_explore_time: float = GameSettings.get_setting("ant_personality", "explorer_min_explore_time")
 var explorer_max_explore_time: float = GameSettings.get_setting("ant_personality", "explorer_max_explore_time")
 var gather_give_up_time: float = GameSettings.get_setting("ant_personality", "gather_give_up_time")
+var full_food_avoid_time: float = GameSettings.get_setting("ant_personality", "full_food_avoid_time")
 
 # Going home — [ant_homing]
 var push_growth: float = GameSettings.get_setting("ant_homing", "push_growth")
@@ -65,6 +66,7 @@ var join_fight_give_up_time: float = GameSettings.get_setting("ant_combat", "joi
 var fight_zone_radius: float = GameSettings.get_setting("ant_combat", "fight_zone_radius")
 var fight_deposit: float = GameSettings.get_setting("ant_combat", "fight_deposit")
 var attack_will: float = GameSettings.get_setting("focus", "attack_will")
+var focus_neutral_radius: float = GameSettings.get_setting("focus", "neutral_radius")
 var restraining_slow_time: float = GameSettings.get_setting("tech_restraining_bite", "slow_time")
 ## Two ants of rival colonies this close (center to center) are touching: they fight.
 var rival_contact_distance: float = 2.0 * float(GameSettings.get_setting("collisions", "ant_radius")) \

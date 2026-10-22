@@ -53,6 +53,11 @@ func cut_time(kind: String) -> float:
 	return GameSettings.get_setting("object_" + kind, "cut_time")
 
 
+## How many ants can cut from it at the same time (0 = no limit) (food kinds only).
+func max_ants(kind: String) -> int:
+	return GameSettings.get_setting("object_" + kind, "max_ants")
+
+
 ## True if it never runs out for good: it stays when empty and fills up again (food kinds only).
 func is_renewable(kind: String) -> bool:
 	return GameSettings.get_setting("object_" + kind, "renewable")

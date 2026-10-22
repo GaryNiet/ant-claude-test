@@ -26,9 +26,9 @@ extends RefCounted
 ##                  "fight" smell towards stronger smell (where a fight is going on).
 ##   ATTACKING      Attack ants only (fighting spirit, and majors), sent by the player with
 ##                  the Focus tool: follows the colony's "attack" trail (from the nest to
-##                  the focused spot) towards stronger smell, and attacks anything it
-##                  sees on the way or there: spiders, beetle larvae, crickets, rival ants
-##                  and nests. With nothing left to attack, it collects the food in sight
+##                  the focused spot) towards stronger smell, and attacks what it meets:
+##                  spiders, rival ants and nests anywhere, neutral animals (beetle
+##                  larvae, crickets) only at the focused spot. With nothing left to attack, it collects the food in sight
 ##                  (the kill); goes home when the trail is gone and nothing is left.
 ##   FIGHTING       Stands next to an enemy and hits it every attack_interval seconds,
 ##                  laying "fight" pheromone in a zone around itself. When the enemy dies
@@ -108,6 +108,8 @@ var _mode_before_fight := Mode.EXPLORING
 var _last_fight_target: Object  ## touching the same target again keeps the bite timer going
 var _time_until_attack := 0.0
 var _cut_time := 0.0            ## seconds per piece of the food being cut
+var _avoided_food_id := 0       ## a food item it found full (max_ants): left alone for a while
+var _avoid_time_left := 0.0
 
 # Going home: push and getting unstuck
 var _push_time := 0.0              ## seconds the push has been growing
@@ -213,7 +215,7 @@ func _hit(target: Object) -> void:
 func touch_creature(sim: ColonySimulation, creature: Creature) -> void:
 	if mode == Mode.FIGHTING:
 		return
-	if mode == Mode.ATTACKING:
+	if mode == Mode.ATTACKING and _may_attack(creature):
 		_start_fight(creature)
 		return
 	if not creature.is_hostile_to(colony.team):
@@ -248,6 +250,7 @@ func update(sim: ColonySimulation, delta: float) -> void:
 			return
 	time_in_mode += delta
 	time_since_trail_start += delta
+	_avoid_time_left = maxf(_avoid_time_left - delta, 0.0)
 	age += delta
 	if lifespan > 0.0 and age > lifespan:
 		hp = 0.0
@@ -363,6 +366,9 @@ func _gather(sim: ColonySimulation) -> float:
 		return 0.0
 	var reachable := _food_within_reach(sim)
 	if reachable != MapGrid.NO_FOOD:
+		if not sim.has_room_to_cut(reachable):
+			_avoid_full_food(sim, reachable)  # no room left (e.g. a full aphid flower): move on
+			return 0.0
 		_start_cutting(sim, reachable)  # reached food: start cutting a piece off
 		return 0.0
 	var food := _food_in_sight(sim)
@@ -375,11 +381,29 @@ func _gather(sim: ColonySimulation) -> float:
 
 
 ## The closest food the ant sees: food on the map or a dead rival ant (NO_FOOD if none).
+## A food item it found full a moment ago doesn't count.
 func _food_in_sight(sim: ColonySimulation) -> Vector2:
 	var corpse := sim.rival_corpse_near(position, _settings.food_sight_radius, colony)
 	if corpse != MapGrid.NO_FOOD:
 		return corpse
-	return sim.grid.find_food_near(position, _settings.food_sight_radius)
+	return _unless_avoided(sim, sim.grid.find_food_near(position, _settings.food_sight_radius))
+
+
+## `food`, or NO_FOOD if it belongs to the food item the ant is leaving alone.
+func _unless_avoided(sim: ColonySimulation, food: Vector2) -> Vector2:
+	if food == MapGrid.NO_FOOD or _avoid_time_left <= 0.0:
+		return food
+	var object := sim.object_at(food)
+	return MapGrid.NO_FOOD if object != null and object.id == _avoided_food_id else food
+
+
+## The food item at `food` is full: leave it alone for full_food_avoid_time and go explore.
+func _avoid_full_food(sim: ColonySimulation, food: Vector2) -> void:
+	var object := sim.object_at(food)
+	_avoided_food_id = object.id if object != null else 0
+	_avoid_time_left = _settings.full_food_avoid_time
+	_set_mode(Mode.EXPLORING)
+	heading += PI
 
 
 func _go_home(sim: ColonySimulation, delta: float) -> float:
@@ -423,6 +447,7 @@ func _start_detour(sim: ColonySimulation) -> void:
 
 ## Starts cutting the food at `spot`, at the speed of its food item.
 func _start_cutting(sim: ColonySimulation, spot: Vector2) -> void:
+	sim.start_cutting(spot)
 	_set_mode(Mode.CUTTING_FOOD)
 	cutting_spot = spot
 	_cut_time = sim.cut_time_at(spot)
@@ -451,7 +476,7 @@ func _cut_food(sim: ColonySimulation) -> void:
 
 ## Closest food the ant can touch (its own cell or right next to it), or NO_FOOD.
 func _food_within_reach(sim: ColonySimulation) -> Vector2:
-	return sim.grid.find_food_near(position, _settings.food_reach)
+	return _unless_avoided(sim, sim.grid.find_food_near(position, _settings.food_reach))
 
 
 func _join_fight(sim: ColonySimulation) -> float:
@@ -479,16 +504,24 @@ func _attack(sim: ColonySimulation) -> float:
 	return _steer_by_smell(sim, 0.0, 0.0, 0.0, 1.0)
 
 
-## What an attacking ant goes for: the closest creature, else rival ant, else rival nest
-## it sees (null if none).
+## What an attacking ant goes for: the closest creature it may attack (see _may_attack),
+## else rival ant, else rival nest it sees (null if none).
 func _attack_target_in_sight(sim: ColonySimulation) -> Object:
-	var creature := sim.nearest_creature(position, _settings.enemy_sight_radius)
+	var creature := sim.nearest_creature_to_attack(position, _settings.enemy_sight_radius, colony, _settings.focus_neutral_radius)
 	if creature != null:
 		return creature
 	var rival := sim.collisions.nearest_rival(position, _settings.enemy_sight_radius, colony.team)
 	if rival != null:
 		return rival
 	return sim.rival_nest_near(position, _settings.raid_sight_radius, colony.team)
+
+
+## Attacking ants attack enemies (spiders, animals the colony already attacked) anywhere,
+## but neutral animals (beetle larvae, crickets) only near the focused spot.
+func _may_attack(creature: Creature) -> bool:
+	if creature.is_hostile_to(colony.team):
+		return true
+	return colony.focus_target != Vector2.INF and creature.position.distance_to(colony.focus_target) <= _settings.focus_neutral_radius
 
 
 ## Attack ants (will to fight at least [focus] attack_will, and majors) that aren't busy

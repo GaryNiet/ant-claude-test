@@ -60,8 +60,9 @@ whenever they can afford it. Times in `[nest]` are game seconds (the game runs a
 
 **Focus:** the player's way to fight. Click a spot and the colony's attack ants (about half of the
 ants: those with a will to fight of 0.5 or more, and majors; the Behaviour aggressivity slider
-makes more of them) follow an attack trail from the nest to the spot and attack anything on the
-way and there: beetle larvae, crickets, spiders, rival ants and nests. Settings in `[focus]`.
+makes more of them) follow an attack trail from the nest to the spot. They attack spiders, rival
+ants and nests they meet on the way, but neutral animals (beetle larvae, crickets) only at the
+focused spot (or once the colony has attacked them). Settings in `[focus]`.
 
 **Food:** each food type is collected differently: time to cut a piece off, and food in a piece.
 | Type | Items | Collect | Food per piece |
@@ -69,7 +70,7 @@ way and there: beetle larvae, crickets, spiders, rival ants and nests. Settings 
 | Larva | a killed beetle larva (or a placed larva) | fast (1 s) | high (8) |
 | Fruit | blueberry, strawberry (seed: slower, smaller) | fast (1 s) | medium (5) |
 | Hard shell | dead spider, dead cricket | slow (3 s) | high (8) |
-| Aphids | aphid flower: ants climb the stem to milk them; it never runs out, it fills up again | slow (3 s) | medium (4) |
+| Aphids | aphid flower: ants climb the stem to milk them (5 at most; the next ones move on); it never runs out, it fills up again | slow (3 s) | medium (4) |
 
 **Animals:** they live their own lives, they aren't video game opponents (`[creature_<kind>]`).
 - **Beetle larvae:** 2 fat grubs near every nest from the start. They crawl about slowly and keep

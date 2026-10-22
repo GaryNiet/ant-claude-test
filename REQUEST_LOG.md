@@ -4,6 +4,29 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #34 — 2026-10-22
+
+**Request:**
+> there is a limited number of spaces on aphids. after 5 ants "enter" it, the next one cannot and move on
+> ants are attacking targets that should be neutral
+
+**Done:**
+- Food items have `max_ants` (how many ants can cut from them at once, 0 = no limit): 5 for the
+  aphid flower. An ant reaching a full one leaves it alone for `[ant_personality]
+  full_food_avoid_time` (20 s) and goes exploring. Tested: 30 ants sent at a flower, never more
+  than 5 on it.
+- Attacking ants (Focus) attacked every animal they saw along the attack trail, and the trail
+  starts at the nest, so focusing anywhere killed our own beetle larvae on the way. Now they only
+  attack neutral animals (beetle larvae, crickets) within `[focus] neutral_radius` (40 px) of the
+  focused spot, or once the colony has attacked them; spiders, rival ants and nests anywhere.
+  Tested: focusing on a far cricket 3 times left both beetle larvae near the nest untouched;
+  focusing on one larva kills it and leaves the other alone.
+
+**Commits:**
+- (pending)
+
+---
+
 ## #33 — 2026-10-22
 
 **Request:**

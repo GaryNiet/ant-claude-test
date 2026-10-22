@@ -64,6 +64,7 @@ var _contact_margin: float = GameSettings.get_setting("creatures", "contact_marg
 
 # Objects and painting
 var _object_at_cell := PackedInt32Array()  ## id of the object covering each cell, 0 = none
+var _ants_cutting := {}                    ## food object id -> ants cutting from it (this tick)
 var _objects_by_id := {}                   ## id -> MapObject
 var _next_object_id := 1
 var _obstacle_free_radius: float = GameSettings.get_setting("painting", "obstacle_free_radius_around_nest")
@@ -127,6 +128,7 @@ func step(delta: float) -> void:
 		if colony.hp <= 0.0:
 			_destroy(colony)
 	_grow_nests()
+	_count_ants_cutting()
 	_spawn_creatures_over_time(delta)
 	for ant in ants:
 		ant.update(self, delta)
@@ -329,6 +331,32 @@ func take_food_piece(spot: Vector2) -> int:
 	if object.food_left <= 0 and not object_kinds.is_renewable(object.kind):
 		remove_object(object)
 	return taken
+
+
+## True if one more ant can cut from the food at `spot` (its food item has max_ants, e.g. the
+## aphids on a flower: only so many ants fit on the stem).
+func has_room_to_cut(spot: Vector2) -> bool:
+	var object := object_at(spot)
+	if object == null or object_kinds.max_ants(object.kind) <= 0:
+		return true
+	return _ants_cutting.get(object.id, 0) < object_kinds.max_ants(object.kind)
+
+
+## An ant starts cutting from the food at `spot`: it takes one of its places.
+func start_cutting(spot: Vector2) -> void:
+	var object := object_at(spot)
+	if object != null:
+		_ants_cutting[object.id] = _ants_cutting.get(object.id, 0) + 1
+
+
+## How many ants are cutting from each food item (recounted every tick).
+func _count_ants_cutting() -> void:
+	_ants_cutting.clear()
+	for ant in ants:
+		if ant.mode == Ant.Mode.CUTTING_FOOD and ant.cutting_spot != Vector2.INF:
+			var object := object_at(ant.cutting_spot)
+			if object != null:
+				_ants_cutting[object.id] = _ants_cutting.get(object.id, 0) + 1
 
 
 ## Seconds an ant needs to cut one piece off the food at `spot` (its food item's cut_time).
@@ -598,17 +626,21 @@ func nearest_hostile_creature(from: Vector2, radius: float, team: int) -> Creatu
 	return _nearest_creature(from, radius, team)
 
 
-## Closest creature of any kind within `radius` of `from` (measured from its body's edge), or null.
-func nearest_creature(from: Vector2, radius: float) -> Creature:
-	return _nearest_creature(from, radius, -1)
+## Closest creature within `radius` of `from` (measured from its body's edge) that the
+## attack ants of `colony` may attack: an enemy, or any animal within `neutral_radius` of
+## the colony's focused spot. Null if none.
+func nearest_creature_to_attack(from: Vector2, radius: float, colony: Colony, neutral_radius: float) -> Creature:
+	return _nearest_creature(from, radius, colony.team, colony.focus_target, neutral_radius)
 
 
-## `hostile_to` = only creatures hostile to that team (-1 = any creature).
-func _nearest_creature(from: Vector2, radius: float, hostile_to: int) -> Creature:
+## `hostile_to` = only creatures hostile to that team (-1 = any creature), or (if `focus` is
+## not INF) any creature within `neutral_radius` of `focus`.
+func _nearest_creature(from: Vector2, radius: float, hostile_to: int, focus := Vector2.INF, neutral_radius := 0.0) -> Creature:
 	var closest: Creature = null
 	var closest_distance := radius
 	for creature in creatures:
-		if hostile_to != -1 and not creature.is_hostile_to(hostile_to):
+		var near_focus := focus != Vector2.INF and creature.position.distance_to(focus) <= neutral_radius
+		if hostile_to != -1 and not creature.is_hostile_to(hostile_to) and not near_focus:
 			continue
 		var distance := from.distance_to(creature.position) - creature.settings.radius
 		if distance <= closest_distance:
