@@ -19,7 +19,7 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 - Balance check (Meadow, only growing, 3 seeds): maturity 2 at 7.3-8.5 min (was 8-10).
 
 **Commits:**
-- (pending)
+- `704fdf5` — Attack ants collect what they killed
 
 ---
 
