@@ -1,0 +1,77 @@
+; Ant colony level. Tiles: d dirt, g grass, w water. Objects: kind, column, row of the center cell.
+name = River crossing
+cell_size = 8.0
+tile_cells = 4
+starting_ants = 5
+nest = 40, 54
+tiles:
+ddddddgggggggggggddddddddddwwwgggggggggggggggddd
+ddddddgggggggggggddddddddddgwwwgggggggggggggggdd
+ddddddgggggggggggddddddddddddwwddddgggggggggggdd
+dddddddggggggggggddddddddggddwwwddddgggggggggggd
+dddddddgddggggggggddddggggggddwwddddgggggggggggg
+dddddddgdgggggggggggggggggggdddddddddggggggggggg
+ddddddddggggggggggggggggggggddddddddddgggggggggg
+ddddddddddddggggggggggggggggdwwddddddddggggggggg
+ggggdddddddddddgggggggggggggwwwdddddddddgggggggg
+gggggddddddddddgggddgggggggwwwddddddddddddgggggg
+ggggggddddddddddgggdggggggwwwddddddddddddddggggg
+ggggggddddddddddggggggggggwwggdddddddddddddggggg
+ggggggddddddddddgggggggggwwwgggdddddddddddddgggg
+ggggggddddddddddgggggggggwwggggdddddddddddddgggg
+gggggggdddddddddgggggggggwwgggggddddddddddddgggg
+gggggggddddddddddggggggggwwwggggdddddddddddggggg
+ggggggggdddddddddgggggggggwwgggddddddddddggggggg
+gggggggggdddddddddggggggggwwwgddddgggggggggggggd
+gggggggggggdddddddddgggggggwwwddddggggggggggggdd
+dggggggggggggwwwddddddggggggddddddggggggggggggdd
+ddgggggggggwwwwwwwddddddggggddddddgggggggggggddd
+dddggggggggwwwwwwwddddddddggdwwwdggggggggggggddd
+dddggggggggwwwwwwwddddddddddddwwdgggggggggddgddd
+dddggggggggggwwwddddddddddddddwwdggggggggggggddd
+ddddgggggggggggddddddddddddddwwwdggggggggggggddd
+ddddggggggggggggdddddddddddggwwggggggggggggggddd
+ddddggggggggggggdddddddddddgwwgggggggggggggggddd
+objects:
+aphid_flower 56, 66
+aphid_flower 26, 40
+rock 34, 18
+rock 38, 18
+rock 34, 22
+rock 74, 38
+rock 78, 38
+tree_trunk 78, 42
+tree_trunk 154, 54
+rock 154, 58
+rock 158, 58
+rock 170, 90
+rock 174, 90
+strawberry 160, 20
+blueberry 154, 16
+blueberry 166, 23
+seed 158, 26
+seed 165, 15
+strawberry 60, 30
+blueberry 54, 26
+blueberry 66, 33
+seed 58, 36
+seed 65, 25
+strawberry 140, 54
+blueberry 134, 50
+blueberry 146, 57
+seed 138, 60
+seed 145, 49
+strawberry 170, 84
+blueberry 164, 80
+blueberry 176, 87
+seed 168, 90
+seed 175, 79
+larva 150, 95
+twig 20, 90
+dead_leaf 90, 15
+high_grass 100, 50
+high_grass 102, 54
+mushroom 50, 95
+pine_cone 180, 50
+tree_trunk 185, 5
+tree_trunk 6, 6
