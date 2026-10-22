@@ -21,7 +21,7 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
   window or with the game menu open closes them.
 
 **Commits:**
-- (pending)
+- `9d90e23` — Right click closes menus and goes back to Inspect; right drag moves the map
 
 ---
 
