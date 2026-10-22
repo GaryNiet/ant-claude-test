@@ -72,6 +72,8 @@ var _dead_ant_fade_time: float = GameSettings.get_setting("ant_life", "dead_ant_
 var _focus_width: float = GameSettings.get_setting("focus", "trail_width")
 var _focus_start_strength: float = GameSettings.get_setting("focus", "start_strength")
 var _focus_target_radius: float = GameSettings.get_setting("focus", "target_radius")
+var _focus_nest_circle: float = GameSettings.get_setting("focus", "nest_circle")
+var _focus_circle_weakest: float = GameSettings.get_setting("focus", "nest_circle_weakest")
 
 
 func _init(starting_level: Level) -> void:
@@ -161,11 +163,13 @@ func paint_ground(center: Vector2, radius: float, type: GroundMap.Type) -> void:
 			_update_cells_of_tile(tile)
 
 
-## Focus tool: sends `colony`'s attack ants to `target`. Lays its attack trail in a straight
-## line from the nest to the target, stronger towards the target (ants follow it towards the
-## stronger smell), and a patch of the strongest smell around the target. The trail fades
-## ([focus] half_life); focusing again renews it.
+## Focus tool: sends `colony`'s attack ants to `target`. Lays its attack trail: a circle
+## around the nest (so ants leaving or coming home in any direction smell it), a straight
+## line from the nest to the target, stronger towards the target (ants follow it towards
+## the stronger smell), and a patch of the strongest smell around the target. The trail
+## fades ([focus] half_life); focusing again renews it.
 func focus(colony: Colony, target: Vector2) -> void:
+	_lay_focus_circle(colony, target)
 	var start := colony.nest_position
 	var step_length := grid.cell_size * 0.5
 	var steps := maxi(1, ceili(start.distance_to(target) / step_length))
@@ -175,6 +179,19 @@ func focus(colony: Colony, target: Vector2) -> void:
 		grid.raise_attack_zone(start.lerp(target, progress), _focus_width, strength, colony.index)
 	grid.raise_attack_zone(target, _focus_target_radius, grid.max_strength, colony.index)
 	colony.focus_target = target
+
+
+## The circle of attack trail around the nest: start_strength on the side the line leaves
+## from, weaker (nest_circle_weakest x start_strength) on the opposite side, so an ant that
+## smells it is steered round towards the line.
+func _lay_focus_circle(colony: Colony, target: Vector2) -> void:
+	var line_direction := (target - colony.nest_position).angle()
+	var radius := colony.nest_radius + _focus_nest_circle
+	for index in grid.cells_in_circle(colony.nest_position, radius):
+		var cell_middle := (Vector2(index % grid.width, index / grid.width) + Vector2(0.5, 0.5)) * grid.cell_size
+		var facing := (1.0 + cos(angle_difference(line_direction, (cell_middle - colony.nest_position).angle()))) / 2.0
+		var strength := _focus_start_strength * lerpf(_focus_circle_weakest, 1.0, facing)
+		grid.raise_attack_zone(cell_middle, 0.0, strength, colony.index)
 
 
 ## Calls `colony`'s attack ants back: its attack trail is gone.

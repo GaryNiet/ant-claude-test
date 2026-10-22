@@ -4,6 +4,23 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #35 — 2026-10-22
+
+**Request:**
+> attack orders should also do a small circle around the nest, right now no ants are attracted to it
+
+**Done:**
+- Focus now also lays the attack trail in a circle around the nest (`[focus] nest_circle` = 30 px
+  beyond the nest's edge), strongest on the side the line leaves from and weaker (x0.4,
+  `nest_circle_weakest`) on the opposite side, so ants that smell it are steered round to the line.
+- Tested (30 ants, Focus 300 px away, 40 s, 4 tries): attack ants that followed the trail
+  34 of 56 -> 53 of 56; ants reaching the spot 29 -> 47.
+
+**Commits:**
+- (pending)
+
+---
+
 ## #34 — 2026-10-22
 
 **Request:**

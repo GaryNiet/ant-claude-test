@@ -60,7 +60,8 @@ whenever they can afford it. Times in `[nest]` are game seconds (the game runs a
 
 **Focus:** the player's way to fight. Click a spot and the colony's attack ants (about half of the
 ants: those with a will to fight of 0.5 or more, and majors; the Behaviour aggressivity slider
-makes more of them) follow an attack trail from the nest to the spot. They attack spiders, rival
+makes more of them) follow an attack trail laid around the nest (so ants leaving in any direction
+notice it) and from the nest to the spot. They attack spiders, rival
 ants and nests they meet on the way, but neutral animals (beetle larvae, crickets) only at the
 focused spot (or once the colony has attacked them). Settings in `[focus]`.
 
