@@ -4,6 +4,27 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #33 — 2026-10-22
+
+**Request:**
+> right clic should close menus and unselect current tool
+> pan camera should also be on right click rather than middle button
+
+**Done:**
+- Right click (press and release without moving more than `[camera] click_max_drag` = 6 px):
+  closes the game menu, Behaviour, Tech tree and Settings windows, takes the building tools back
+  to their main page and the brush back to the Inspect tool (Focus too). New `cancel` control.
+- Right drag over the map moves it (`[controls] pan` is now "Mouse Right"; a drag is not a
+  cancel). Right click no longer erases objects (the Erase tool does, with the left button).
+- Tested with simulated mouse input in the game: right click resets the tool and the Food page,
+  a right drag moves the map without resetting the tool, a right click inside the Tech tree
+  window or with the game menu open closes them.
+
+**Commits:**
+- (pending)
+
+---
+
 ## #32 — 2026-10-22
 
 **Request:**

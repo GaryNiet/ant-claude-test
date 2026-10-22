@@ -10,6 +10,7 @@ extends PanelContainer
 const PaintTools := preload("res://scripts/ui/paint_tools.gd")
 
 var _view: Node2D
+var _tools: Node   ## the building tools (paint_tools.gd)
 var _view_button: Button
 var _trails_button: Button
 var _stats_title: Label
@@ -18,15 +19,20 @@ var _stats: Label
 var _selection_info: Label
 
 
+## A right click: the building tools go back to their main page.
+func cancel() -> void:
+	_tools.cancel()
+
+
 ## Builds the panel. Called by main.gd once everything exists.
 func setup(view: Node2D, brush: Node2D) -> void:
 	_view = view
 	var outer := VBoxContainer.new()
 	add_child(outer)
 	outer.add_child(_title("Building tools"))
-	var tools := PaintTools.new()
-	outer.add_child(tools)
-	tools.setup(view, brush)
+	_tools = PaintTools.new()
+	outer.add_child(_tools)
+	_tools.setup(view, brush)
 	outer.add_child(_debug_buttons())
 	outer.add_child(HSeparator.new())
 	var scroll := ScrollContainer.new()

@@ -123,6 +123,12 @@ func setup(view: Node2D, main: Node, brush: Node2D) -> void:
 	_build_menu()
 
 
+## A right click: closes the bar's menus (game menu, Behaviour, Tech tree).
+func close_menus() -> void:
+	for menu in [_menu, _behaviour_menu, _tech_tree_menu]:
+		menu.hide()
+
+
 ## Lays `count` larvae of the colony the bar acts on (as many as its food allows).
 func lay(count: int) -> void:
 	_view.simulation.lay_larvae(_view.target_colony(), count)
@@ -207,6 +213,7 @@ func _build_menu() -> void:
 	for item in MENU_LABELS:
 		_menu.add_item(MENU_LABELS[item], item)
 	_menu.id_pressed.connect(_on_menu_item)
+	UiTheme.close_on_right_click(_menu)
 	add_child(_menu)
 
 

@@ -19,6 +19,7 @@ func setup(view: Node2D, brush: Node2D) -> void:
 	_view = view
 	_brush = brush
 	theme = UiTheme.make()
+	UiTheme.close_on_right_click(self)
 	var column := VBoxContainer.new()
 	add_child(column)
 	_title = Label.new()

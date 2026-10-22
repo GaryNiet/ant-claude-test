@@ -67,6 +67,13 @@ static func _button_box(color: Color, border: Color, pushed_in: bool) -> StyleBo
 
 
 ## Makes `button` shrink a little while it is held down and spring back when released.
+## Popup windows (menus) take the mouse while open: a right click on them closes them.
+static func close_on_right_click(popup: Window) -> void:
+	popup.window_input.connect(func(event: InputEvent) -> void:
+		if event.is_action_released("cancel"):
+			popup.hide())
+
+
 static func add_click_animation(button: Button) -> void:
 	var click_scale: float = GameSettings.get_setting("ui", "click_scale")
 	var click_time: float = GameSettings.get_setting("ui", "click_time")

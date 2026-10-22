@@ -39,6 +39,11 @@ var _tool_font_size: int = GameSettings.get_setting("ui", "tool_font_size")
 var _small_button_size: float = GameSettings.get_setting("ui", "small_button_size")
 
 
+## A right click: back to the main page (the brush goes back to Inspect on its own).
+func cancel() -> void:
+	_show_page(Page.MAIN)
+
+
 ## Builds the tools. Called by the side panel once everything exists.
 func setup(view: Node2D, brush: Node2D) -> void:
 	_view = view
@@ -158,7 +163,7 @@ func _build_sub_page(page: Page) -> void:
 	for kind in _kinds_of_page(page):
 		var picture: Texture2D = load("%s/objects/%s.png" % [_sprite_folder, kind])
 		_add_choice(kind, kinds.label(kind), "", picture, group, _pick_object.bind(kind))
-	_row.add_child(_label("Click on the map to place it.\nRight click erases."))
+	_row.add_child(_label("Click on the map to place it.\nRight click: back to Inspect."))
 
 
 func _add_brush_size() -> void:

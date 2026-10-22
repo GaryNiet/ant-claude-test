@@ -14,6 +14,7 @@ extends Node2D
 signal stepped        ## emitted after one or more simulation ticks ran this frame
 signal level_loaded   ## emitted after a level was loaded (or restarted)
 signal view_mode_changed  ## emitted when switching between the isometric and debug views
+signal cancel_requested   ## a right click (not a drag): close the menus, back to the Inspect tool
 
 
 var simulation: ColonySimulation
@@ -44,6 +45,9 @@ var _min_zoom: float = GameSettings.get_setting("camera", "min_zoom")
 var _max_zoom: float = GameSettings.get_setting("camera", "max_zoom")
 var _pan_speed: float = GameSettings.get_setting("camera", "pan_speed")
 var _pick_radius: float = GameSettings.get_setting("camera", "inspect_pick_radius")
+var _click_max_drag: float = GameSettings.get_setting("camera", "click_max_drag")
+var _is_panning := false        ## the pan button went down over the map
+var _dragged_since_press := 0.0 ## screen pixels the mouse moved since the cancel button went down
 var _toolbar_height: float = GameSettings.get_setting("ui", "toolbar_height")
 var _side_panel_width: float = GameSettings.get_setting("ui", "side_panel_width")
 var _fit_zoom := 1.0           ## zoom at which the whole map fits the map area
@@ -166,8 +170,23 @@ func _unhandled_input(event: InputEvent) -> void:
 		_zoom_at(get_viewport().get_mouse_position(), _zoom_step)
 	elif event.is_action_pressed("zoom_out"):
 		_zoom_at(get_viewport().get_mouse_position(), 1.0 / _zoom_step)
-	elif event is InputEventMouseMotion and Input.is_action_pressed("pan"):
-		position += event.relative
+
+
+## The right mouse button (anywhere on screen): dragging it over the map moves the map,
+## clicking it (without dragging) asks to cancel (see cancel_requested).
+func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("pan"):
+		_is_panning = map_area().has_point(get_viewport().get_mouse_position())
+	if event.is_action_pressed("cancel"):
+		_dragged_since_press = 0.0
+	elif event.is_action_released("cancel") and _dragged_since_press <= _click_max_drag:
+		cancel_requested.emit()
+	if event.is_action_released("pan"):
+		_is_panning = false
+	if event is InputEventMouseMotion:
+		_dragged_since_press += event.relative.length()
+		if _is_panning and Input.is_action_pressed("pan"):
+			position += event.relative
 
 
 ## Runs as many fixed-length ticks as fit in the time that passed. Returns how many ran.

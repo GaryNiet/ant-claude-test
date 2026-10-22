@@ -15,6 +15,7 @@ var _exploring_value: Label
 func setup(view: Node2D) -> void:
 	_view = view
 	theme = UiTheme.make()
+	UiTheme.close_on_right_click(self)
 	var column := VBoxContainer.new()
 	add_child(column)
 	_title = Label.new()

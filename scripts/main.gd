@@ -18,11 +18,20 @@ func _ready() -> void:
 	_gameplay_bar.setup(_view, self, $SimulationView/MapSpace/Brush)
 	_side_panel.setup(_view, $SimulationView/MapSpace/Brush)
 	_settings_menu.setup()
+	_view.cancel_requested.connect(_cancel)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("main_menu"):
 		_gameplay_bar.open_menu()
+
+
+## A right click: closes every menu and goes back to the Inspect tool.
+func _cancel() -> void:
+	_gameplay_bar.close_menus()
+	_settings_menu.hide()
+	_side_panel.cancel()
+	$SimulationView/MapSpace/Brush.cancel()
 
 
 func open_settings_menu() -> void:

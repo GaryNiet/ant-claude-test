@@ -11,6 +11,7 @@ var _effects_volume: HSlider
 
 ## Builds the menu. Called by the screen that owns it once everything exists.
 func setup() -> void:
+	UiTheme.close_on_right_click(self)
 	var column := VBoxContainer.new()
 	add_child(column)
 

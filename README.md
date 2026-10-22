@@ -24,12 +24,12 @@ debug buttons (fit map, debug view, trails) and all the data (level, selection, 
 | Building tools (right) or keys **1**-**6** | Inspect / **Food** (apple) / **Obstacles** (stop sign) / **Terrain** (mountains) / Nest / Erase |
 | Food, Obstacles, Terrain | The tools turn into that page, one button per item showing the item itself (blueberry, strawberry, larva...; rock, twig, tree trunk...; dirt, grass, water). **Backspace** or Back returns |
 | Left mouse | Use the tool: inspect anything, place one object per click, paint terrain, erase, move the nest |
-| Right mouse | Erase objects under the brush (any tool) |
+| Right click | Close the menus (game menu, Behaviour, Tech tree, Settings, the Food / Obstacles / Terrain pages) and go back to the Inspect tool |
 | **F** or Focus (gameplay bar) | Click a spot to send the attack ants there: an attack trail (orange-red, always shown) goes from the nest to the spot, the ants follow it and attack anything on the way and there. It fades after about a minute; click again to renew it, click our nest to call them back |
 | **L** or Lay 1 / Lay 5 | Spend 20 food per larva; larvae are laid one after the other (10 s each), then hatch (Auto hatch is on at the start) |
 | **[** / **]** or **-** / **=** | Brush size |
 | Mouse wheel | Zoom (towards the mouse) |
-| Middle mouse drag, arrows or **WASD** | Move the map |
+| Right mouse drag, arrows or **WASD** | Move the map |
 | **Space** | Pause (you can still paint while paused) |
 | **R** | Restart the level |
 | Gameplay bar | Lay and hatch larvae, Focus, Behaviour sliders, Tech tree upgrades (paid with food stored in the nest) |

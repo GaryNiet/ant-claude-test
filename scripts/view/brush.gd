@@ -4,7 +4,7 @@ extends Node2D
 ##   Place     click to place one object (a food item or an obstacle) of the chosen kind
 ##   Terrain   hold to paint dirt, grass or water, in whole tiles: every tile whose center
 ##             is in the brush circle, at least the tile under the mouse
-##   Erase     hold to remove the objects under the brush (right click erases with any tool)
+##   Erase     hold to remove the objects under the brush
 ##   Focus     click a spot to send our colony's (or the selected rival's) attack ants there:
 ##             an attack trail goes from the nest to the spot (see ColonySimulation.focus).
 ##             Clicking the nest itself calls them back.
@@ -32,6 +32,12 @@ var _last_paint_position := Vector2.INF  ## where the previous frame painted (IN
 var _focus_radius: float = GameSettings.get_setting("focus", "target_radius")
 
 
+## A right click: stop what the tool is doing and go back to the Inspect tool.
+func cancel() -> void:
+	_is_painting = false
+	selected_tool = Tool.INSPECT
+
+
 func change_size(steps: int) -> void:
 	radius = clampf(radius + steps * _radius_step, _min_radius, _max_radius)
 
@@ -43,9 +49,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		change_size(-1)
 	elif event.is_action_pressed("paint"):
 		_use_tool()
-	elif event.is_action_pressed("erase"):
-		_start_stroke(true)
-	elif event.is_action_released("paint") or event.is_action_released("erase"):
+	elif event.is_action_released("paint"):
 		_is_painting = false
 
 
