@@ -12,3 +12,6 @@ This is a Godot 4 (GDScript) video game prototype. Follow these rules on every r
    the commit(s) it produced. Since a commit can't contain its own hash, commit the work
    first, then add the hash(es) to the log in a follow-up commit `Log: request #N commits`.
 4. Develop on the designated branch and push when done, so the user can `git pull` it.
+5. **Use Godot 4.7** (the user's editor version) for every run, import and test, so the `.import`
+   and `.uid` files stay identical to what the user's editor writes. After adding a script,
+   image or sound, run `--headless --import` with 4.7 and commit the `.uid` / `.import` files it creates.

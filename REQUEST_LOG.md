@@ -4,6 +4,25 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #30 — 2026-10-22
+
+**Request:**
+> I could push the changes. Adapt the versions so that I don’t get hundreds of import changes every time
+
+**Done:**
+- The `.import` files were made by Godot 4.3 (used for testing); the user's editor is 4.7 and
+  rewrote them all (new import options), plus it added `.uid` files for every script.
+- Testing now uses Godot 4.7.2: re-importing the whole project with it changes no file
+  (`git status` clean), so the files match the user's editor. The game runs the same on 4.7.2
+  (headless simulation and screenshots checked).
+- README says Godot 4.7; CLAUDE.md rule 5: always use 4.7, and commit the `.uid` / `.import`
+  files it creates for new scripts, images and sounds.
+
+**Commits:**
+- (pending)
+
+---
+
 ## #29 — 2026-10-21
 
 **Request:**

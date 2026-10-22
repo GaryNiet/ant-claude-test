@@ -1,6 +1,8 @@
 # ant-claude-test — Godot prototype
 
-A video game prototype made with **Godot 4.3+** (standard version, not .NET).
+A video game prototype made with **Godot 4.7** (standard version, not .NET).
+Use 4.7 so the `.import` and `.uid` files in the repository stay as they are: another Godot
+version rewrites them all when it opens the project.
 
 ## Run it
 1. Get the code (first time): `git clone https://github.com/GaryNiet/ant-claude-test.git`
