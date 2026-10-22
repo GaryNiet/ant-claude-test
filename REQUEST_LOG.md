@@ -17,7 +17,7 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
   34 of 56 -> 53 of 56; ants reaching the spot 29 -> 47.
 
 **Commits:**
-- (pending)
+- `465e82f` — Focus also lays the attack trail in a circle around the nest
 
 ---
 
