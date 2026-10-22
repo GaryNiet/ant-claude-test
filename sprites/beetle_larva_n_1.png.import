@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ikml7swk4mc2"
-path="res://.godot/imported/trail.png-b0e1a9dff812272621a681b22d8a419e.ctex"
+uid="uid://2vmxyb8elj2x"
+path="res://.godot/imported/beetle_larva_n_1.png-b64e06999af1ecd4b6bc3fa3eb54b2d8.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://sprites/icons/trail.png"
-dest_files=["res://.godot/imported/trail.png-b0e1a9dff812272621a681b22d8a419e.ctex"]
+source_file="res://sprites/beetle_larva_n_1.png"
+dest_files=["res://.godot/imported/beetle_larva_n_1.png-b64e06999af1ecd4b6bc3fa3eb54b2d8.ctex"]
 
 [params]
 

@@ -14,7 +14,7 @@
 [ext_resource type="Script" path="res://scripts/view/sprite_layer.gd" id="12_sprites"]
 [ext_resource type="Script" path="res://scripts/view/path_layer.gd" id="13_paths"]
 [ext_resource type="Script" path="res://scripts/view/moss_layer.gd" id="14_moss"]
-[ext_resource type="Script" path="res://scripts/view/drawn_trail_layer.gd" id="15_drawn_trails"]
+[ext_resource type="Script" path="res://scripts/view/focus_trail_layer.gd" id="15_focus_trail"]
 [ext_resource type="Script" path="res://scripts/view/damage_number_layer.gd" id="16_damage_numbers"]
 [ext_resource type="Script" path="res://scripts/view/sound_cues.gd" id="17_sound_cues"]
 
@@ -38,8 +38,8 @@ script = ExtResource("13_paths")
 [node name="PheromoneLayer" type="Node2D" parent="SimulationView/MapSpace"]
 script = ExtResource("3_pheromones")
 
-[node name="DrawnTrailLayer" type="Node2D" parent="SimulationView/MapSpace"]
-script = ExtResource("15_drawn_trails")
+[node name="FocusTrailLayer" type="Node2D" parent="SimulationView/MapSpace"]
+script = ExtResource("15_focus_trail")
 
 [node name="FoodLayer" type="Node2D" parent="SimulationView/MapSpace"]
 script = ExtResource("4_food")

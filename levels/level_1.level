@@ -2,7 +2,7 @@
 name = Meadow
 cell_size = 8.0
 tile_cells = 4
-starting_ants = 100
+starting_ants = 5
 nest = 80, 44
 tiles:
 dddgggggdddddddddgggggggggdddddddddddddg
@@ -28,6 +28,8 @@ gggddddddddddddddddddddddgggggggdddddddd
 ggggdddddddddddddddddddddgggggggdddddddd
 ggggdddddddddddddddddddddggggggggddddddd
 objects:
+aphid_flower 96, 30
+aphid_flower 62, 58
 strawberry 120, 44
 blueberry 114, 40
 blueberry 126, 47

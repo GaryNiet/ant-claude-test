@@ -14,8 +14,6 @@ var sensor_distance: float = GameSettings.get_setting("ant", "sensor_distance")
 var sensor_angle: float = GameSettings.get_setting("ant", "sensor_angle")
 var sensor_radius_in_cells: int = GameSettings.get_setting("ant", "sensor_radius_in_cells")
 var food_sight_radius: float = GameSettings.get_setting("ant", "food_sight_radius")
-var base_cut_time: float = GameSettings.get_setting("ant", "cut_time")
-var cut_time := base_cut_time
 var base_carry_capacity: int = GameSettings.get_setting("ant", "carry_capacity")
 var carry_capacity := base_carry_capacity
 var food_reach: float = GameSettings.get_setting("ant", "food_reach")
@@ -66,9 +64,11 @@ var raid_sight_radius: float = GameSettings.get_setting("nest", "raid_sight_radi
 var join_fight_give_up_time: float = GameSettings.get_setting("ant_combat", "join_fight_give_up_time")
 var fight_zone_radius: float = GameSettings.get_setting("ant_combat", "fight_zone_radius")
 var fight_deposit: float = GameSettings.get_setting("ant_combat", "fight_deposit")
+var attack_will: float = GameSettings.get_setting("focus", "attack_will")
+var restraining_slow_time: float = GameSettings.get_setting("tech_restraining_bite", "slow_time")
 ## Two ants of rival colonies this close (center to center) are touching: they fight.
 var rival_contact_distance: float = 2.0 * float(GameSettings.get_setting("collisions", "ant_radius")) \
-	+ float(GameSettings.get_setting("enemies", "contact_margin"))
+	+ float(GameSettings.get_setting("creatures", "contact_margin"))
 
 # Trails — [pheromones]
 var going_out_deposit: float = GameSettings.get_setting("pheromones", "going_out_deposit")

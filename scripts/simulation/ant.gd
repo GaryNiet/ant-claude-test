@@ -10,8 +10,10 @@ extends RefCounted
 ##                  follows the "going home" trail (left by food carriers) towards
 ##                  stronger smell, which leads back to the food. Gives up and goes
 ##                  home if it doesn't reach food in time (e.g. the pile ran out).
-##   CUTTING_FOOD   Standing on food, cutting pieces off: one piece (1 unit of food)
-##                  every cut_time seconds, until it carries as much as it can
+##   CUTTING_FOOD   Standing on food, cutting pieces off: one piece (piece_food units of
+##                  food: a lot for a larva or a hard shell, less for fruit or aphids)
+##                  every cut_time seconds of that food item (fruit is quick, a hard
+##                  shell is slow), until it carries as many pieces as it can
 ##                  (carry_capacity) or the food runs out. Then it carries them home.
 ##   CARRYING_FOOD  Walks home by following "going out" trails backwards (towards
 ##                  stronger smell, which is near the nest), with a growing push
@@ -22,6 +24,11 @@ extends RefCounted
 ##                  as a food carrier, but lays no trail.
 ##   JOINING_FIGHT  Eager fighters only: walks to an enemy it sees, or follows the
 ##                  "fight" smell towards stronger smell (where a fight is going on).
+##   ATTACKING      Attack ants only (fighting spirit, and majors), sent by the player with
+##                  the Focus tool: follows the colony's "attack" trail (from the nest to
+##                  the focused spot) towards stronger smell, and attacks anything it
+##                  sees on the way or there: spiders, beetle larvae, crickets, rival ants
+##                  and nests. Goes home when the trail is gone and nothing is left.
 ##   FIGHTING       Stands next to an enemy and hits it every attack_interval seconds,
 ##                  laying "fight" pheromone in a zone around itself. When the enemy dies
 ##                  or moves away, the ant goes back to what it was doing.
@@ -36,8 +43,12 @@ extends RefCounted
 ##   Will to fight (0..1, random for every ant), plus a bonus when the fight is close
 ##   to the nest (the colony defends its home harder):
 ##     high   (>= join_fight_will)    goes looking for fights when it smells or sees one
+##     (>= [focus] attack_will: an "attack ant", follows the attack trail of the Focus tool)
 ##     medium (>= contact_fight_will) fights an enemy it bumps into
 ##     low                            only fights back when an enemy hits it
+##
+## Other creatures: spiders are always enemies; beetle larvae and crickets are left alone
+## until the player sends attack ants at them (then the whole colony treats them as enemies).
 ##
 ## Colonies: every ant belongs to a colony (its nest, its trails, its upgrades). It only
 ## follows its own colony's trails. When it meets an ant of another colony, both fight.
@@ -61,7 +72,7 @@ extends RefCounted
 ## Paths: every walking ant wears the ground under it a little. Where many ants pass, the
 ## ground becomes an unobstructed path (see MapGrid), and ants walk faster there.
 
-enum Mode { EXPLORING, GATHERING, CUTTING_FOOD, CARRYING_FOOD, RETURNING_HOME, JOINING_FIGHT, FIGHTING }
+enum Mode { EXPLORING, GATHERING, CUTTING_FOOD, CARRYING_FOOD, RETURNING_HOME, JOINING_FIGHT, ATTACKING, FIGHTING }
 
 var colony: Colony
 var position: Vector2
@@ -79,9 +90,11 @@ var lifespan: float             ## dies of old age after this many seconds (0 = 
 var died_of_old_age := false
 var hp: float
 var max_hp: float
-var carried_food := 0           ## pieces of food the ant is holding
+var carried_food := 0           ## food the ant is holding (units)
+var pieces_carried := 0         ## pieces cut off on this trip (carry_capacity counts pieces)
 var fight_will: float           ## personality: 0 = never starts a fight, 1 = loves fighting
-var fight_target: Object        ## the Enemy, rival Ant or rival nest (Colony) this ant is fighting
+var fight_target: Object        ## the Creature, rival Ant or rival nest (Colony) this ant is fighting
+var cutting_spot := Vector2.INF ## the food cell it is cutting from (CUTTING_FOOD)
 var is_major := false           ## a big fighter (Major ants upgrade)
 var size_multiplier := 1.0      ## how much bigger it is drawn (majors)
 var attack_multiplier := 1.0
@@ -91,7 +104,9 @@ var poison_team := -1           ## team of the ant that poisoned it
 var damage_to_show := 0.0       ## damage taken since the simulation last reported it (damage numbers)
 var damage_attacker_team := -1  ## team of whoever hurt it last (-1 = a spider)
 var _mode_before_fight := Mode.EXPLORING
+var _last_fight_target: Object  ## touching the same target again keeps the bite timer going
 var _time_until_attack := 0.0
+var _cut_time := 0.0            ## seconds per piece of the food being cut
 
 # Going home: push and getting unstuck
 var _push_time := 0.0              ## seconds the push has been growing
@@ -192,12 +207,18 @@ func _hit(target: Object) -> void:
 		target.poison(_tree.value("corrosive_sting", "damage_per_second"), _tree.value("corrosive_sting", "duration"), colony.team)
 
 
-## Called by the simulation every tick this ant touches `enemy`.
-func touch_enemy(sim: ColonySimulation, enemy: Enemy) -> void:
+## Called by the simulation every tick this ant touches `creature`. Attacking ants fight
+## anything; otherwise only creatures that are enemies of the colony are fought.
+func touch_creature(sim: ColonySimulation, creature: Creature) -> void:
 	if mode == Mode.FIGHTING:
 		return
-	if mode == Mode.JOINING_FIGHT or _will_to_fight_at(sim, enemy.position) >= _settings.contact_fight_will:
-		_start_fight(enemy)
+	if mode == Mode.ATTACKING:
+		_start_fight(creature)
+		return
+	if not creature.is_hostile_to(colony.team):
+		return
+	if mode == Mode.JOINING_FIGHT or _will_to_fight_at(sim, creature.position) >= _settings.contact_fight_will:
+		_start_fight(creature)
 
 
 ## Called by the simulation every tick this ant touches an ant of another colony:
@@ -255,7 +276,9 @@ func _think(sim: ColonySimulation, delta: float) -> float:
 	_spray_acid(sim, delta)
 	if not is_carrying_food() and _raid_rival_nest(sim):
 		return 0.0
-	if (mode == Mode.EXPLORING or mode == Mode.GATHERING) and _wants_to_join_fight(sim):
+	if _wants_to_attack(sim):
+		_set_mode(Mode.ATTACKING)
+	elif (mode == Mode.EXPLORING or mode == Mode.GATHERING) and _wants_to_join_fight(sim):
 		_set_mode(Mode.JOINING_FIGHT)
 	match mode:
 		Mode.EXPLORING:
@@ -266,16 +289,19 @@ func _think(sim: ColonySimulation, delta: float) -> float:
 			return _go_home(sim, delta)
 		Mode.JOINING_FIGHT:
 			return _join_fight(sim)
+		Mode.ATTACKING:
+			return _attack(sim)
 	return 0.0
 
 
-## Inside a rival nest: steals a larva and heads home with it, or, if there is none left,
-## attacks the nest itself (if willing to fight). Returns true if the ant did something.
+## Inside a rival nest: steals a larva or some stored food and heads home with it, or, if
+## there is nothing to take, attacks the nest itself (if willing to fight). Returns true if
+## the ant did something.
 func _raid_rival_nest(sim: ColonySimulation) -> bool:
 	var rival := sim.rival_colony_at(position, colony.team)
 	if rival == null:
 		return false
-	var loot := sim.steal_larva(rival)
+	var loot := sim.raid_nest(rival)
 	if loot > 0:
 		carried_food = loot
 		_set_mode(Mode.CARRYING_FOOD)
@@ -296,7 +322,7 @@ func _spray_acid(sim: ColonySimulation, delta: float) -> void:
 	if _time_until_acid > 0.0:
 		return
 	var reach: float = _tree.value("acid_spray", "range")
-	var target: Object = sim.nearest_enemy(position, reach)
+	var target: Object = sim.nearest_hostile_creature(position, reach, colony.team)
 	if target == null:
 		target = sim.collisions.nearest_rival(position, reach, colony.team)
 	if target == null:
@@ -334,8 +360,9 @@ func _gather(sim: ColonySimulation) -> float:
 		_set_mode(Mode.CARRYING_FOOD)
 		heading += PI
 		return 0.0
-	if _food_within_reach(sim) != MapGrid.NO_FOOD:
-		_set_mode(Mode.CUTTING_FOOD)  # reached food: start cutting a piece off
+	var reachable := _food_within_reach(sim)
+	if reachable != MapGrid.NO_FOOD:
+		_start_cutting(sim, reachable)  # reached food: start cutting a piece off
 		return 0.0
 	var food := _food_in_sight(sim)
 	if food != MapGrid.NO_FOOD:
@@ -393,17 +420,27 @@ func _start_detour(sim: ColonySimulation) -> void:
 		heading = sim.rng.randf() * TAU
 
 
+## Starts cutting the food at `spot`, at the speed of its food item.
+func _start_cutting(sim: ColonySimulation, spot: Vector2) -> void:
+	_set_mode(Mode.CUTTING_FOOD)
+	cutting_spot = spot
+	_cut_time = sim.cut_time_at(spot)
+
+
 ## Waits until the piece is cut, then takes it home. If the food is gone meanwhile
-## (other ants or an enemy took it), goes back to gathering.
+## (other ants or a spider took it), goes back to gathering.
 func _cut_food(sim: ColonySimulation) -> void:
-	if time_in_mode < _settings.cut_time:
+	if time_in_mode < _cut_time:
 		return
 	time_in_mode = 0.0  # start cutting the next piece
 	var food := _food_within_reach(sim)
-	if food != MapGrid.NO_FOOD and sim.take_food(food):
-		carried_food += 1
-		if carried_food < _settings.carry_capacity:
+	var taken := sim.take_food_piece(food) if food != MapGrid.NO_FOOD else 0
+	if taken > 0:
+		carried_food += taken
+		pieces_carried += 1
+		if pieces_carried < _settings.carry_capacity:
 			return  # room for more: keep cutting
+	cutting_spot = Vector2.INF
 	if carried_food > 0:
 		_set_mode(Mode.CARRYING_FOOD)
 		heading += PI  # turn around and head home
@@ -417,12 +454,45 @@ func _food_within_reach(sim: ColonySimulation) -> Vector2:
 
 
 func _join_fight(sim: ColonySimulation) -> float:
-	var enemy := sim.nearest_enemy(position, _settings.enemy_sight_radius)
+	var enemy := sim.nearest_hostile_creature(position, _settings.enemy_sight_radius, colony.team)
 	if enemy != null:
 		return _turn_towards(enemy.position)
 	if time_in_mode > _settings.join_fight_give_up_time:
 		_set_mode(Mode.RETURNING_HOME)
 	return _steer_by_smell(sim, 0.0, 0.0, 1.0)
+
+
+## Follows the attack trail towards the focused spot, turning towards anything to attack
+## that it sees. Goes home once the trail has faded and nothing is in sight.
+func _attack(sim: ColonySimulation) -> float:
+	var target := _attack_target_in_sight(sim)
+	if target != null:
+		return _turn_towards(target.position)
+	if not _can_smell(sim, MapGrid.Kind.ATTACK) and time_in_mode > _settings.join_fight_give_up_time:
+		_set_mode(Mode.RETURNING_HOME)
+	return _steer_by_smell(sim, 0.0, 0.0, 0.0, 1.0)
+
+
+## What an attacking ant goes for: the closest creature, else rival ant, else rival nest
+## it sees (null if none).
+func _attack_target_in_sight(sim: ColonySimulation) -> Object:
+	var creature := sim.nearest_creature(position, _settings.enemy_sight_radius)
+	if creature != null:
+		return creature
+	var rival := sim.collisions.nearest_rival(position, _settings.enemy_sight_radius, colony.team)
+	if rival != null:
+		return rival
+	return sim.rival_nest_near(position, _settings.raid_sight_radius, colony.team)
+
+
+## Attack ants (will to fight at least [focus] attack_will, and majors) that aren't busy
+## with food follow the attack trail when they smell it.
+func _wants_to_attack(sim: ColonySimulation) -> bool:
+	if mode != Mode.EXPLORING and mode != Mode.GATHERING and mode != Mode.RETURNING_HOME:
+		return false
+	if is_carrying_food() or not (is_major or fight_will >= _settings.attack_will):
+		return false
+	return _can_smell(sim, MapGrid.Kind.ATTACK)
 
 
 func _fight(sim: ColonySimulation, delta: float) -> void:
@@ -451,12 +521,18 @@ func _still_touching(target: Object) -> bool:
 
 
 func _start_fight(target: Object) -> void:
-	# Ants that came looking for a fight go exploring afterwards (and will find the enemy's food).
+	# Ants that came looking for a fight go exploring afterwards (and will find the enemy's food);
+	# attacking ants keep attacking.
 	_mode_before_fight = Mode.EXPLORING if mode == Mode.JOINING_FIGHT else mode
 	fight_target = target
-	_time_until_attack = _settings.attack_interval
-	if _on_path and colony.has_tech("guarded_paths"):
-		_time_until_attack = 0.0  # strikes first
+	cutting_spot = Vector2.INF
+	if target != _last_fight_target:  # a new opponent (not one it lost touch with for a moment)
+		_time_until_attack = _settings.attack_interval
+		if _on_path and colony.has_tech("guarded_paths"):
+			_time_until_attack = 0.0  # strikes first
+	if target is Creature and target.settings.hold_per_ant > 0.0 and target.settings.hold_per_ant < 1.0:
+		_time_until_attack = 0.0  # an animal that tries to get away: bite as soon as it's caught
+	_last_fight_target = target
 	mode = Mode.FIGHTING
 	time_in_mode = 0.0
 
@@ -470,7 +546,7 @@ func _end_fight() -> void:
 ## Eager fighters drop what they're doing when they see an enemy or smell a fight.
 ## (A fight that is only smelled is assumed to be about where the ant is.)
 func _wants_to_join_fight(sim: ColonySimulation) -> bool:
-	var enemy := sim.nearest_enemy(position, _settings.enemy_sight_radius)
+	var enemy := sim.nearest_hostile_creature(position, _settings.enemy_sight_radius, colony.team)
 	if enemy != null:
 		return _will_to_fight_at(sim, enemy.position) >= _settings.join_fight_will
 	return (_will_to_fight_at(sim, position) >= _settings.join_fight_will
@@ -494,6 +570,7 @@ func _check_arrival_at_nest(sim: ColonySimulation) -> void:
 	if mode == Mode.CARRYING_FOOD:
 		colony.deliver_food(carried_food, sim.elapsed_time)
 		carried_food = 0
+		pieces_carried = 0
 		time_since_trail_start = 0.0
 		if is_scout:
 			_set_mode(Mode.EXPLORING)  # scouts go look for new food
@@ -511,29 +588,28 @@ func _check_arrival_at_nest(sim: ColonySimulation) -> void:
 
 ## Compares the smell at 3 sensors (left, front, right) and returns which way to turn.
 ## Each sensor's score = going_out * going_out_weight + going_home * going_home_weight
-##                       + fight * fight_weight.
+##                       + fight * fight_weight + attack * attack_weight.
 ## The ant turns towards the highest score (a negative weight means "avoid this smell").
 ## A sensor that touches an obstacle gets the worst possible score, so ants steer around them.
-func _steer_by_smell(sim: ColonySimulation, going_out_weight: float, going_home_weight: float, fight_weight := 0.0) -> float:
-	var left := _sensor_score(sim, -_settings.sensor_angle, going_out_weight, going_home_weight, fight_weight)
-	var front := _sensor_score(sim, 0.0, going_out_weight, going_home_weight, fight_weight)
-	var right := _sensor_score(sim, _settings.sensor_angle, going_out_weight, going_home_weight, fight_weight)
+func _steer_by_smell(sim: ColonySimulation, going_out_weight: float, going_home_weight: float, fight_weight := 0.0, attack_weight := 0.0) -> float:
+	var weights := [going_out_weight, going_home_weight, fight_weight, attack_weight]
+	var left := _sensor_score(sim, -_settings.sensor_angle, weights)
+	var front := _sensor_score(sim, 0.0, weights)
+	var right := _sensor_score(sim, _settings.sensor_angle, weights)
 	if front >= left and front >= right:
 		return 0.0
 	return -1.0 if left > right else 1.0
 
 
-func _sensor_score(sim: ColonySimulation, angle_offset: float, going_out_weight: float, going_home_weight: float, fight_weight: float) -> float:
+## `weights` = [going_out, going_home, fight, attack] weights (see _steer_by_smell).
+func _sensor_score(sim: ColonySimulation, angle_offset: float, weights: Array) -> float:
 	var spot := _sensor_position(angle_offset)
 	if sim.grid.is_obstacle(spot):
 		return -INF
 	var score := 0.0  # smells with weight 0 are skipped, to save time
-	if going_out_weight != 0.0:
-		score += _smell(sim, MapGrid.Kind.GOING_OUT, spot) * going_out_weight
-	if going_home_weight != 0.0:
-		score += _smell(sim, MapGrid.Kind.GOING_HOME, spot) * going_home_weight
-	if fight_weight != 0.0:
-		score += _smell(sim, MapGrid.Kind.FIGHT, spot) * fight_weight
+	for kind in [MapGrid.Kind.GOING_OUT, MapGrid.Kind.GOING_HOME, MapGrid.Kind.FIGHT, MapGrid.Kind.ATTACK]:
+		if weights[kind] != 0.0:
+			score += _smell(sim, kind, spot) * weights[kind]
 	return score
 
 

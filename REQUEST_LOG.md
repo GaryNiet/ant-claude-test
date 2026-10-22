@@ -4,6 +4,94 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #31 — 2026-10-22
+
+**Request** (by email, "[clod]", 2026-10-22):
+> Making balance changes to have more of a rythme and more decisions.
+>
+> Right now the game is not fun at all, it starts and there's nothing to do. I'm introducing more changes and will rely on you for balance and timing.
+>
+> Player-made pheromones are changing. Let's make it a "focus" button instead of direct pheromones. Players can click areas, which will behind the scenes draw an attack pheromone line from the nest to the area. Attack ants will follow this pheromone trail and attack anything in the way.
+>
+> The aim of other animals is to give the map a naturalistic feel, they shouldn't feel like video game opponents. They live their own lives.
+>
+> Introducing beetle larva, 2 spawn at the beginning of maps close to the nest, ants and the larva will not attack each other unless the player decides to attack. Larva gain total food value over time.
+>
+> New systems: food sources avec different attributes. Larva are fast to collect and high food value. Fruit is fast to collect and medium food value, hard shell insect are slow to collect and high food value, aphids are slow to collect and medium food value.
+>
+> Introducing the cricket, a insect wandering in a small zone away from the nest. When attacked they attempt to flee the map. They are faster than ants. The only way to get them is with upgrade that slow opponents and/or being in major number superiority from the start.
+>
+> The ant nests will start with 100 food and 5 ants. Considering this, enemies will have to be reworked. Different enemies will have different behaviors when this is done, but for now spiders will not target the nest, they will aim to get food from a food source or hunt ants. They leave after getting 5 or so ants.
+>
+> There is a new food source, a flower with aphids that ants can milk. Draw the sprites. If you can manage to have ants go up the flower to the aphids, even better.
+>
+> New mechanic: there is now a button that spends food to spawn larva. Larva no longer spawn automatically. 20 food per larva. Auto hatch is on by default. Spawning larva isn't instant, it has a progress bar. Let's say 10 seconds per larva.
+>
+> I'll need changes based on these gameplay goals
+>
+> Decision at game start:
+>
+>   * Where to get early food
+>      * Get beetle larva early for early food boost or let them grow for later boost
+>      * Get fruit, slower but more plentiful
+>      * Attack opponents
+>   * How to spend early food
+>      * Spend on larva
+>      * Spend on upgrades
+>         * Some early upgrades like slowing opponents open up avenues to hunt crickets
+>         * Fighting upgrades open avenues for attacking other ants
+>
+> Later decisions. As the nest grows, players should decide whether they want to grow their nest faster or upgrade. Make simulations to balance this out.
+> Getting to a higher maturity faster gives more access to upgrades and generally comes with better economy as you have more ants. Getting upgrades means you are more specialized faster.
+>
+> Growing the nest should be better long term, but if you specialize early and can take advantage of it by taking resources away from opponents you should end up ahead. Short term is about 2 minutes, long term is five minutes or more.
+>
+> Generally optimized play should correspond to 2-5 upgrades before going up in maturity. Maturity 2 should be reached between 5 and 15 minutes.
+
+**Done:**
+- **Focus tool** (replaces the Trail tool; gameplay bar button, key F): click a spot and an
+  "attack" pheromone line is laid from the nest to it (stronger towards the spot, fades in about a
+  minute; click our nest to call the ants back). Attack ants (will to fight >= 0.5, about half,
+  and majors) follow it and attack anything on the way: animals, rival ants, rival nests. The
+  trail is always shown in orange-red with a ring on the spot (`[focus]`).
+- **Animals** (new `Creature` base class with `Spider`, `BeetleLarva`, `Cricket`; `[creature_<kind>]`):
+  spiders are always enemies; the others are left alone until the colony attacks them.
+  - Beetle larvae: 2 near every nest at the start, crawl slowly, grow from 50 to 200 food.
+    Killed, they become a larva food item.
+  - Crickets: hop about in small areas away from the nests, faster than ants. Attacked, they
+    freeze for a moment, then flee to the map edge in long hops. Each ant holding on slows them;
+    Restraining bite now also slows a bitten animal for 3 s. Tested (6 tries each): 10 ants
+    catch 1, 20-40 ants about half, 10 ants with Restraining bite all of them.
+  - Spiders: never go for the nest; head for a food item and hunt ants they see; leave after
+    killing 5 ants or eating their fill. First one after ~10 min, then every ~6 min, one at a time.
+- **Food types** (each food item has `food_type`, `cut_time`, `piece_food`): larva fast/high, fruit
+  fast/medium, hard shell (dead spider, dead cricket) slow/high, aphids slow/medium. New **aphid
+  flower**: renewable (fills up again); ants climb up its stem to milk the aphids. Sprites drawn
+  for the flower, the cricket, the beetle larva (6 directions, 2 frames each), the dead cricket,
+  and Focus / Lay icons.
+- **Nest:** 5 ants and 100 food at the start (all levels). Larvae are no longer laid on their
+  own: Lay 1 / Lay 5 (key L) spend 20 food each, laid one after the other, 10 real seconds each,
+  with a progress bar. Auto hatch is on at the start. Rivals and allies lay when they can afford
+  it. Raiders now also steal stored food (up to 8) when there are no larvae; a dead rival ant is
+  worth 10 food.
+- **Balance** with a scripted player, now in the repo: `tools/balance_test.gd` (3 seeds each):
+  - Meadow: only growing reaches maturity 2 (now 40 ants) at 8-10 min; killing the beetle larvae
+    early or late ends about even; 4 economy upgrades first also reaches it at 8-11 min and ends
+    with more ants; fighting upgrades first (Restraining bite, hunting crickets) at 10-14 min.
+  - Rival level: armor + Restraining bite, then raiding the rival nest with Focus: behind at
+    first, destroyed the rival at 12-14 min in 2 seeds of 3 and ended ahead (46-47 ants vs 33-57
+    for only growing, with the rival still alive). One raid failed (22 ants vs 17).
+  - Other changes for it: food pieces (fruit 5, larva/hard shell 8, aphids 4), more food per item,
+    Mushroom harvest 30 food per game minute, Faster larvae +25%.
+- Fixes found on the way: an ant re-touching the same opponent no longer restarts its bite timer
+  (a moving target was almost never bitten); a beetle larva is held still by an ant on it.
+- README updated (controls, the start, Focus, food types, animals, balance).
+
+**Commits:**
+- (pending)
+
+---
+
 ## #30 — 2026-10-22
 
 **Request:**

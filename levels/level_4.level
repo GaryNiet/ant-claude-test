@@ -2,7 +2,7 @@
 name = Rival colonies
 cell_size = 8.0
 tile_cells = 4
-starting_ants = 80
+starting_ants = 5
 nest = 30, 54
 rival_nest = 162, 54
 tiles:
@@ -34,6 +34,10 @@ dddddddddddddgggggggggwwwwwdddddddddddddddgggggg
 dgggdddddddddddgggggggggwdddddddddddddddgggggggd
 gggggddddddddddddgggggggggdddddddddddddgggggggdd
 objects:
+aphid_flower 48, 40
+aphid_flower 48, 68
+aphid_flower 144, 40
+aphid_flower 144, 68
 strawberry 96, 54
 blueberry 90, 46
 blueberry 102, 62

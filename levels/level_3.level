@@ -2,7 +2,7 @@
 name = River crossing
 cell_size = 8.0
 tile_cells = 4
-starting_ants = 100
+starting_ants = 5
 nest = 40, 54
 tiles:
 ddddddgggggggggggddddddddddwwwgggggggggggggggddd
@@ -33,6 +33,8 @@ ddddgggggggggggddddddddddddddwwwdggggggggggggddd
 ddddggggggggggggdddddddddddggwwggggggggggggggddd
 ddddggggggggggggdddddddddddgwwgggggggggggggggddd
 objects:
+aphid_flower 56, 66
+aphid_flower 26, 40
 rock 34, 18
 rock 38, 18
 rock 34, 22

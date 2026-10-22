@@ -79,8 +79,8 @@ func _process(_delta: float) -> void:
 func _colony_stats(sim: ColonySimulation, colony: Colony) -> String:
 	var scouts := sim.count_scouts(colony)
 	var lines := PackedStringArray([
-		"Food stored in nest: %d   (a larva: %d food every %.1f s)" % [colony.food_stored, sim.food_per_larva, colony.larva_interval(sim.tech_tree)],
-		"Larvae: %d stored, %d hatching%s   Maturity: %d" % [colony.larvae, colony.hatching, "  (hatch all)" if colony.infinite_hatch else "", colony.maturity],
+		"Food stored in nest: %d   (a larva: %d food, laid in %.1f s)" % [colony.food_stored, sim.food_per_larva, colony.lay_time(sim.tech_tree)],
+		"Larvae: %d being laid, %d stored, %d hatching%s   Maturity: %d" % [colony.laying, colony.larvae, colony.hatching, "  (auto hatch)" if colony.infinite_hatch else "", colony.maturity],
 		"Upgrades owned: %d of %d   Nest health: %.0f / %.0f" % [colony.techs.size(), sim.tech_tree.nodes.size(), colony.hp, colony.max_hp],
 		"Food collected: %d   (%.2f per second)" % [colony.total_food_collected, colony.food_per_second(sim.elapsed_time)],
 		"Food left on map: %d" % sim.grid.total_food,
@@ -89,9 +89,12 @@ func _colony_stats(sim: ColonySimulation, colony: Colony) -> String:
 	])
 	for mode in Ant.Mode.values():
 		lines.append("    %s: %d" % [_mode_name(mode), sim.count_ants_in_mode(colony, mode)])
-	lines.append("Born: %d   killed in fights: %d   died of old age: %d   larvae stolen by raiders: %d" % [colony.ants_born, colony.ants_killed, colony.ants_died_of_old_age, colony.larvae_stolen])
+	lines.append("Born: %d   killed in fights: %d   died of old age: %d" % [colony.ants_born, colony.ants_killed, colony.ants_died_of_old_age])
+	lines.append("Raiders stole %d larvae and %d food from us" % [colony.larvae_stolen, colony.food_stolen])
 	lines.append("")
-	lines.append("Spiders: %d here, %d killed, %d escaped (ate %d food)" % [sim.enemies.size(), sim.enemies_killed, sim.enemies_escaped, sim.food_eaten_by_enemies])
+	for kind in sim.creature_settings:
+		lines.append("%s: %d here, %d killed, %d left the map" % [sim.creature_settings[kind].plural, sim.count_creatures(kind), sim.creatures_killed[kind], sim.creatures_escaped[kind]])
+	lines.append("Food eaten by spiders: %d" % sim.food_eaten_by_spiders)
 	return "\n".join(lines)
 
 
@@ -101,8 +104,8 @@ func _describe_selection(sim: ColonySimulation) -> String:
 	var selected: Variant = _view.selection
 	if selected is Ant:
 		return _describe_ant(selected)
-	if selected is Enemy:
-		return _describe_enemy(selected)
+	if selected is Creature:
+		return _describe_creature(selected)
 	if selected is MapObject:
 		return _describe_object(sim, selected)
 	if selected is Colony:
@@ -126,33 +129,38 @@ func _describe_ant(ant: Ant) -> String:
 		"Position: %.0f, %.0f" % [ant.position.x, ant.position.y],
 	])
 	if ant.fight_target != null:
-		var foe := "a rival ant" if ant.fight_target is Ant else "a spider"
+		var foe: String = "a rival ant" if ant.fight_target is Ant else ("a nest" if ant.fight_target is Colony else "a " + ant.fight_target.settings.label.to_lower())
 		lines.append("Fighting %s with %.0f health left" % [foe, ant.fight_target.hp])
 	return "\n".join(lines)
 
 
 func _will_description(ant: Ant) -> String:
 	var settings: AntSettings = ant.colony.ant_settings
+	var attack := ", an attack ant (follows Focus)" if ant.fight_will >= settings.attack_will or ant.is_major else ""
 	if ant.fight_will >= settings.join_fight_will:
-		return "looks for fights"
+		return "looks for fights" + attack
 	if ant.fight_will >= settings.contact_fight_will:
-		return "fights enemies it bumps into"
+		return "fights enemies it bumps into" + attack
 	return "only fights back"
 
 
-func _describe_enemy(enemy: Enemy) -> String:
-	if enemy.is_dead():
-		return "This spider was killed and turned into food."
-	if enemy.has_left_the_map:
-		return "This spider escaped with %d food." % enemy.food_eaten
-	var state_name: String = Enemy.State.keys()[enemy.state].capitalize()
-	return "\n".join(PackedStringArray([
-		"SPIDER (enemy)",
-		"Doing: %s%s" % [state_name, " (fighting %d ants)" % enemy.ants_in_contact.size() if not enemy.ants_in_contact.is_empty() else ""],
-		"Health: %.0f / %.0f" % [enemy.hp, enemy.max_hp],
-		"Food eaten: %d" % enemy.food_eaten,
-		"Position: %.0f, %.0f" % [enemy.position.x, enemy.position.y],
-	]))
+func _describe_creature(creature: Creature) -> String:
+	var label := creature.settings.label
+	if creature.is_dead():
+		return "This %s was killed and turned into food." % label.to_lower()
+	if creature.has_left_the_map:
+		return "This %s left the map." % label.to_lower()
+	var attitude := "an enemy" if creature.settings.always_hostile else ("attacked by us: an enemy now" if creature.is_hostile_to(_view.target_colony().team) else "left alone (use Focus to attack it)")
+	var lines := PackedStringArray([
+		"%s (%s)" % [label.to_upper(), attitude],
+		"Doing: %s%s" % [creature.activity(), " (%d ants on it)" % creature.ants_in_contact.size() if not creature.ants_in_contact.is_empty() else ""],
+		"Health: %.0f / %.0f" % [creature.hp, creature.max_hp],
+		"Food if killed: %d" % creature.food_value(),
+		"Position: %.0f, %.0f" % [creature.position.x, creature.position.y],
+	])
+	if creature is Spider:
+		lines.insert(4, "Ate %d food and %d ants" % [creature.food_eaten, creature.ants_eaten])
+	return "\n".join(lines)
 
 
 func _describe_object(sim: ColonySimulation, object: MapObject) -> String:
@@ -164,7 +172,9 @@ func _describe_object(sim: ColonySimulation, object: MapObject) -> String:
 		"Position: %.0f, %.0f" % [object.position.x, object.position.y],
 	])
 	if object.is_food():
-		lines.insert(1, "Food left: %d of %d" % [object.food_left, object.total_food])
+		var kinds := sim.object_kinds
+		lines.insert(1, "Food left: %d of %d%s" % [object.food_left, object.total_food, "  (fills up again)" if kinds.is_renewable(object.kind) else ""])
+		lines.insert(2, "Type: %s, %.1f s to cut a piece" % [kinds.food_type(object.kind), kinds.cut_time(object.kind)])
 	return "\n".join(lines)
 
 
@@ -172,7 +182,7 @@ func _describe_nest(sim: ColonySimulation, colony: Colony) -> String:
 	return "\n".join(PackedStringArray([
 		"NEST of %s%s" % [colony.name, "" if colony.is_player else "  (the buttons below the map now act on this colony)"],
 		"Food stored: %d" % colony.food_stored,
-		"Next larva in %.1f s (needs %d food); %d larvae stored, %d hatching" % [maxf(colony.time_until_larva, 0.0), sim.food_per_larva, colony.larvae, colony.hatching],
+		"Larvae: %d being laid (next in %.1f s), %d stored, %d hatching" % [colony.laying, colony.lay_time_left, colony.larvae, colony.hatching],
 		"Nest health: %.0f / %.0f%s" % [colony.hp, colony.max_hp, "  (DESTROYED)" if colony.destroyed else ""],
 		"Ants: %d" % colony.ant_count,
 		"Size: %.0f px radius, %d tiles (grows with the colony)" % [colony.nest_radius, sim.nest_tile_count(colony)],
@@ -189,7 +199,7 @@ func _describe_cell(sim: ColonySimulation, cell: Vector2i) -> String:
 		"MAP CELL %d, %d  (tile %d, %d)" % [cell.x, cell.y, tile.x, tile.y],
 		"Ground: %s%s" % [ground_name.capitalize(), "" if sim.ground.is_walkable(tile.x, tile.y) else " (can't be walked on)"],
 		"Food: %d" % grid.food[index],
-		"Our trails:  going out %.2f   going home %.2f   fight %.2f" % [grid.going_out[index], grid.going_home[index], grid.fight[index]],
+		"Our trails:  going out %.2f   going home %.2f   fight %.2f   attack %.2f" % [grid.going_out[index], grid.going_home[index], grid.fight[index], grid.attack[index]],
 		"Path wear: %.1f / %.1f%s" % [grid.path_wear[index], grid.unobstructed_wear, "  (unobstructed: ants walk faster)" if grid.path_wear[index] >= grid.unobstructed_wear else ""],
 	]))
 

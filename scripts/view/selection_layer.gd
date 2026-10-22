@@ -6,7 +6,6 @@ extends Node2D
 @onready var view: Node2D = get_parent().get_parent()  ## SimulationView (the parent is its MapSpace)
 
 var _ant_length: float = GameSettings.get_setting("display", "ant_length")
-var _enemy_radius: float = GameSettings.get_setting("enemies", "radius")
 var _selection_color: Color = GameSettings.get_color("display", "selection_color")
 
 
@@ -20,8 +19,8 @@ func _draw() -> void:
 	var selected: Variant = view.selection
 	if selected is Ant and not selected.is_dead():
 		draw_arc(selected.position, _ant_length, 0.0, TAU, 24, _selection_color, line_width)
-	elif selected is Enemy and not selected.is_dead() and not selected.has_left_the_map:
-		draw_arc(selected.position, _enemy_radius * 1.5, 0.0, TAU, 32, _selection_color, line_width)
+	elif selected is Creature and not selected.is_dead() and not selected.has_left_the_map:
+		draw_arc(selected.position, selected.settings.radius * 1.5, 0.0, TAU, 32, _selection_color, line_width)
 	elif selected is MapObject and simulation.objects.has(selected):
 		var radius := simulation.object_kinds.footprint_radius(selected.kind)
 		draw_arc(selected.position, radius, 0.0, TAU, 32, _selection_color, line_width)

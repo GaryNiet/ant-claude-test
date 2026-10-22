@@ -3,7 +3,8 @@ extends RefCounted
 ## The whole simulation: the ground (tiles: dirt, grass, water, nest), the map grid on top
 ## of it (pheromones, food and path wear, in smaller cells), the objects placed on the map
 ## (food items like blueberries, obstacles like rocks), the colonies (each with its nest),
-## the ants and the enemies (spiders). It starts from a Level (the map layout).
+## the ants and the other creatures (spiders, beetle larvae, crickets: see Creature).
+## It starts from a Level (the map layout).
 ## Food delivered to a nest is stored; the nest turns it into larvae, which hatch into ants
 ## when the player says so, and the player can spend food on tech tree upgrades. A colony
 ## matures (unlocking more upgrades) as it grows. A nest grows with its colony.
@@ -27,11 +28,11 @@ var colonies: Array[Colony] = []   ## destroyed colonies stay in the list (their
 var tech_tree := TechTree.new()
 var player_colony: Colony
 var ants: Array[Ant] = []    ## ants of all colonies
-var enemies: Array[Enemy] = []
-var enemy_settings := EnemySettings.new()
+var creatures: Array[Creature] = []   ## spiders, beetle larvae, crickets
+var creature_settings := {}            ## kind -> CreatureSettings
 var collisions: AntCollisions
 ## Damage dealt since the view last took them (see take_damage_events): one entry per thing
-## hurt during a tick: {victim, position, amount, victim_team, attacker_team} (team -1 = spider).
+## hurt during a tick: {victim, position, amount, victim_team, attacker_team} (team -1 = a creature).
 var damage_events: Array[Dictionary] = []
 var _max_damage_events: int = GameSettings.get_setting("damage_numbers", "max_waiting_events")
 
@@ -41,10 +42,11 @@ var _nest_sized_for := {}    ## colony index -> ant count its nest was last size
 
 # Statistics
 var elapsed_time := 0.0
-var enemies_killed := 0
-var enemies_arrived := 0
-var enemies_escaped := 0
-var food_eaten_by_enemies := 0
+var creatures_killed := {}    ## kind -> how many were killed
+var creatures_killed_total := 0
+var creatures_escaped := {}   ## kind -> how many left the map alive
+var spiders_arrived := 0
+var food_eaten_by_spiders := 0
 
 # Ant spawning
 var _emerge_interval: float = GameSettings.get_setting("nest", "emerge_interval")
@@ -52,11 +54,13 @@ var food_per_larva: int = GameSettings.get_setting("nest", "food_per_larva")
 var _max_larvae: int = GameSettings.get_setting("nest", "max_larvae")
 var _max_ants: int = GameSettings.get_setting("nest", "max_ants")
 var _larva_food: int = GameSettings.get_setting("nest", "larva_food")
+var _raid_food: int = GameSettings.get_setting("nest", "raid_food")
 var _maturity_ants: PackedStringArray = GameSettings.get_list("maturity", "ants_needed")
-var _time_until_next_enemy: float
+var _time_until_next_spider: float
+var _time_until_next_cricket: float
 var _dead_rival_food: int = GameSettings.get_setting("ant_life", "dead_rival_food")
 
-var _contact_margin: float = GameSettings.get_setting("enemies", "contact_margin")
+var _contact_margin: float = GameSettings.get_setting("creatures", "contact_margin")
 
 # Objects and painting
 var _object_at_cell := PackedInt32Array()  ## id of the object covering each cell, 0 = none
@@ -64,6 +68,9 @@ var _objects_by_id := {}                   ## id -> MapObject
 var _next_object_id := 1
 var _obstacle_free_radius: float = GameSettings.get_setting("painting", "obstacle_free_radius_around_nest")
 var _dead_ant_fade_time: float = GameSettings.get_setting("ant_life", "dead_ant_fade_time")
+var _focus_width: float = GameSettings.get_setting("focus", "trail_width")
+var _focus_start_strength: float = GameSettings.get_setting("focus", "start_strength")
+var _focus_target_radius: float = GameSettings.get_setting("focus", "target_radius")
 
 
 func _init(starting_level: Level) -> void:
@@ -84,7 +91,13 @@ func _init(starting_level: Level) -> void:
 	for placed in level.objects:
 		place_object(placed.kind, (Vector2(placed.cell) + Vector2(0.5, 0.5)) * grid.cell_size, true)
 	collisions = AntCollisions.new(grid.world_size())
-	_time_until_next_enemy = enemy_settings.first_arrival
+	for kind in GameSettings.get_list("creatures", "kinds"):
+		creature_settings[kind] = CreatureSettings.new(kind)
+		creatures_killed[kind] = 0
+		creatures_escaped[kind] = 0
+	_time_until_next_spider = creature_settings.spider.value("first_arrival")
+	_time_until_next_cricket = creature_settings.cricket.value("respawn_interval")
+	_place_starting_creatures()
 
 
 ## The player's colony at the level's nest, then one rival colony per rival nest.
@@ -114,11 +127,11 @@ func step(delta: float) -> void:
 		if colony.hp <= 0.0:
 			_destroy(colony)
 	_grow_nests()
-	_spawn_enemies_over_time(delta)
+	_spawn_creatures_over_time(delta)
 	for ant in ants:
 		ant.update(self, delta)
-	for enemy in enemies:
-		enemy.update(self, delta)
+	for creature in creatures:
+		creature.update(self, delta)
 	collisions.resolve(ants, grid)
 	for pair in collisions.rival_contacts:
 		pair[0].touch_rival(pair[1])
@@ -126,8 +139,9 @@ func step(delta: float) -> void:
 	_report_damage()
 	_remove_the_dead()
 	_fade_dead_ants(delta)
-	_handle_enemy_contacts()
+	_handle_creature_contacts()
 	grid.decay(delta)
+	_regrow_food(delta)
 
 
 # --- Painting (called by the player's brush) --------------------------------
@@ -145,10 +159,26 @@ func paint_ground(center: Vector2, radius: float, type: GroundMap.Type) -> void:
 			_update_cells_of_tile(tile)
 
 
-## The player draws a trail for `colony`: its food trail ("going home" pheromone, which
-## collectors follow towards the stronger smell) raised to `strength` around `center`.
-func paint_trail(colony: Colony, center: Vector2, width: float, strength: float) -> void:
-	grid.raise_zone(MapGrid.Kind.GOING_HOME, center, width, strength, colony.index)
+## Focus tool: sends `colony`'s attack ants to `target`. Lays its attack trail in a straight
+## line from the nest to the target, stronger towards the target (ants follow it towards the
+## stronger smell), and a patch of the strongest smell around the target. The trail fades
+## ([focus] half_life); focusing again renews it.
+func focus(colony: Colony, target: Vector2) -> void:
+	var start := colony.nest_position
+	var step_length := grid.cell_size * 0.5
+	var steps := maxi(1, ceili(start.distance_to(target) / step_length))
+	for step in steps + 1:
+		var progress := float(step) / steps
+		var strength := lerpf(_focus_start_strength, grid.max_strength, progress)
+		grid.raise_attack_zone(start.lerp(target, progress), _focus_width, strength, colony.index)
+	grid.raise_attack_zone(target, _focus_target_radius, grid.max_strength, colony.index)
+	colony.focus_target = target
+
+
+## Calls `colony`'s attack ants back: its attack trail is gone.
+func clear_focus(colony: Colony) -> void:
+	grid.clear_attack(colony.index)
+	colony.focus_target = Vector2.INF
 
 
 ## Makes the cells of a tile blocked or free: blocked if the tile can't be walked on
@@ -274,29 +304,75 @@ func erase_objects(center: Vector2, radius: float) -> void:
 
 
 ## Takes 1 unit of food from the cell under `spot` (called by ants and spiders).
-## The food item it belongs to shrinks, and disappears when it's empty.
+## The food item it belongs to shrinks, and disappears when it's empty (a renewable one,
+## like an aphid flower, stays and fills up again).
 func take_food(spot: Vector2) -> bool:
 	var object := object_at(spot)
 	if not grid.take_food(spot):
 		return false
 	if object != null and object.is_food():
 		object.food_left -= 1
-		if object.food_left <= 0:
+		if object.food_left <= 0 and not object_kinds.is_renewable(object.kind):
 			remove_object(object)
 	return true
 
 
+## An ant cuts a piece off the food at `spot`: up to its food item's piece_food units (less
+## if the cell has less). Returns the food taken (0 if there was none).
+func take_food_piece(spot: Vector2) -> int:
+	var object := object_at(spot)
+	var index := grid.cell_index(spot)
+	if object == null or not object.is_food() or index == -1:
+		return 0
+	var taken := grid.take_food_from_cell(index, object_kinds.piece_food(object.kind))
+	object.food_left -= taken
+	if object.food_left <= 0 and not object_kinds.is_renewable(object.kind):
+		remove_object(object)
+	return taken
+
+
+## Seconds an ant needs to cut one piece off the food at `spot` (its food item's cut_time).
+func cut_time_at(spot: Vector2) -> float:
+	var object := object_at(spot)
+	return object_kinds.cut_time(object.kind) if object != null else 0.0
+
+
+## Renewable food items (aphid flowers) fill up again, food_per_minute, up to their full amount.
+func _regrow_food(delta: float) -> void:
+	for object in objects:
+		if not object.is_food() or not object_kinds.is_renewable(object.kind) or object.food_left >= object.total_food:
+			continue
+		object.regrowth += object_kinds.regrow_per_minute(object.kind) / 60.0 * delta
+		while object.regrowth >= 1.0 and object.food_left < object.total_food:
+			object.regrowth -= 1.0
+			_add_food_to_object(object)
+
+
+## One more unit of food in the object's emptiest cell.
+func _add_food_to_object(object: MapObject) -> void:
+	var emptiest := object.cells[0]
+	for index in object.cells:
+		if grid.food[index] < grid.food[emptiest]:
+			emptiest = index
+	grid.set_food(emptiest, grid.food[emptiest] + 1)
+	object.food_left += 1
+
+
 # --- Colonies: births, upgrades, nests ---------------------------------------
 
-## Every larva_interval seconds, if there is enough food stored, the nest lays a larva.
+## The player's Lay buttons: pays for up to `count` larvae of `colony` (as many as its food
+## allows, and no more than max_larvae waiting in the nest). Returns how many.
+func lay_larvae(colony: Colony, count: int) -> int:
+	var room := _max_larvae - colony.larvae - colony.laying - colony.hatching
+	return colony.lay(mini(count, maxi(room, 0)), food_per_larva, tech_tree)
+
+
+## Larvae being laid come out one after the other. Colonies the player doesn't control
+## (rivals, allies) lay a larva whenever they can afford one.
 func _lay_larvae(colony: Colony, delta: float) -> void:
-	colony.time_until_larva -= delta
-	if colony.time_until_larva > 0.0:
-		return
-	colony.time_until_larva = colony.larva_interval(tech_tree)
-	if colony.food_stored >= food_per_larva and colony.larvae < _max_larvae:
-		colony.food_stored -= food_per_larva
-		colony.larvae += 1
+	if not colony.is_player and colony.laying == 0:
+		lay_larvae(colony, 1)
+	colony.larvae += colony.update_laying(delta, tech_tree)
 
 
 ## Hatched larvae become ants (or wait, as larvae, while the map has max_ants). Larvae
@@ -476,14 +552,17 @@ func rival_nest_near(spot: Vector2, radius: float, team: int) -> Colony:
 	return closest
 
 
-## A raiding ant takes a larva from `colony`'s nest. Returns the food it is worth (0 if
-## the nest has no larvae left).
-func steal_larva(colony: Colony) -> int:
-	if colony.larvae <= 0:
-		return 0
-	colony.larvae -= 1
-	colony.larvae_stolen += 1
-	return _larva_food
+## A raiding ant takes a stored larva from `colony`'s nest, or else up to raid_food of its
+## stored food. Returns the food it carries away (0 if the nest has neither).
+func raid_nest(colony: Colony) -> int:
+	if colony.larvae > 0:
+		colony.larvae -= 1
+		colony.larvae_stolen += 1
+		return _larva_food
+	var food := mini(_raid_food, colony.food_stored)
+	colony.food_stored -= food
+	colony.food_stolen += food
+	return food
 
 
 # --- Dead rival ants as food ---------------------------------------------------
@@ -513,49 +592,75 @@ func take_rival_corpse(spot: Vector2, reach: float, colony: Colony) -> int:
 	return 0
 
 
-## Closest living enemy within `radius` of `from`, or null if none.
-func nearest_enemy(from: Vector2, radius: float) -> Enemy:
-	var closest: Enemy = null
+## Closest creature within `radius` of `from` (measured from its body's edge) that ants of
+## `team` treat as an enemy, or null.
+func nearest_hostile_creature(from: Vector2, radius: float, team: int) -> Creature:
+	return _nearest_creature(from, radius, team)
+
+
+## Closest creature of any kind within `radius` of `from` (measured from its body's edge), or null.
+func nearest_creature(from: Vector2, radius: float) -> Creature:
+	return _nearest_creature(from, radius, -1)
+
+
+## `hostile_to` = only creatures hostile to that team (-1 = any creature).
+func _nearest_creature(from: Vector2, radius: float, hostile_to: int) -> Creature:
+	var closest: Creature = null
 	var closest_distance := radius
-	for enemy in enemies:
-		var distance := from.distance_to(enemy.position) - enemy_settings.radius
+	for creature in creatures:
+		if hostile_to != -1 and not creature.is_hostile_to(hostile_to):
+			continue
+		var distance := from.distance_to(creature.position) - creature.settings.radius
 		if distance <= closest_distance:
-			closest = enemy
+			closest = creature
 			closest_distance = distance
 	return closest
 
 
-# --- Enemies and fighting ---------------------------------------------------
+## A random food item on the map (where spiders go to feed), or null if there is none.
+func random_food_object() -> MapObject:
+	var food_items: Array[MapObject] = []
+	for object in objects:
+		if object.is_food() and object.food_left > 0:
+			food_items.append(object)
+	if food_items.is_empty():
+		return null
+	return food_items[rng.randi_range(0, food_items.size() - 1)]
 
-## Keeps ants out of enemies' bodies and records which ants touch which enemy.
-func _handle_enemy_contacts() -> void:
-	var touching_distance := collisions.ant_radius + enemy_settings.radius
-	for enemy in enemies:
-		enemy.ants_in_contact.clear()
+
+# --- Creatures: contacts, death, arrival -------------------------------------------------
+
+## Keeps ants out of creatures' bodies and records which ants touch which creature.
+func _handle_creature_contacts() -> void:
+	for creature in creatures:
+		creature.ants_in_contact.clear()
+		var touching_distance := collisions.ant_radius + creature.settings.radius
 		for ant in ants:
-			var offset := ant.position - enemy.position
+			var offset := ant.position - creature.position
+			if absf(offset.x) > touching_distance + _contact_margin or absf(offset.y) > touching_distance + _contact_margin:
+				continue  # quick rejection: most ants are far away
 			var distance := offset.length()
 			if distance > touching_distance + _contact_margin:
 				continue
 			if distance < touching_distance:
 				var direction := offset / distance if distance > 0.001 else Vector2.RIGHT
-				var pushed_out := enemy.position + direction * touching_distance
+				var pushed_out := creature.position + direction * touching_distance
 				if not grid.is_obstacle(pushed_out):
 					ant.position = pushed_out
-			enemy.ants_in_contact.append(ant)
-			ant.touch_enemy(self, enemy)
+			creature.ants_in_contact.append(ant)
+			ant.touch_creature(self, creature)
 
 
-## Records the damage every ant, spider and nest took this tick (for the damage numbers).
+## Records the damage every ant, creature and nest took this tick (for the damage numbers).
 ## Nobody may be reading them (no view): then the oldest are dropped.
 func _report_damage() -> void:
 	var hurt: Array[Object] = []
 	for ant in ants:
 		if ant.damage_to_show > 0.0:
 			hurt.append(ant)
-	for enemy in enemies:
-		if enemy.damage_to_show > 0.0:
-			hurt.append(enemy)
+	for creature in creatures:
+		if creature.damage_to_show > 0.0:
+			hurt.append(creature)
 	for colony in colonies:
 		if colony.damage_to_show > 0.0:
 			hurt.append(colony)
@@ -575,9 +680,8 @@ func take_damage_events() -> Array[Dictionary]:
 	return taken
 
 
-## Dead ants lie on the ground for a while (with any food they carried lost); dead enemies
-## become a dead spider food item;
-## enemies that reached the edge on their way out are gone (with the food they ate).
+## Dead ants lie on the ground for a while (with any food they carried lost); dead
+## creatures become a food item; creatures that left the map are gone.
 func _remove_the_dead() -> void:
 	for index in range(ants.size() - 1, -1, -1):
 		var ant := ants[index]
@@ -589,20 +693,16 @@ func _remove_the_dead() -> void:
 			ant.colony.ant_count -= 1
 			dead_ants.append({position = ant.position, heading = ant.heading, time_dead = 0.0, colony = ant.colony})
 			ants.remove_at(index)
-	for index in range(enemies.size() - 1, -1, -1):
-		var enemy := enemies[index]
-		if enemy.is_dead():
-			_turn_into_food(enemy)
-			enemies.remove_at(index)
-			enemies_killed += 1
-		elif enemy.has_left_the_map:
-			enemies.remove_at(index)
-			enemies_escaped += 1
-
-
-## A killed spider becomes a dead spider food item: its own food value plus what it ate.
-func _turn_into_food(enemy: Enemy) -> void:
-	place_object("dead_spider", enemy.position, true, enemy_settings.food_when_killed + enemy.food_eaten)
+	for index in range(creatures.size() - 1, -1, -1):
+		var creature := creatures[index]
+		if creature.is_dead():
+			place_object(creature.settings.food_object, creature.position, true, creature.food_value())
+			creatures.remove_at(index)
+			creatures_killed[creature.kind] += 1
+			creatures_killed_total += 1
+		elif creature.has_left_the_map:
+			creatures.remove_at(index)
+			creatures_escaped[creature.kind] += 1
 
 
 ## Dead ants fade away; after dead_ant_fade_time they are gone.
@@ -613,19 +713,48 @@ func _fade_dead_ants(delta: float) -> void:
 			dead_ants.remove_at(index)
 
 
-func _spawn_enemies_over_time(delta: float) -> void:
-	_time_until_next_enemy -= delta
-	if _time_until_next_enemy > 0.0:
-		return
-	_time_until_next_enemy = enemy_settings.arrival_interval
-	if enemies.size() < enemy_settings.max_alive:
-		_spawn_enemy_at_edge()
+## At the start: beetle larvae around every nest, and crickets away from the nests.
+func _place_starting_creatures() -> void:
+	var larva: CreatureSettings = creature_settings.beetle_larva
+	for colony in colonies:
+		for number in int(larva.value("count_per_nest")):
+			var spot := _free_spot_around(colony.nest_position, larva.value("distance_from_nest_min"), larva.value("distance_from_nest_max"))
+			if spot != Vector2.INF:
+				creatures.append(BeetleLarva.new(spot, larva))
+	for number in int(creature_settings.cricket.value("start_count")):
+		_add_cricket()
 
 
-## Places an enemy at a random free spot along the map edge.
-func _spawn_enemy_at_edge() -> void:
+## Spiders come in from the edge now and then; crickets come back when there are few left.
+func _spawn_creatures_over_time(delta: float) -> void:
+	var spider: CreatureSettings = creature_settings.spider
+	_time_until_next_spider -= delta
+	if _time_until_next_spider <= 0.0:
+		_time_until_next_spider = spider.value("arrival_interval")
+		if count_creatures("spider") < int(spider.value("max_alive")):
+			_add_spider_at_edge()
+	var cricket: CreatureSettings = creature_settings.cricket
+	_time_until_next_cricket -= delta
+	if _time_until_next_cricket <= 0.0:
+		_time_until_next_cricket = cricket.value("respawn_interval")
+		if count_creatures("cricket") < int(cricket.value("max_alive")):
+			_add_cricket()
+
+
+## Living creatures of `kind`.
+func count_creatures(kind: String) -> int:
+	var count := 0
+	for creature in creatures:
+		if creature.kind == kind:
+			count += 1
+	return count
+
+
+## Places a spider at a random free spot along the map edge, heading for some food.
+func _add_spider_at_edge() -> void:
+	var spider: CreatureSettings = creature_settings.spider
 	var map_size := grid.world_size()
-	var inset := enemy_settings.radius + 1.0  # just inside the edge
+	var inset := spider.radius + 1.0  # just inside the edge
 	for attempt in 50:
 		var spot: Vector2
 		match rng.randi_range(0, 3):
@@ -634,11 +763,31 @@ func _spawn_enemy_at_edge() -> void:
 			2: spot = Vector2(inset, rng.randf_range(inset, map_size.y - inset))
 			_: spot = Vector2(map_size.x - inset, rng.randf_range(inset, map_size.y - inset))
 		if not grid.is_obstacle(spot):
-			var enemy := Enemy.new(spot, enemy_settings)
-			enemy.heading = (nearest_colony(spot).nest_position - spot).angle()
-			enemies.append(enemy)
-			enemies_arrived += 1
+			var new_spider := Spider.new(spot, spider)
+			new_spider.choose_target(self)
+			creatures.append(new_spider)
+			spiders_arrived += 1
 			return
+
+
+## A cricket at a random free spot far enough from every nest.
+func _add_cricket() -> void:
+	var cricket: CreatureSettings = creature_settings.cricket
+	var map_size := grid.world_size()
+	for attempt in 50:
+		var spot := Vector2(rng.randf_range(0.0, map_size.x), rng.randf_range(0.0, map_size.y))
+		if not grid.is_obstacle(spot) and not _is_near_a_nest(spot, cricket.value("min_distance_from_nest")):
+			creatures.append(Cricket.new(spot, cricket))
+			return
+
+
+## A random free spot between `min_distance` and `max_distance` from `center` (INF if none found).
+func _free_spot_around(center: Vector2, min_distance: float, max_distance: float) -> Vector2:
+	for attempt in 50:
+		var spot := center + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(min_distance, max_distance)
+		if not grid.is_obstacle(spot) and object_at(spot) == null:
+			return spot
+	return Vector2.INF
 
 
 # --- Statistics -------------------------------------------------------------

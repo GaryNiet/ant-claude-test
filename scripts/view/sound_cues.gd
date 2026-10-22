@@ -1,14 +1,14 @@
 extends Node
-## Plays the sound effects for what happens in the game: a spider arriving or being killed,
-## and a larva of our colony hatching. Watches the simulation's counters every frame (the
+## Plays the sound effects for what happens in the game: a spider arriving, a creature being
+## killed, and a larva of our colony hatching. Watches the simulation's counters every frame (the
 ## simulation itself knows nothing about sound).
 
 @export var view_path: NodePath
 @onready var view: Node2D = get_node(view_path)  ## SimulationView
 
 var _watched: ColonySimulation
-var _enemies_killed := 0
-var _enemies_arrived := 0
+var _creatures_killed := 0
+var _spiders_arrived := 0
 var _ants_born := 0
 
 
@@ -18,9 +18,9 @@ func _process(_delta: float) -> void:
 		_watched = simulation
 		_remember(simulation)
 		return
-	if simulation.enemies_killed > _enemies_killed:
+	if simulation.creatures_killed_total > _creatures_killed:
 		Sounds.play("spider_death")
-	if simulation.enemies_arrived > _enemies_arrived:
+	if simulation.spiders_arrived > _spiders_arrived:
 		Sounds.play("spider_arrival")
 	if simulation.player_colony.ants_born > _ants_born:
 		Sounds.play("hatch")
@@ -28,6 +28,6 @@ func _process(_delta: float) -> void:
 
 
 func _remember(simulation: ColonySimulation) -> void:
-	_enemies_killed = simulation.enemies_killed
-	_enemies_arrived = simulation.enemies_arrived
+	_creatures_killed = simulation.creatures_killed_total
+	_spiders_arrived = simulation.spiders_arrived
 	_ants_born = simulation.player_colony.ants_born

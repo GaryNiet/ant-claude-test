@@ -2,7 +2,7 @@
 name = Walled valley
 cell_size = 8.0
 tile_cells = 4
-starting_ants = 100
+starting_ants = 5
 nest = 30, 54
 tiles:
 dddddddgggggggggddddddddddggggggggddddddddddddddddddgggggggd
@@ -33,6 +33,8 @@ ddddddddddgggggggddddddddddddddggggggdgdddddddddgggggggddddd
 ddddddddddgggggggddddddddddddddggggggggddddddddddggggggddddd
 ddddddddddggggggggddddddddddddddggggggggddddddddddggggggdddd
 objects:
+aphid_flower 44, 36
+aphid_flower 48, 72
 rock 90, 2
 rock 90, 6
 tree_trunk 90, 10

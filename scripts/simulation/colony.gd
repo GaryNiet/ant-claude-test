@@ -7,9 +7,11 @@ extends RefCounted
 ## rivals; nuptial flights add allied colonies. Colonies of the same team are allies; ants
 ## fight ants of other teams. Ants only follow their own colony's trails.
 ##
-## Hatching: the nest turns stored food into larvae. Larvae wait in the nest until they are
-## hatched (by the player, or automatically with infinite hatch). Hatching larvae wait in a
-## queue and hatch one after the other, each taking hatch_time.
+## Larvae: the queen lays a larva for food_per_larva stored food when asked (the player's Lay
+## buttons; rival and allied colonies lay whenever they can afford it). Laying takes lay_time
+## per larva, one after the other. Laid larvae are stored in the nest until they are hatched
+## (by the player, or automatically with auto hatch). Hatching larvae also wait in a queue
+## and hatch one after the other, each taking hatch_time.
 
 var index: int            ## position in the simulation's list of colonies (also its trails)
 var name: String
@@ -32,13 +34,15 @@ var maturity := 1         ## grows with the number of ants, never goes back
 var starting_ants: int
 var founded_time := 0.0   ## when the colony started (its first ants emerge from then on)
 var ant_count := 0        ## living ants of this colony
-var food_stored := 0      ## food in the nest, for larvae and upgrades
+var food_stored: int      ## food in the nest, for larvae and upgrades
+var laying := 0           ## larvae in the laying queue (paid for; the first one is being laid)
+var lay_time_left := 0.0  ## seconds until the first larva in the queue is laid
 var larvae := 0           ## larvae stored, waiting to hatch
 var hatching := 0                 ## larvae in the hatching queue (the first one is hatching now)
 var hatch_time_left := 0.0        ## seconds until the first larva in the queue hatches
 var infinite_hatch := false       ## hatch every larva as soon as it's laid
 var nests_to_found := 0           ## Nuptial flights bought but not placed yet
-var time_until_larva := 0.0
+var focus_target := Vector2.INF   ## where the Focus tool last sent the attack ants (INF = nowhere)
 var first_ants_spawned := 0       ## the starting colony emerges over time; this counts them
 var _mushroom_food := 0.0         ## mushroom food growing, added to the store by whole units
 
@@ -52,9 +56,10 @@ var ants_born := 0
 var ants_killed := 0         ## in fights (by spiders or rival ants)
 var ants_died_of_old_age := 0
 var larvae_stolen := 0       ## by rival ants raiding this nest
+var food_stolen := 0         ## stored food taken by rival ants raiding this nest
 var _delivery_times: Array[float] = []  ## when each recent food arrived, for food per second
 
-var _larva_interval: float = GameSettings.get_setting("nest", "larva_interval")
+var _lay_time: float = GameSettings.get_setting("nest", "lay_time")
 var _hatch_time: float = GameSettings.get_setting("nest", "hatch_time")
 var _food_rate_window: float = GameSettings.get_setting("display", "food_rate_window")
 
@@ -68,8 +73,8 @@ func _init(colony_index: int, colony_name: String, player: bool, colony_team: in
 	starting_ants = ants_at_start
 	max_hp = GameSettings.get_setting("nest", "hp")
 	hp = max_hp
+	food_stored = GameSettings.get_setting("nest", "starting_food")
 	infinite_hatch = not player or GameSettings.get_setting("nest", "player_starts_with_infinite_hatch")
-	time_until_larva = _larva_interval
 
 
 func has_tech(node: String) -> bool:
@@ -87,13 +92,46 @@ func take_damage(amount: float, attacker: Ant) -> void:
 	damage_attacker_team = attacker.colony.team
 
 
-## Seconds between two larvae (shorter with the Faster larvae upgrades).
-func larva_interval(tree: TechTree) -> float:
+## Seconds to lay one larva (shorter with the Faster larvae upgrades).
+func lay_time(tree: TechTree) -> float:
 	var bonus := 0.0
 	for node in ["faster_larvae", "faster_larvae_2"]:
 		if has_tech(node):
 			bonus += tree.value(node, "speed_bonus")
-	return _larva_interval / (1.0 + bonus)
+	return _lay_time / (1.0 + bonus)
+
+
+## Pays for up to `count` larvae (`cost` food each, as many as the food allows) and puts
+## them in the laying queue. Returns how many were added.
+func lay(count: int, cost: int, tree: TechTree) -> int:
+	var added := 0
+	while added < count and food_stored >= cost:
+		food_stored -= cost
+		added += 1
+	if laying == 0 and added > 0:
+		lay_time_left = lay_time(tree)  # the queue was empty: the first one starts now
+	laying += added
+	return added
+
+
+## Advances the larva being laid; returns 1 when it is laid (then the next one in the
+## queue starts), otherwise 0.
+func update_laying(delta: float, tree: TechTree) -> int:
+	if laying == 0:
+		return 0
+	lay_time_left -= delta
+	if lay_time_left > 0.0:
+		return 0
+	laying -= 1
+	lay_time_left = lay_time(tree) if laying > 0 else 0.0
+	return 1
+
+
+## How far the larva being laid now is (0 = just started, 1 = laid).
+func lay_progress(tree: TechTree) -> float:
+	if laying == 0:
+		return 0.0
+	return 1.0 - lay_time_left / lay_time(tree)
 
 
 ## Puts up to `count` stored larvae in the hatching queue. Returns how many were added.

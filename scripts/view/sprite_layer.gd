@@ -2,16 +2,19 @@ extends Node2D
 ## Isometric view only: draws the things standing on the ground as sprites, at their
 ## projected positions:
 ##   objects     food items (blueberry, larva, dead spider...) with a yellow glow under them,
-##               losing pixels as ants eat them; obstacles (rock, twig, tree trunk...)
+##               losing pixels as ants eat them (not aphid flowers: they fill up again);
+##               obstacles (rock, twig, tree trunk...)
 ##   nests       ant hills; the big one once the colony has grown; ours has a flag on top
 ##               (rival colonies' ants are red)
 ##   dead ants   lying on their back, fading away
 ##   ants        upright, parallel to the screen, in one of 6 directions (towards the screen
 ##               or away from it: to the left, to the right, or straight) matching where they
 ##               walk on screen,
-##               with a 2-frame walk; an ant carrying food holds a crumb; scouts are darker
-##   spiders     the enemies, drawn like the ants, with a health bar above them
-## Ants and spiders are drawn between their previous and current position (see
+##               with a 2-frame walk; an ant carrying food holds a crumb; scouts are darker;
+##               ants milking an aphid flower are drawn up its stem ([iso_view] climb_*)
+##   creatures   spiders, beetle larvae (growing), crickets: drawn like the ants, with a
+##               health bar above them once they are hurt
+## Ants and creatures are drawn between their previous and current position (see
 ## SimulationView.tick_fraction), so they move smoothly between simulation ticks.
 ## Everything is drawn from back to front (sorted by how far down the screen it stands),
 ## so whatever is in front covers what is behind it.
@@ -24,7 +27,6 @@ const RIVAL_ANT_NAME := "ant_rival"
 const MAJOR_ANT_NAME := "ant_major"
 const RIVAL_MAJOR_ANT_NAME := "ant_rival_major"
 const FLAG_IMAGE := "flag.png"
-const SPIDER_NAME := "spider"
 const DIRECTIONS := ["se", "sw", "ne", "nw", "s", "n"]
 const WALK_FRAMES := 2
 ## Creatures, objects and the nest touch the ground this many image pixels above the bottom
@@ -44,7 +46,7 @@ const DEAD_RIVAL_ANT_IMAGES := {"e": "ant_rival_dead_e.png", "w": "ant_rival_dea
 const GLOW_IMAGE := "food_glow.png"
 const OBJECT_FOLDER := "objects"
 
-enum Kind { OBJECT, NEST, ANT, DEAD_ANT, SPIDER }
+enum Kind { OBJECT, NEST, ANT, DEAD_ANT, CREATURE }
 
 @onready var view: Node2D = get_parent()  ## SimulationView
 
@@ -53,7 +55,7 @@ var _rival_ant_frames := {}
 var _major_ant_frames := {}
 var _rival_major_ant_frames := {}
 var _flag_texture: Texture2D
-var _spider_frames := {}
+var _creature_frames := {}     ## sprite name -> direction -> Array of textures
 var _crumb_texture: Texture2D
 var _nest_small_texture: Texture2D
 var _nest_big_texture: Texture2D
@@ -66,7 +68,11 @@ var _eaten_simulation: ColonySimulation  ## ids start again in a new simulation:
 var _folder: String = GameSettings.get_setting("iso_view", "sprite_folder")
 
 var _ant_size: float = GameSettings.get_setting("iso_view", "ant_size")
-var _spider_size: float = GameSettings.get_setting("iso_view", "spider_size")
+var _climb_kinds: PackedStringArray = GameSettings.get_list("iso_view", "climb_kinds")
+var _climb_height_min: float = GameSettings.get_setting("iso_view", "climb_height_min")
+var _climb_height_max: float = GameSettings.get_setting("iso_view", "climb_height_max")
+var _climb_spread: float = GameSettings.get_setting("iso_view", "climb_spread")
+var _health_bar_width: float = GameSettings.get_setting("iso_view", "health_bar_width")
 var _crumb_size: float = GameSettings.get_setting("iso_view", "crumb_size")
 var _glow_size: float = GameSettings.get_setting("objects", "food_glow_size")
 var _glow_color: Color = GameSettings.get_color("objects", "food_glow_color")
@@ -78,8 +84,8 @@ var _scout_tint: Color = GameSettings.get_color("iso_view", "scout_tint")
 var _walk_frames_per_second: float = GameSettings.get_setting("iso_view", "walk_frames_per_second")
 var _straight_angle: float = deg_to_rad(GameSettings.get_setting("iso_view", "straight_direction_angle"))
 var _time := 0.0
-var _health_bar_color: Color = GameSettings.get_color("colors", "enemy_health_bar")
-var _health_bar_thickness: float = GameSettings.get_setting("display", "enemy_health_bar_thickness")
+var _health_bar_color: Color = GameSettings.get_color("colors", "creature_health_bar")
+var _health_bar_thickness: float = GameSettings.get_setting("display", "creature_health_bar_thickness")
 
 
 
@@ -91,7 +97,9 @@ func _ready() -> void:
 	_major_ant_frames = _load_directions(_folder, MAJOR_ANT_NAME)
 	_rival_major_ant_frames = _load_directions(_folder, RIVAL_MAJOR_ANT_NAME)
 	_flag_texture = load("%s/%s" % [_folder, FLAG_IMAGE])
-	_spider_frames = _load_directions(_folder, SPIDER_NAME)
+	for kind in GameSettings.get_list("creatures", "kinds"):
+		var sprite: String = GameSettings.get_setting("creature_" + kind, "sprite")
+		_creature_frames[sprite] = _load_directions(_folder, sprite)
 	_crumb_texture = load("%s/%s" % [_folder, CRUMB_IMAGE])
 	_nest_small_texture = load("%s/%s" % [_folder, NEST_SMALL_IMAGE])
 	_nest_big_texture = load("%s/%s" % [_folder, NEST_BIG_IMAGE])
@@ -135,11 +143,12 @@ func _draw() -> void:
 				_draw_nest(item.thing, item.spot)
 			Kind.ANT:
 				_draw_ant(item.thing, item.spot, to_screen)
-			Kind.SPIDER:
-				_draw_spider(item.thing, item.spot, to_screen)
+			Kind.CREATURE:
+				_draw_creature(item.thing, item.spot, to_screen)
 
 
-## Everything to draw, with its projected position, sorted from the top of the screen down.
+## Everything to draw, with its projected position, sorted from the top of the screen down
+## (by `depth`: where it stands; an ant up a flower stands just in front of the flower).
 func _things_back_to_front(simulation: ColonySimulation, to_screen: Transform2D) -> Array[Dictionary]:
 	var things: Array[Dictionary] = []
 	for object in simulation.objects:
@@ -151,13 +160,37 @@ func _things_back_to_front(simulation: ColonySimulation, to_screen: Transform2D)
 			things.append({kind = Kind.NEST, spot = to_screen * colony.nest_position, thing = colony})
 	var between_ticks: float = view.tick_fraction()
 	for ant in simulation.ants:
-		var spot := ant.previous_position.lerp(ant.position, between_ticks)
-		things.append({kind = Kind.ANT, spot = to_screen * spot, thing = ant})
-	for enemy in simulation.enemies:
-		var spot := enemy.previous_position.lerp(enemy.position, between_ticks)
-		things.append({kind = Kind.SPIDER, spot = to_screen * spot, thing = enemy})
-	things.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.spot.y < b.spot.y)
+		var spot := to_screen * ant.previous_position.lerp(ant.position, between_ticks)
+		var climbing := _flower_climbed(simulation, ant)
+		if climbing != null:
+			var flower_spot := to_screen * climbing.position
+			things.append({kind = Kind.ANT, spot = flower_spot + _climb_offset(ant), thing = ant, depth = flower_spot.y + 0.5})
+		else:
+			things.append({kind = Kind.ANT, spot = spot, thing = ant})
+	for creature in simulation.creatures:
+		var spot := creature.previous_position.lerp(creature.position, between_ticks)
+		things.append({kind = Kind.CREATURE, spot = to_screen * spot, thing = creature})
+	for thing in things:
+		if not thing.has("depth"):
+			thing.depth = thing.spot.y
+	things.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.depth < b.depth)
 	return things
+
+
+## The flower (an object of [iso_view] climb_kinds) the ant is milking, or null.
+func _flower_climbed(simulation: ColonySimulation, ant: Ant) -> MapObject:
+	if ant.mode != Ant.Mode.CUTTING_FOOD or ant.cutting_spot == Vector2.INF:
+		return null
+	var object := simulation.object_at(ant.cutting_spot)
+	return object if object != null and object.kind in _climb_kinds else null
+
+
+## Where an ant sits on the flower's stem: its own height and side (from its id), so ants
+## on the same flower spread out.
+func _climb_offset(ant: Ant) -> Vector2:
+	var pick := float(ant.get_instance_id() % 101) / 101.0
+	var side := float(ant.get_instance_id() % 7) / 6.0 * 2.0 - 1.0
+	return Vector2(side * _climb_spread, -lerpf(_climb_height_min, _climb_height_max, pick))
 
 
 # --- Objects -------------------------------------------------------------------------
@@ -173,7 +206,8 @@ func _draw_food_glows(simulation: ColonySimulation, to_screen: Transform2D) -> v
 
 func _draw_object(simulation: ColonySimulation, object: MapObject, spot: Vector2) -> void:
 	var texture := _object_texture(object)
-	if object.is_food() and object.food_left < object.total_food:
+	var renewable := object.is_food() and simulation.object_kinds.is_renewable(object.kind)
+	if object.is_food() and not renewable and object.food_left < object.total_food:
 		texture = _eaten_texture(object, texture)
 	_draw_upright(texture, spot, simulation.object_kinds.sprite_width(object.kind), _foot_height(texture))
 
@@ -291,7 +325,7 @@ func _draw_crumb(ant: Ant, spot: Vector2, ant_texture: Texture2D, direction: Str
 	var mouth: Vector2 = MOUTHS[direction.replace("w", "e")]
 	if direction.ends_with("w"):
 		mouth.x = 1.0 - mouth.x
-	var crumb := _crumb_size * sqrt(ant.carried_food)
+	var crumb := _crumb_size * sqrt(maxi(ant.pieces_carried, 1))
 	var center := top_left + mouth * size
 	draw_texture_rect(_crumb_texture, Rect2(center - Vector2(crumb, crumb) * 0.5, Vector2(crumb, crumb)), false)
 
@@ -304,11 +338,14 @@ func _frames_for(ant: Ant) -> Dictionary:
 	return _ant_frames if ours else _rival_ant_frames
 
 
-func _draw_spider(enemy: Enemy, spot: Vector2, to_screen: Transform2D) -> void:
-	var direction := _screen_direction(enemy.heading, to_screen)
-	var is_walking := enemy.ants_in_contact.is_empty() and enemy.state != Enemy.State.EATING
-	var texture := _frame(enemy, _spider_frames[direction], is_walking)
-	var area := _draw_upright(texture, spot, _spider_size, _foot_height(texture))
-	var bar_width := _spider_size * 0.6
-	var bar_start := Vector2(spot.x - bar_width * 0.5, area.position.y - _health_bar_thickness * 2.0)
-	draw_line(bar_start, bar_start + Vector2(bar_width * enemy.hp / enemy.max_hp, 0.0), _health_bar_color, _health_bar_thickness)
+## A creature's sprite (beetle larvae grow), with a health bar once it is hurt.
+func _draw_creature(creature: Creature, spot: Vector2, to_screen: Transform2D) -> void:
+	var direction := _screen_direction(creature.heading, to_screen)
+	var frames: Dictionary = _creature_frames[creature.settings.sprite]
+	var texture := _frame(creature, frames[direction], creature.is_walking())
+	var width := creature.settings.sprite_size * creature.size_multiplier()
+	var area := _draw_upright(texture, spot, width, _foot_height(texture))
+	if creature.hp < creature.max_hp:
+		var bar_width := width * _health_bar_width
+		var bar_start := Vector2(spot.x - bar_width * 0.5, area.position.y - _health_bar_thickness * 2.0)
+		draw_line(bar_start, bar_start + Vector2(bar_width * creature.hp / creature.max_hp, 0.0), _health_bar_color, _health_bar_thickness)

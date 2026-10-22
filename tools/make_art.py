@@ -40,6 +40,10 @@ BARK = ["#2a1c12", "#3e2a1a", "#553a24", "#6e4c30", "#8a6442"]
 LEAF = ["#5a2410", "#8a3a16", "#b8581e", "#d9822e", "#efb45a"]
 PINE = ["#2e1a0e", "#4e2e18", "#6e4426", "#8e5e36"]
 MUSHROOM = ["#5a3a22", "#8a5a34", "#b07a48", "#e8d8b0", "#f6efd8"]
+CRICKET = ["#14120c", "#2e2a16", "#4a4424", "#6a6232", "#948a4a"]
+GRUB_HEAD = ["#4a2410", "#8a4a20", "#b8743a"]
+PETAL = ["#7a2a4a", "#c0507a", "#e88aaa", "#f6c8d8"]
+APHID = ["#4a7a2a", "#9ccf5a", "#d0f08a"]
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 rng = random.Random(7)
@@ -437,6 +441,90 @@ def spider_sprite(towards_screen, frame):
     return creature((width, height), parts, legs_far, legs_near, extras, ((22, ground), 16, 3))
 
 
+def cricket_sprite(towards_screen, frame):
+    """A cricket walking (hopping) to the right: long body, folded wings, big hind legs
+    (stretched out on the hop frame) and long antennae sweeping back over the body."""
+    image, draw, ground = canvas(34, 26)
+    head_y = ground - (7 if towards_screen else 9)
+    dark, mid, light = rgb(CRICKET[2]), rgb(CRICKET[3]), rgb(CRICKET[4])
+    hind_knee, hind_foot = ((9, ground - 15), (4, ground)) if frame == 0 else ((6, ground - 11), (0, ground - 1))
+    draw.line([(16, ground - 8), (hind_knee[0] + 2, hind_knee[1] + 1), (hind_foot[0] + 3, hind_foot[1] - 1)], fill=rgb(CRICKET[1]), width=2)  # far hind leg
+    for x in (18, 21):                                                          # far small legs
+        draw.line([(x, ground - 7), (x + 2, ground - 1)], fill=rgb(CRICKET[1]))
+    shaded_blob(draw, (12, ground - 7), 8, 3.6, [dark, mid, light])            # abdomen
+    shaded_blob(draw, (20, ground - 8), 3.6, 3.6, [dark, mid, light])          # thorax
+    shaded_blob(draw, (25, head_y), 3.2, 3.4, [dark, mid, light])              # head
+    draw.line([(6, ground - 10), (19, ground - 11)], fill=rgb(CRICKET[1]), width=2)  # folded wings
+    draw.point((26, head_y - 1), fill=rgb(CRICKET[0]))                         # eye
+    draw.line([(25, head_y - 3), (19, ground - 18), (5, ground - 21)], fill=rgb(CRICKET[1]))  # antennae
+    draw.line([(26, head_y - 3), (22, ground - 19), (12, ground - 23)], fill=rgb(CRICKET[1]))
+    draw.line([(15, ground - 8), hind_knee, hind_foot], fill=mid, width=2)     # near hind leg
+    for x, lift in [(19, 0), (23, 1)]:                                          # near small legs
+        draw.line([(x, ground - 6), (x + 3, ground - lift)], fill=dark)
+    return with_shadow(outline(image, CRICKET[0]), (16, ground), 11, 2)
+
+
+def cricket_straight_sprite(towards_screen, frame):
+    """A cricket coming straight towards the screen or going away: its big hind legs fold up
+    on both sides, antennae up."""
+    image, draw, ground = canvas(34, 26)
+    middle = 17
+    dark, mid, light = rgb(CRICKET[2]), rgb(CRICKET[3]), rgb(CRICKET[4])
+    knee_up = 15 if frame == 0 else 11
+    for side in (-1, 1):
+        draw.line([(middle + side * 3, ground - 8), (middle + side * 9, ground - knee_up), (middle + side * 11, ground)], fill=mid, width=2)
+        draw.line([(middle + side * 2, ground - 6), (middle + side * 5, ground)], fill=dark)
+    if towards_screen:
+        shaded_blob(draw, (middle, ground - 9), 4.5, 4.5, [dark, mid, light])   # body behind
+        shaded_blob(draw, (middle, ground - 6), 3.4, 3.4, [dark, mid, light])   # head in front
+        for side in (-1, 1):
+            draw.point((middle + side * 1.5, ground - 7), fill=rgb(CRICKET[0]))
+    else:
+        shaded_blob(draw, (middle, ground - 11), 3, 3, [dark, mid, light])      # head behind
+        shaded_blob(draw, (middle, ground - 7), 5, 4.5, [dark, mid, light])     # body in front
+        draw.line([(middle, ground - 11), (middle, ground - 3)], fill=rgb(CRICKET[1]))  # wings
+    for side in (-1, 1):
+        draw.line([(middle + side * 1, ground - 10), (middle + side * 5, ground - 19), (middle + side * 10, ground - 22)], fill=rgb(CRICKET[1]))
+    return with_shadow(outline(image, CRICKET[0]), (middle, ground), 11, 2)
+
+
+def grub_sprite(towards_screen, frame):
+    """A beetle larva crawling to the right: a fat white C-shaped grub made of round segments,
+    a brown head and tiny legs. Its middle rises and falls as it crawls."""
+    image, draw, ground = canvas(30, 20)
+    lift = 0.0 if frame == 0 else 1.0
+    head = (24, ground - 5)
+    if not towards_screen:
+        ellipse(draw, head, 3.2, 3, rgb(GRUB_HEAD[1]))                         # head behind the body
+    for segment in range(7):                                                    # tail to front
+        x = 4 + segment * 3
+        y = ground - 4 - (2 + lift if 2 <= segment <= 4 else (1 if segment in (1, 5) else 0))
+        shaded_blob(draw, (x, y), 3.3, 4.2 - abs(segment - 3) * 0.35, [rgb(LARVA[1]), rgb(LARVA[2]), rgb(LARVA[3])])
+        draw.line([(x + 1.5, y - 3), (x + 1.5, y + 2)], fill=rgb(LARVA[1]))
+    for x in (19, 21, 23):                                                      # tiny legs
+        draw.line([(x, ground - 2), (x + 1, ground)], fill=rgb(GRUB_HEAD[1]))
+    if towards_screen:
+        shaded_blob(draw, head, 3.2, 3, [rgb(GRUB_HEAD[0]), rgb(GRUB_HEAD[1]), rgb(GRUB_HEAD[2])])
+        draw.point((head[0] + 2, head[1] + 1), fill=rgb(GRUB_HEAD[0]))         # mandibles
+    return with_shadow(outline(image, LARVA[0]), (14, ground), 12, 2)
+
+
+def grub_straight_sprite(towards_screen, frame):
+    """A beetle larva crawling straight towards the screen (head in front) or away from it:
+    a fat round body with segment rings."""
+    image, draw, ground = canvas(30, 20)
+    middle = 15
+    lift = 0.0 if frame == 0 else 0.8
+    shaded_blob(draw, (middle, ground - 7 - lift), 8, 6, [rgb(LARVA[1]), rgb(LARVA[2]), rgb(LARVA[3])])
+    for ring in (-4, 0, 4):
+        draw.arc([middle + ring - 2, ground - 13 - lift, middle + ring + 2, ground - 1 - lift], 250, 290, fill=rgb(LARVA[1]))
+    if towards_screen:
+        shaded_blob(draw, (middle, ground - 4), 3.4, 3, [rgb(GRUB_HEAD[0]), rgb(GRUB_HEAD[1]), rgb(GRUB_HEAD[2])])
+        for side in (-1, 1):
+            draw.line([(middle + side * 4, ground - 2), (middle + side * 5, ground)], fill=rgb(GRUB_HEAD[1]))
+    return with_shadow(outline(image, LARVA[0]), (middle, ground), 10, 2)
+
+
 def save_directions(maker, straight_maker, name, palette=None):
     """name_se_1.png ... name_nw_2.png: se and ne are drawn, sw and nw are their mirror images;
     name_s_1.png, name_n_1.png...: walking straight towards / away from the screen.
@@ -629,16 +717,24 @@ def tech_tree_icon():
     return outline(image, DIRT[0])
 
 
-def trail_icon():
-    """A pink pheromone trail winding up to a crumb, with a little ant on it."""
+def focus_icon():
+    """A red-orange crosshair: where the attack ants are sent."""
     image, draw = icon_canvas()
-    points = [(3, 28), (9, 22), (8, 15), (15, 12), (21, 14), (26, 7)]
-    draw.line(points, fill=rgb("#c85a7a"), width=4)
-    draw.line(points, fill=rgb("#f0a0b8"), width=2)
-    ellipse(draw, (27, 6), 3, 2.5, rgb(CRUMB[2]))
-    for x, radius in [(12, 1.8), (15, 1.2), (18, 1.6)]:   # a tiny ant walking the trail
-        ellipse(draw, (x, 19), radius, radius, rgb(ANT[2]))
-    return outline(image, DIRT[0])
+    ellipse(draw, (16, 16), 11, 11, rgb("#ff6a3d"))
+    ellipse(draw, (16, 16), 8, 8, (0, 0, 0, 0))
+    ellipse(draw, (16, 16), 3, 3, rgb("#ff6a3d"))
+    for start, end in [((16, 1), (16, 9)), ((16, 23), (16, 31)), ((1, 16), (9, 16)), ((23, 16), (31, 16))]:
+        draw.line([start, end], fill=rgb("#efe4c0"), width=2)
+    return outline(image, "#4a1a0a")
+
+
+def lay_icon():
+    """Three white eggs: the queen laying larvae."""
+    image, draw = icon_canvas()
+    for center in [(10, 18), (22, 18), (16, 10)]:
+        shaded_blob(draw, center, 5, 6.5, [rgb(LARVA[1]), rgb(LARVA[3]), rgb("#ffffff")])
+    draw.line([(3, 28), (29, 28)], fill=rgb(NEST[2]), width=3)
+    return outline(image, LARVA[0])
 
 
 def nest_icon():
@@ -721,6 +817,40 @@ def dead_spider_sprite():
     draw.line([(11, ground - 6), (18, ground - 6)], fill=rgb(SPIDER[5]))     # marking on the belly
     curled_legs(1, SPIDER[3])                                                  # near legs
     return with_shadow(outline(image, SPIDER[0]), (20, ground), 16, 2)
+
+
+def dead_cricket_sprite():
+    """A cricket lying on its side, its big hind legs sticking up: a food item."""
+    image, draw, ground = canvas(26, 16)
+    dark, mid, light = rgb(CRICKET[2]), rgb(CRICKET[3]), rgb(CRICKET[4])
+    shaded_blob(draw, (11, ground - 4), 8, 3.5, [dark, mid, light])
+    shaded_blob(draw, (20, ground - 4), 3.2, 3, [dark, mid, light])
+    draw.line([(12, ground - 6), (8, ground - 12), (4, ground - 9)], fill=mid, width=2)   # hind leg up
+    draw.line([(14, ground - 6), (12, ground - 11), (9, ground - 12)], fill=dark)
+    draw.line([(21, ground - 6), (25, ground - 11)], fill=rgb(CRICKET[1]))                 # antenna
+    return with_shadow(outline(image, CRICKET[0]), (13, ground), 9, 1.5)
+
+
+def aphid_flower_sprite():
+    """A flower on a tall stem with leaves, little green aphids clustered along the stem
+    (where the ants climb up to milk them)."""
+    image, draw, ground = canvas(22, 44)
+    middle = 11
+    draw.line([(middle, ground), (middle, 10)], fill=rgb(GRASS[2]), width=2)              # stem
+    draw.polygon([(middle, ground - 8), (middle - 8, ground - 14), (middle - 2, ground - 10)], fill=rgb(GRASS[3]))  # leaves
+    draw.polygon([(middle, ground - 16), (middle + 8, ground - 22), (middle + 2, ground - 17)], fill=rgb(GRASS[3]))
+    for angle in range(6):                                                                 # petals
+        x = middle + 5 * np.cos(angle * np.pi / 3)
+        y = 8 + 3.5 * np.sin(angle * np.pi / 3)
+        shaded_blob(draw, (x, y), 3.2, 2.6, [rgb(PETAL[1]), rgb(PETAL[2]), rgb(PETAL[3])])
+    ellipse(draw, (middle, 8), 2.4, 2, rgb(FLOWER[1]))                                     # heart
+    local = random.Random(11)
+    for _ in range(14):                                                                    # aphids
+        y = local.randint(12, ground - 6)
+        x = middle + local.choice([-2, -1, 1, 2])
+        ellipse(draw, (x, y), 1.1, 0.9, rgb(APHID[1]))
+        draw.point((x, y - 0.5), fill=rgb(APHID[2]))
+    return with_shadow(outline(image, PETAL[0]), (middle, ground), 5, 1.5)
 
 
 def dead_ant_sprite():
@@ -852,6 +982,8 @@ def make_sprites():
     save_directions(major, major_straight, "ant_major")
     save_directions(major, major_straight, "ant_rival_major", (ANT, RIVAL_ANT))
     save_directions(spider_sprite, spider_straight_sprite, "spider")
+    save_directions(cricket_sprite, cricket_straight_sprite, "cricket")
+    save_directions(grub_sprite, grub_straight_sprite, "beetle_larva")
     dead_ant = dead_ant_sprite()
     dead_rival = recolor(dead_ant, ANT, RIVAL_ANT)
     for name, image in [("ant_dead", dead_ant), ("ant_rival_dead", dead_rival)]:
@@ -861,7 +993,7 @@ def make_sprites():
     for name, maker in [("food", apple_icon), ("terrain", mountains_icon), ("obstacles", stop_icon),
                         ("inspect", magnifier_icon), ("erase", eraser_icon), ("nest", nest_icon),
                         ("larva", larva_icon), ("behaviour", behaviour_icon), ("tech_tree", tech_tree_icon),
-                        ("trail", trail_icon)]:
+                        ("focus", focus_icon), ("lay", lay_icon)]:
         save(maker(), "sprites", "icons", name + ".png")
     save(crumb_sprite(), "sprites", "food_crumb.png")
     save(glow_sprite(), "sprites", "food_glow.png")
@@ -873,6 +1005,8 @@ def make_sprites():
     save(seed_sprite(), "sprites", "objects", "seed.png")
     save(larva_sprite(), "sprites", "objects", "larva.png")
     save(dead_spider_sprite(), "sprites", "objects", "dead_spider.png")
+    save(dead_cricket_sprite(), "sprites", "objects", "dead_cricket.png")
+    save(aphid_flower_sprite(), "sprites", "objects", "aphid_flower.png")
     # Obstacles
     for variant in range(3):
         save(rock_sprite(variant), "sprites", "objects", "rock.png" if variant == 0 else "rock_%d.png" % (variant + 1))

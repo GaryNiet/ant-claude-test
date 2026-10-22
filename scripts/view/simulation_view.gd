@@ -20,7 +20,7 @@ var simulation: ColonySimulation
 var level_path := ""          ## file the current level was loaded from
 var is_paused := false
 var play_time := 0.0          ## seconds played on this level; stops while paused
-## What the player clicked on: an Ant, an Enemy, a MapObject, a Colony (its nest), a Vector2i
+## What the player clicked on: an Ant, a Creature, a MapObject, a Colony (its nest), a Vector2i
 ## cell, or null.
 var selection: Variant = null
 var is_iso_view := false
@@ -214,12 +214,12 @@ func tick_fraction() -> float:
 	return clampf(_time_not_yet_simulated / _tick_length, 0.0, 1.0)
 
 
-## Selects whatever is at map position `spot`: an enemy, an ant, a nest, an object
+## Selects whatever is at map position `spot`: a creature, an ant, a nest, an object
 ## (food item or obstacle), or else the cell.
 func select_at(spot: Vector2) -> void:
-	for enemy in simulation.enemies:
-		if enemy.position.distance_to(spot) <= simulation.enemy_settings.radius:
-			selection = enemy
+	for creature in simulation.creatures:
+		if creature.position.distance_to(spot) <= maxf(creature.settings.radius, _pick_radius):
+			selection = creature
 			return
 	var closest_ant: Ant = null
 	var closest_distance := _pick_radius

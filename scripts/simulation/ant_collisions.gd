@@ -34,7 +34,7 @@ func _init(map_size: Vector2) -> void:
 	_rows = int(ceil(map_size.y / square_size)) + 1
 	_ants_in_square.resize(_columns * _rows)
 	_first_in_square.resize(_columns * _rows)
-	var contact_distance := ant_radius * 2.0 + float(GameSettings.get_setting("enemies", "contact_margin"))
+	var contact_distance := ant_radius * 2.0 + float(GameSettings.get_setting("creatures", "contact_margin"))
 	_rival_contact_distance_squared = contact_distance * contact_distance
 
 

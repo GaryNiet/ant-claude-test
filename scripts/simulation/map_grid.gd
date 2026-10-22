@@ -7,6 +7,8 @@ extends RefCounted
 ##                            (both are kept separately for each colony: ants only smell
 ##                            their own colony's trails)
 ## - "fight" pheromone      : laid in a zone around ants that are fighting an enemy
+## - "attack" pheromone     : the line the player's Focus tool draws from a nest to a spot;
+##                            attack ants follow it (kept for each colony, fades on its own)
 ## - food                   : units of food in the cell (an ant carries 1 unit)
 ## - obstacle               : ants can't walk through obstacle cells
 ## - path wear              : how worn the ground is by ants walking over it. Above
@@ -20,7 +22,7 @@ extends RefCounted
 ## all the ticks since that slice last faded), see [pheromones] decay_slices.
 ## Everything outside the map counts as an obstacle.
 
-enum Kind { GOING_OUT, GOING_HOME, FIGHT }
+enum Kind { GOING_OUT, GOING_HOME, FIGHT, ATTACK }
 
 const NO_FOOD := Vector2.INF  ## returned by find_food_near() when there is none
 
@@ -35,13 +37,10 @@ var cell_count: int     ## width x height
 var going_out := PackedFloat32Array()
 var going_home := PackedFloat32Array()
 var fight := PackedFloat32Array()
+var attack := PackedFloat32Array()   ## per colony, like going_out
 var food := PackedInt32Array()
 var obstacle := PackedByteArray()  ## 1 = obstacle, 0 = free
 var path_wear := PackedFloat32Array()
-## Trails the player drew (any colony), only to show them: the same strength as drawn, fading
-## like the real trail in going_home (which is what the ants smell).
-var drawn_trail := PackedFloat32Array()
-var drawn_trail_cells := 0  ## cells with some drawn trail left (0 = nothing to show)
 var unobstructed_wear: float  ## path wear from which a cell counts as unobstructed
 var _max_path_wear: float
 
@@ -57,6 +56,7 @@ var _food_in_region := PackedInt32Array()
 
 var _decay_per_second_log: float        ## precomputed for the decay formula
 var _fight_decay_per_second_log: float  ## the fight pheromone fades faster
+var _attack_decay_per_second_log: float ## the attack trail fades at its own pace
 var _path_decay_per_second_log: float   ## path wear fades much slower
 var _decay_slices: int                  ## the rows are faded in this many slices, one per tick
 var _next_decay_slice := 0
@@ -77,13 +77,14 @@ func _init(columns: int, rows: int, cell_size_in_pixels: float, colonies: int) -
 	_decay_per_second_log = log(0.5) / half_life
 	var fight_half_life: float = GameSettings.get_setting("ant_combat", "fight_pheromone_half_life")
 	_fight_decay_per_second_log = log(0.5) / fight_half_life
+	_attack_decay_per_second_log = log(0.5) / float(GameSettings.get_setting("focus", "half_life"))
 	_path_decay_per_second_log = log(0.5) / float(GameSettings.get_setting("paths", "half_life"))
 	unobstructed_wear = GameSettings.get_setting("paths", "unobstructed_wear")
 	_max_path_wear = GameSettings.get_setting("paths", "max_wear")
 	path_wear.resize(width * height)
-	drawn_trail.resize(width * height)
 	going_out.resize(cell_count * colony_count)
 	going_home.resize(cell_count * colony_count)
+	attack.resize(cell_count * colony_count)
 	fight.resize(width * height)
 	food.resize(width * height)
 	obstacle.resize(width * height)
@@ -126,6 +127,7 @@ func add_colony() -> void:
 	colony_count += 1
 	going_out.resize(cell_count * colony_count)
 	going_home.resize(cell_count * colony_count)
+	attack.resize(cell_count * colony_count)
 
 
 ## Adds `amount` of pheromone `kind` of `colony` to the cell under `world_position`
@@ -151,17 +153,19 @@ func deposit_zone(kind: Kind, center: Vector2, radius: float, amount: float) -> 
 		deposit(kind, cell_middle, amount)
 
 
-## Raises pheromone `kind` of `colony` to at least `strength` in every cell within `radius`
-## of `center` (the player drawing a trail; never lowers a stronger smell).
-func raise_zone(kind: Kind, center: Vector2, radius: float, strength: float, colony := 0) -> void:
-	var trail := going_out if kind == Kind.GOING_OUT else going_home
+## Raises `colony`'s attack trail to at least `strength` in every cell within `radius` of
+## `center` (the Focus tool; never lowers a stronger smell).
+func raise_attack_zone(center: Vector2, radius: float, strength: float, colony: int) -> void:
 	for index in cells_in_circle(center, radius):
 		if obstacle[index] == 0:
 			var slot := index + colony * cell_count
-			trail[slot] = maxf(trail[slot], minf(strength, max_strength))
-			if drawn_trail[index] == 0.0:
-				drawn_trail_cells += 1
-			drawn_trail[index] = maxf(drawn_trail[index], minf(strength, max_strength))
+			attack[slot] = maxf(attack[slot], minf(strength, max_strength))
+
+
+## Removes `colony`'s attack trail everywhere.
+func clear_attack(colony: int) -> void:
+	for index in range(colony * cell_count, (colony + 1) * cell_count):
+		attack[index] = 0.0
 
 
 ## Returns the strength of pheromone `kind` of `colony` at `world_position` (0 outside the map).
@@ -173,6 +177,8 @@ func sample(kind: Kind, world_position: Vector2, colony := 0) -> float:
 		return going_out[index + colony * cell_count]
 	if kind == Kind.GOING_HOME:
 		return going_home[index + colony * cell_count]
+	if kind == Kind.ATTACK:
+		return attack[index + colony * cell_count]
 	return fight[index]
 
 
@@ -198,6 +204,7 @@ func decay(delta: float) -> void:
 	var factor := exp(_decay_per_second_log * slice_delta)
 	var fight_factor := exp(_fight_decay_per_second_log * slice_delta)
 	var path_factor := exp(_path_decay_per_second_log * slice_delta)
+	var attack_factor := exp(_attack_decay_per_second_log * slice_delta)
 	var rows_per_slice := ceili(float(height) / _decay_slices)
 	var first := mini(_next_decay_slice * rows_per_slice, height) * width
 	var last := mini((_next_decay_slice + 1) * rows_per_slice, height) * width
@@ -205,22 +212,11 @@ func decay(delta: float) -> void:
 	for index in range(first, last):
 		fight[index] *= fight_factor
 		path_wear[index] *= path_factor
-	if drawn_trail_cells > 0:
-		_fade_drawn_trail(first, last, factor)
 	for colony in colony_count:
 		for index in range(first + colony * cell_count, last + colony * cell_count):
 			going_out[index] *= factor
 			going_home[index] *= factor
-
-
-## Drawn trails fade like the pheromone; below detection they are gone.
-func _fade_drawn_trail(first: int, last: int, factor: float) -> void:
-	for index in range(first, last):
-		if drawn_trail[index] > 0.0:
-			drawn_trail[index] *= factor
-			if drawn_trail[index] < 0.05:
-				drawn_trail[index] = 0.0
-				drawn_trail_cells -= 1
+			attack[index] *= attack_factor
 
 
 # --- Paths (unobstructed areas) ---------------------------------------------
@@ -253,11 +249,9 @@ func set_obstacle(index: int, is_blocked: bool) -> void:
 		for colony in colony_count:
 			going_out[index + colony * cell_count] = 0.0
 			going_home[index + colony * cell_count] = 0.0
+			attack[index + colony * cell_count] = 0.0
 		fight[index] = 0.0
 		path_wear[index] = 0.0
-		if drawn_trail[index] > 0.0:
-			drawn_trail[index] = 0.0
-			drawn_trail_cells -= 1
 	obstacle[index] = 1 if is_blocked else 0
 	terrain_version += 1
 
@@ -273,6 +267,14 @@ func set_food(index: int, amount: int) -> void:
 	total_food += change
 	_food_in_region[_region_index(index % width, index / width)] += change
 	terrain_version += 1
+
+
+## Takes up to `amount` units of food from the cell at `index`. Returns how many it took.
+func take_food_from_cell(index: int, amount: int) -> int:
+	var taken := mini(amount, food[index])
+	if taken > 0:
+		set_food(index, food[index] - taken)
+	return taken
 
 
 ## Takes 1 unit of food from the cell under `world_position`. Returns false if it had none.

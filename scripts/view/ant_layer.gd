@@ -1,6 +1,7 @@
 extends Node2D
-## Debug view only: draws the nest entrance, the ants and the enemies (spiders) as simple
-## shapes. Ants and enemies are arrows pointing where they are heading (only the drawing:
+## Debug view only: draws the nest entrance, the ants and the creatures (spiders, beetle
+## larvae, crickets, each in its [creature_<kind>] debug_color) as simple
+## shapes. Ants and creatures are arrows pointing where they are heading (only the drawing:
 ## their collision size stays a circle). An ant carrying food holds the food block in front
 ## of it. (The nest tiles are drawn by the ground layer; the isometric view uses the
 ## sprite layer instead of this one.)
@@ -14,17 +15,14 @@ var _rival_color: Color = GameSettings.get_color("colonies", "rival_tint")
 var _ant_with_food_color: Color = GameSettings.get_color("colors", "ant_with_food")
 var _ant_fighting_color: Color = GameSettings.get_color("colors", "ant_fighting")
 var _ant_cutting_color: Color = GameSettings.get_color("colors", "ant_cutting")
-var _enemy_color: Color = GameSettings.get_color("colors", "enemy")
-var _health_bar_color: Color = GameSettings.get_color("colors", "enemy_health_bar")
-var _enemy_radius: float = GameSettings.get_setting("enemies", "radius")
-var _enemy_appetite: float = GameSettings.get_setting("enemies", "appetite")
+var _health_bar_color: Color = GameSettings.get_color("colors", "creature_health_bar")
 var _food_color: Color = GameSettings.get_color("colors", "food")
-var _health_bar_gap: float = GameSettings.get_setting("display", "enemy_health_bar_gap")
-var _health_bar_thickness: float = GameSettings.get_setting("display", "enemy_health_bar_thickness")
+var _health_bar_gap: float = GameSettings.get_setting("display", "creature_health_bar_gap")
+var _health_bar_thickness: float = GameSettings.get_setting("display", "creature_health_bar_thickness")
 var _ant_length: float = GameSettings.get_setting("display", "ant_length")
 var _ant_width: float = GameSettings.get_setting("display", "ant_width")
-var _enemy_length: float = GameSettings.get_setting("display", "enemy_length")
-var _enemy_width: float = GameSettings.get_setting("display", "enemy_width")
+var _creature_length: float = GameSettings.get_setting("display", "creature_length_per_radius")
+var _creature_width: float = GameSettings.get_setting("display", "creature_width_per_radius")
 var _food_block_size: float = GameSettings.get_setting("display", "carried_food_block_size")
 var _nest_entrance_radius: float = GameSettings.get_setting("display", "nest_entrance_radius")
 
@@ -40,31 +38,31 @@ func _draw() -> void:
 			draw_circle(colony.nest_position, _nest_entrance_radius, _nest_entrance_color if colony.is_player else _rival_color)
 	for ant in simulation.ants:
 		_draw_ant(ant)
-	for enemy in simulation.enemies:
-		_draw_enemy(enemy)
+	for creature in simulation.creatures:
+		_draw_creature(creature)
 
 
-## Ants and spiders are drawn between their previous and current position (see
+## Ants and creatures are drawn between their previous and current position (see
 ## SimulationView.tick_fraction), so they move smoothly between simulation ticks.
 func _draw_ant(ant: Ant) -> void:
 	var spot := ant.previous_position.lerp(ant.position, view.tick_fraction())
 	_draw_arrow(spot, ant.heading, _ant_length * ant.size_multiplier, _ant_width * ant.size_multiplier, _ant_color_for(ant))
 	if ant.is_carrying_food():
 		# The block grows with the pieces carried (its area is proportional to the food).
-		var size := _food_block_size * sqrt(ant.carried_food)
+		var size := _food_block_size * sqrt(maxi(ant.pieces_carried, 1))
 		var forward := Vector2.from_angle(ant.heading)
 		_draw_square(spot + forward * (_ant_length + size) * 0.5, ant.heading, size, _food_color)
 
 
-func _draw_enemy(enemy: Enemy) -> void:
-	var spot := enemy.previous_position.lerp(enemy.position, view.tick_fraction())
-	_draw_arrow(spot, enemy.heading, _enemy_length, _enemy_width, _enemy_color)
-	if enemy.food_eaten > 0:  # belly: a green dot that grows with the food eaten
-		var fullness := minf(enemy.food_eaten / _enemy_appetite, 1.0)
-		draw_circle(spot, _enemy_radius * 0.7 * fullness, _food_color)
-	var bar_width := _enemy_radius * 2.0
-	var bar_start := spot + Vector2(-_enemy_radius, -_enemy_radius - _health_bar_gap)
-	var bar_end := bar_start + Vector2(bar_width * enemy.hp / enemy.max_hp, 0.0)
+## An arrow in the creature's color (sized by its body), with a health bar above it.
+func _draw_creature(creature: Creature) -> void:
+	var spot := creature.previous_position.lerp(creature.position, view.tick_fraction())
+	var radius := creature.settings.radius
+	var color := Color(creature.settings.value("debug_color"))
+	_draw_arrow(spot, creature.heading, radius * _creature_length, radius * _creature_width, color)
+	var bar_width := radius * 2.0
+	var bar_start := spot + Vector2(-radius, -radius - _health_bar_gap)
+	var bar_end := bar_start + Vector2(bar_width * creature.hp / creature.max_hp, 0.0)
 	draw_line(bar_start, bar_end, _health_bar_color, _health_bar_thickness)
 
 
