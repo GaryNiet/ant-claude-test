@@ -19,7 +19,7 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
   files it creates for new scripts, images and sounds.
 
 **Commits:**
-- (pending)
+- `2c81a02` — Use Godot 4.7 (the user's editor) so .import and .uid files stop changing
 
 ---
 
