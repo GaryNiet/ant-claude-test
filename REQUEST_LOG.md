@@ -4,6 +4,22 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #36 — 2026-10-22
+
+**Request:**
+> move maturity 2 to 60 ants
+
+**Done:**
+- `[maturity] ants_needed` = "0, 60" (was 40).
+- Balance test (Meadow, 3 seeds each, real minutes): only growing reaches maturity 2 at
+  10.8 / 11.6 / 16.5 min; 4 economy upgrades first at 11.5 / 13.6 / 15.5 min (was 7-10 at 40
+  ants). 2 of the 6 runs are past the 15-minute target.
+
+**Commits:**
+- (pending)
+
+---
+
 ## #35 — 2026-10-22
 
 **Request:**
