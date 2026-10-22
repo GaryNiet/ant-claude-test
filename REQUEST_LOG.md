@@ -4,6 +4,25 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #32 — 2026-10-22
+
+**Request:**
+> ants don't seem to eat the larva once they killed them
+
+**Done:**
+- They did, but very slowly: the attack ants that killed a beetle larva kept "attacking" (they
+  ignore food) and stood around the dead larva for as long as the attack trail lasted, while
+  only the odd collector carried pieces home. Measured: 80 food took 2 game minutes (4 real).
+- Now an attacking ant with nothing left to attack but food in sight (the kill) starts
+  collecting it, and comes back for more while the attack trail lasts. Measured: a 62-food
+  larva gone in 36 game seconds (~70 real seconds).
+- Balance check (Meadow, only growing, 3 seeds): maturity 2 at 7.3-8.5 min (was 8-10).
+
+**Commits:**
+- (pending)
+
+---
+
 ## #31 — 2026-10-22
 
 **Request** (by email, "[clod]", 2026-10-22):

@@ -28,7 +28,8 @@ extends RefCounted
 ##                  the Focus tool: follows the colony's "attack" trail (from the nest to
 ##                  the focused spot) towards stronger smell, and attacks anything it
 ##                  sees on the way or there: spiders, beetle larvae, crickets, rival ants
-##                  and nests. Goes home when the trail is gone and nothing is left.
+##                  and nests. With nothing left to attack, it collects the food in sight
+##                  (the kill); goes home when the trail is gone and nothing is left.
 ##   FIGHTING       Stands next to an enemy and hits it every attack_interval seconds,
 ##                  laying "fight" pheromone in a zone around itself. When the enemy dies
 ##                  or moves away, the ant goes back to what it was doing.
@@ -463,11 +464,16 @@ func _join_fight(sim: ColonySimulation) -> float:
 
 
 ## Follows the attack trail towards the focused spot, turning towards anything to attack
-## that it sees. Goes home once the trail has faded and nothing is in sight.
+## that it sees. With nothing left to attack but food in sight (usually what it just killed),
+## it collects the food. Goes home once the trail has faded and nothing is in sight.
 func _attack(sim: ColonySimulation) -> float:
 	var target := _attack_target_in_sight(sim)
 	if target != null:
 		return _turn_towards(target.position)
+	var food := _food_in_sight(sim)
+	if food != MapGrid.NO_FOOD:
+		_set_mode(Mode.GATHERING)
+		return _turn_towards(food)
 	if not _can_smell(sim, MapGrid.Kind.ATTACK) and time_in_mode > _settings.join_fight_give_up_time:
 		_set_mode(Mode.RETURNING_HOME)
 	return _steer_by_smell(sim, 0.0, 0.0, 0.0, 1.0)

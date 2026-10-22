@@ -84,7 +84,7 @@ way and there: beetle larvae, crickets, spiders, rival ants and nests. Settings 
   5 ants or eating their fill. Strong (250 health, a bite kills an ant); killed, they leave 400 food.
 
 **Balance** (tested with a scripted player, `tools/balance_test.gd`, see Where things are): maturity 2 (40 ants) comes after about
-8-10 real minutes when only growing, about the same with 2-4 economy upgrades bought first (carry
+7-10 real minutes when only growing, about the same with 2-4 economy upgrades bought first (carry
 more, mushroom harvest, motherbase, faster larvae), and those colonies end up bigger; buying
 fighting upgrades first (restraining bite to hunt crickets) reaches it after 10-14 minutes.
 Ants live 15-25 minutes; at most 1000 ants on the map.
