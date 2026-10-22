@@ -88,7 +88,7 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 - README updated (controls, the start, Focus, food types, animals, balance).
 
 **Commits:**
-- (pending)
+- `19662db` — Focus tool, beetle larvae, crickets, aphid flowers, food types, lay larva button, new start and rebalance with a balance test
 
 ---
 
