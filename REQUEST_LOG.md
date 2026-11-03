@@ -13,7 +13,8 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 - Question only, answered in chat (on the PC: your real Godot editor, screen, sound and
   performance, no pull needed; in the cloud: works with the PC off, nothing to install). No code change.
 
-**Commits:** _(filled in below once committed)_
+**Commits:**
+- `d836d05` — Log request #38 (PC vs cloud question)
 
 ---
 
