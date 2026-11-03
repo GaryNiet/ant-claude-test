@@ -1,0 +1,53 @@
+; Ant colony level. Tiles: d dirt, g grass, w water. Objects: kind, column, row of the center cell.
+name = Meadow
+cell_size = 8.0
+tile_cells = 4
+starting_ants = 5
+nest = 80, 44
+tiles:
+dddgggggdddddddddgggggggggdddddddddddddg
+dddgggggdddddddddgggggggggdddddddddddddg
+dddgggggddddddddddggggggggdddddddddddddg
+ddggggggdddddddddddgggggggddddddddddddgg
+ddggggggddddddddddddggggggddddddddddgggg
+dgggggggdddddddddddddddgdddddddddggggggg
+ggggggggddddddddddddddddddddddgggggggggg
+gggggggdddddddddddddddddddddgggggggggggg
+ggggggddddddddddddddddddddddgggggggggggg
+gggdddddddddddddddddddddddddgggggggggggg
+ddddddddddddddddddddddddddddgggggggggggg
+ddddddddddddddddddddddddddddgggggggggggd
+ddddddddddddddddddddddddddddgggggggggggd
+dddddddddddddddddddddddddddddggggggggddd
+ddddddddddddgggddddddddddddddggggggddddd
+ddddddddddddggggdddddddddddddgggdddddddd
+dddddddddddddgggdddddddddddddggddddddddd
+dddddddddddddddddddddddddddggggddddddddd
+ggddddddddddddddddddddddddgggggddddddddd
+gggddddddddddddddddddddddgggggggdddddddd
+ggggdddddddddddddddddddddgggggggdddddddd
+ggggdddddddddddddddddddddggggggggddddddd
+objects:
+aphid_flower 96, 30
+aphid_flower 62, 58
+strawberry 120, 44
+blueberry 114, 40
+blueberry 126, 47
+seed 118, 50
+seed 125, 39
+larva 40, 20
+blueberry 30, 70
+seed 140, 15
+twig 60, 20
+dead_leaf 100, 72
+high_grass 20, 12
+high_grass 24, 14
+high_grass 150, 70
+mushroom 130, 22
+mushroom 133, 24
+pine_cone 45, 60
+tree_trunk 8, 80
+tree_trunk 152, 6
+rock 98, 20
+dead_leaf 70, 82
+twig 135, 60

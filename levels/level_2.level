@@ -1,0 +1,110 @@
+; Ant colony level. Tiles: d dirt, g grass, w water. Objects: kind, column, row of the center cell.
+name = Walled valley
+cell_size = 8.0
+tile_cells = 4
+starting_ants = 5
+nest = 30, 54
+tiles:
+dddddddgggggggggddddddddddggggggggddddddddddddddddddgggggggd
+ddddddddggggggggggddddddddddggggggggdddddddddddggdddddgggggg
+dddddddddggggggggggdddddddddggggggggddddddddddgggggddddggggg
+ddddddddddgggggggggdddddddddgggggggggdddddddddggggggddddgggg
+ddddddddddgggggggggddddddddddggggggggddddddddddgggggdddddggg
+dddddddddddggggdgggddddddddddggggggggdddddddddddgggggdddddgg
+dddddddddddggggdgggddddddddddggggggggddddddddddddggggggdddgg
+ddddddddddgggggdgggdddddddddddgggggggdgdddddddddddggggggdddg
+ddddddddddgggggdggddddddddddddddgggggdggdddddddddddggggggddd
+dddddddddggggdddddddddgdddddddddddgggdggggddddddddddgggggddd
+dddddddggggdddddddddggggggdddddddddggdgggggdddddddddgggggggd
+ggggggggggddddddddddgggggggdddddddddggggggggddddddddddgggggg
+gggggggggdddddddddddggggggggdddddddddggggggggddddddddddggggg
+gggggggggdddddddddddggggggggddddddddddggggggggddddddddddgggg
+ggggggggdddddddddddgggggggggdddddddddddggggggggdddddddddgggg
+ggggggggdddddddddddggggggggggdddddddddddggggggggdddddddddggg
+ggggggggdddddddddddgggggggggggdddddddddddggggggggdddddddddgg
+gggggggddddddddddddggggggggggggddddddddddgggggggggdddddddddd
+ggggggdddddddddddddggddgggggggggddddddddddgggggggggddddddddd
+gggdddddddddddddddddddddddgggggggddddddddddgggggggggdddddddd
+gdddddddddddddgdgddddddddddgggggggddddddddddgggggggggddddddd
+gddddddddddggggdgddddddddddggggggggddddddddddgggggggggdddddd
+gdddddddddgggggdgdddddddddddggggggggddddddddddgggggggggddddd
+gdddddddddgggggggdddddddddddddgggggggddddddddddggggggggddddd
+ddddddddddgggggggddddddddddddddggggggdgdddddddddgggggggddddd
+ddddddddddgggggggddddddddddddddggggggggddddddddddggggggddddd
+ddddddddddggggggggddddddddddddddggggggggddddddddddggggggdddd
+objects:
+aphid_flower 44, 36
+aphid_flower 48, 72
+rock 90, 2
+rock 90, 6
+tree_trunk 90, 10
+tree_trunk 150, 10
+rock 90, 14
+rock 150, 14
+rock 90, 18
+rock 150, 18
+rock 62, 22
+rock 90, 22
+rock 150, 22
+rock 62, 26
+rock 90, 26
+rock 150, 26
+rock 62, 30
+rock 150, 30
+rock 62, 34
+rock 150, 34
+rock 62, 38
+rock 150, 38
+tree_trunk 62, 42
+tree_trunk 150, 42
+rock 62, 46
+rock 62, 50
+rock 62, 54
+rock 62, 58
+rock 62, 62
+rock 62, 66
+rock 150, 66
+tree_trunk 62, 70
+rock 150, 70
+rock 62, 74
+rock 150, 74
+rock 62, 78
+rock 150, 78
+rock 62, 82
+rock 90, 82
+rock 150, 82
+rock 62, 86
+rock 90, 86
+rock 150, 86
+rock 62, 90
+rock 90, 90
+rock 150, 90
+rock 90, 94
+rock 150, 94
+rock 90, 98
+rock 150, 98
+rock 90, 102
+rock 90, 106
+strawberry 200, 28
+blueberry 194, 24
+blueberry 206, 31
+seed 198, 34
+seed 205, 23
+strawberry 120, 54
+blueberry 114, 50
+blueberry 126, 57
+seed 118, 60
+seed 125, 49
+strawberry 204, 84
+blueberry 198, 80
+blueberry 210, 87
+seed 202, 90
+seed 209, 79
+larva 200, 15
+twig 40, 90
+dead_leaf 110, 100
+high_grass 10, 10
+high_grass 230, 100
+mushroom 75, 15
+pine_cone 175, 60
+tree_trunk 5, 100
