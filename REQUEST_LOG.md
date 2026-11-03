@@ -4,6 +4,20 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #37 — 2026-11-03
+
+**Request:**
+> can you find the project on my PC?
+
+**Done:**
+- Question only, answered in chat: this cloud session can't see the PC. No folder on it is shared
+  through Remote Control yet; once one is (Claude desktop app: Settings, Claude Code, Remote
+  Control), the session can ask to use it. No code change.
+
+**Commits:** _(filled in below once committed)_
+
+---
+
 ## #36 — 2026-10-22
 
 **Request:**
