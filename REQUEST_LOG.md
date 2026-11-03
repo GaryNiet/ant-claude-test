@@ -14,7 +14,8 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
   through Remote Control yet; once one is (Claude desktop app: Settings, Claude Code, Remote
   Control), the session can ask to use it. No code change.
 
-**Commits:** _(filled in below once committed)_
+**Commits:**
+- `a95bee1` — Log request #37 (find the project on the PC)
 
 ---
 
