@@ -4,6 +4,19 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #39 — 2026-11-03
+
+**Request:**
+> how do I give access to files from the app?
+
+**Done:**
+- Question only, answered in chat: Claude desktop app, Settings, Claude Code, Remote Control,
+  add the project folder (or run `claude remote-control` in that folder). No code change.
+
+**Commits:** _(filled in below once committed)_
+
+---
+
 ## #38 — 2026-11-03
 
 **Request:**
