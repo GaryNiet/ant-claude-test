@@ -4,6 +4,21 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #40 — 2026-11-03
+
+**Request:**
+> do you have access? Can you fix my merge conflict?
+
+**Done:**
+- No folder from the PC is shared with this session yet, so no access to the PC.
+- Checked GitHub: PR #1 has no conflict (merges cleanly into main), so the conflict is in the
+  copy on the PC (a `git pull` meeting local changes). Explained how to share the folder so it
+  can be fixed from here, or how to resolve it by hand. No code change.
+
+**Commits:** _(filled in below once committed)_
+
+---
+
 ## #39 — 2026-11-03
 
 **Request:**
