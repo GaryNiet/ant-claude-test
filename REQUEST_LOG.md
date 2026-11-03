@@ -13,7 +13,8 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 - Question only, answered in chat: Claude desktop app, Settings, Claude Code, Remote Control,
   add the project folder (or run `claude remote-control` in that folder). No code change.
 
-**Commits:** _(filled in below once committed)_
+**Commits:**
+- `5198843` — Log request #39 (how to share files from the app)
 
 ---
 
