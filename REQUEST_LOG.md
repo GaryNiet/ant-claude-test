@@ -15,7 +15,8 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
   copy on the PC (a `git pull` meeting local changes). Explained how to share the folder so it
   can be fixed from here, or how to resolve it by hand. No code change.
 
-**Commits:** _(filled in below once committed)_
+**Commits:**
+- `372a307` — Log request #40 (merge conflict on the PC)
 
 ---
 
