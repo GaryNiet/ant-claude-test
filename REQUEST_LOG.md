@@ -4,6 +4,19 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #38 — 2026-11-03
+
+**Request:**
+> is there an advantage of doing it on my pc rather than remotely?
+
+**Done:**
+- Question only, answered in chat (on the PC: your real Godot editor, screen, sound and
+  performance, no pull needed; in the cloud: works with the PC off, nothing to install). No code change.
+
+**Commits:** _(filled in below once committed)_
+
+---
+
 ## #37 — 2026-11-03
 
 **Request:**
