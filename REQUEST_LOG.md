@@ -4,6 +4,21 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
 
 ---
 
+## #41 — 2026-11-05
+
+**Request:**
+> I have another session that is more advanced that I ran on the desktop app. Can you catch up to that? The code should be committed
+
+**Done:**
+- Checked GitHub: no branch has anything newer than this branch (last commit 2026-11-03, the
+  request #40 log), so the desktop session's commits were made on the PC but not pushed.
+  No PC folder is shared with this session either, so they can't be reached from here yet.
+  Asked for a push from the desktop session (or a shared folder). No code change.
+
+**Commits:** _(filled in below once committed)_
+
+---
+
 ## #40 — 2026-11-03
 
 **Request:**
