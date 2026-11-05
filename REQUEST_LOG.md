@@ -15,7 +15,8 @@ Newest first. Each entry: date, request (verbatim), what was done, commits.
   No PC folder is shared with this session either, so they can't be reached from here yet.
   Asked for a push from the desktop session (or a shared folder). No code change.
 
-**Commits:** _(filled in below once committed)_
+**Commits:**
+- `aba4ed4` — Log request #41 (catch up with the desktop session)
 
 ---
 
